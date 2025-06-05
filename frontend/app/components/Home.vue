@@ -2,8 +2,10 @@
     <Page class="page">
       <ActionBar title="DeliverXY" class="action-bar" />
       <StackLayout class="home-panel" verticalAlignment="center" horizontalAlignment="center">
-        <Label text="Welcome to DeliverXY" class="h1" />
-        <Button text="View Deliveries" @tap="onViewDeliveries" />
+        <Label 
+        v-for="delivery in deliveries"
+        :key="delivery.id"
+        :text="delivery.description" />
       </StackLayout>
     </Page>
   </template>
@@ -11,30 +13,21 @@
   
   
 <script>
-import { Http } from "@nativescript/core";
-
 export default {
   data() {
     return {
-      deliveries: []
+      deliveries: [],
     };
   },
-  methods: {
-    async onViewDeliveries() {
-      try {
-        const response = await Http.request({
-          url: "http://10.0.2.2:8080/api/deliveries", // Replace with your backend IP
-          method: "GET"
-        });
-        this.deliveries = response.content.toJSON();
-        alert('Deliveries:\n' + this.deliveries.map(d => d.name || d).join('\n'));
-      } catch (err) {
-        console.error(err);
-        alert("Failed to fetch deliveries");
-      }
-    }
-  }
-}
+  mounted() {
+    fetch("http://10.0.2.2:8080/api/deliveries")
+      .then((res) => res.json())
+      .then((data) => {
+        this.deliveries = data;
+      })
+      .catch((err) => console.error(err));
+  },
+};
 </script>
 
 
