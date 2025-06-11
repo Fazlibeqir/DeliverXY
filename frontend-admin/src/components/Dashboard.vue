@@ -6,6 +6,9 @@ const auth = useAuthStore()
 
 <template>
   <div class="p-4">
-    <h2 class="text-2xl">Welcome, {{ auth.user?.name || 'Admin' }}</h2>
+    <span v-if="auth.token && auth.user" class="ml-auto text-gray-700">
+  Hello, {{ auth.user.username }}
+</span>
+
   </div>
 </template>

@@ -1,12 +1,16 @@
 <script setup>
-import axios from 'axios'
+import api from '../services/axios'
 import { ref, onMounted } from 'vue'
 
 const users = ref([])
 
 onMounted(async () => {
-  const res = await axios.get('http://localhost:8080/api/admin/users')
-  users.value = res.data
+  try {
+    const res = await api.get('/user') // no need to specify full URL
+    users.value = res.data
+  } catch (err) {
+    console.error('Failed to fetch users:', err)
+  }
 })
 </script>
 
