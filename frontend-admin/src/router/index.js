@@ -3,11 +3,16 @@ import { useAuthStore } from '../stores/auth'
 
 import Dashboard from '../components/Dashboard.vue'
 import Users from '../components/Users.vue'
-import Login from '../components/Login.vue'  // create this component
+import Login from '../components/Login.vue'
+import Deliveries from '../components/Deliveries.vue'
 
 const routes = [
-  { path: '/', component: Dashboard, meta: { requiresAuth: true } },
-  { path: '/users', component: Users, meta: { requiresAuth: true } },
+  { path: '/', component: Dashboard, //meta: { requiresAuth: true } 
+},
+  { path: '/users', component: Users,// meta: { requiresAuth: true } 
+},
+  { path: '/deliveries', component: Deliveries, //meta: {requiresAuth: true}
+},
   { path: '/login', component: Login },
   { path: '/:pathMatch(.*)*', redirect: '/' } // catch-all redirect to dashboard or 404 page
 ]
