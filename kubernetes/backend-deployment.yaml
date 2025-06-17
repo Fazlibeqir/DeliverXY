@@ -4,7 +4,14 @@ metadata:
   name: deliverxy-backend
   namespace: deliverxy
 spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: deliverxy-backend
   template:
+    metadata:
+      labels:
+        app: deliverxy-backend
     spec:
       containers:
       - name: backend
