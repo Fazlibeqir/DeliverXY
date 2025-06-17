@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: postgres
   namespace: deliverxy
-labels:
+  labels:
   app: postgres
 spec:
   replicas: 1
