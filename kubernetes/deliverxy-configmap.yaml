@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deliverxy-config
+  namespace: deliverxy
+data:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://db:5432/deliverxydb"
+  SPRING_DATASOURCE_USERNAME: "postgres"
+  POSTGRES_DB: "deliverxydb"
+  POSTGRES_USER: "postgres"
+  BACKEND_PORT: "8080"
+  FRONTEND_PORT: "5173"
+  POSTGRES_PORT: "5432"
