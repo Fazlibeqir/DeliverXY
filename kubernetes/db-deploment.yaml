@@ -4,7 +4,7 @@ metadata:
   name: postgres
   namespace: deliverxy
   labels:
-  app: postgres
+    app: postgres
 spec:
   replicas: 1
   selector:
