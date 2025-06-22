@@ -16,5 +16,6 @@ spec:
       containers:
         - name: frontend-admin
           image: redbfs/deliverxy-frontend-admin:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 80
