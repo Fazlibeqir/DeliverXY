@@ -1,14 +1,12 @@
-#TODO - Replace your.domain.com in ingress.yaml with your actual domain.
+
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: deliverxy-ingress
   namespace: deliverxy
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   rules:
-    - host: your.domain.com
+    - host: deliverxy.local # map it to 127.0.0.1 deliverxy.local
       http:
         paths:
           - path: /api

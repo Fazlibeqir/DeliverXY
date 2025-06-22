@@ -16,7 +16,7 @@ public class CorsConfig {
         CorsConfiguration config=new CorsConfiguration();
         config.setAllowCredentials(true);
         config.setAllowedOrigins(List.of("http://localhost:5173",
-        "http://frontend-admin:80"));
+        "http://frontend-admin:80","http://deliverxy.local"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
         source.registerCorsConfiguration("/**", config);

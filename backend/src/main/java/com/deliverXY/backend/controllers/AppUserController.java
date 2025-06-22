@@ -59,7 +59,7 @@ public class AppUserController {
     }
 
     @DeleteMapping("/delete-user/{id}")
-    public ResponseEntity deleteUser(@PathVariable Long id){
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id){
         if(id == null || appUserService.findById(id) == null){
             return ResponseEntity.notFound().build();
         }
