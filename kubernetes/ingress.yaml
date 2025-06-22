@@ -5,8 +5,9 @@ metadata:
   name: deliverxy-ingress
   namespace: deliverxy
 spec:
+  ingressClassName: nginx
   rules:
-    - host: deliverxy.local # map it to 127.0.0.1 deliverxy.local
+    - host: deliverxy.local
       http:
         paths:
           - path: /api
