@@ -22,7 +22,7 @@ spec:
             - name: POSTGRES_DB
               value: deliverxydb
             - name: POSTGRES_USER
-              value: deliverxyuser
+              value: postgres
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:

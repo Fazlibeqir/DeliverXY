@@ -4,7 +4,7 @@ metadata:
   name: deliverxy-config
   namespace: deliverxy
 data:
-  SPRING_DATASOURCE_URL: "jdbc:postgresql://db:5432/deliverxydb"
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/deliverxydb"
   SPRING_DATASOURCE_USERNAME: "postgres"
   POSTGRES_DB: "deliverxydb"
   POSTGRES_USER: "postgres"
