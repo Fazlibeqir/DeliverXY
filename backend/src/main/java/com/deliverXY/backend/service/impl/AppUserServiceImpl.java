@@ -6,6 +6,8 @@ import com.deliverXY.backend.models.dto.AppUserDTO;
 import com.deliverXY.backend.repositories.AppUserRepository;
 import com.deliverXY.backend.service.AppUserService;
 
+import jakarta.transaction.Transactional;
+
 import java.util.List;
 
 @Service
@@ -28,6 +30,7 @@ public class AppUserServiceImpl implements AppUserService {
     }
 
     @Override
+    @Transactional
     public AppUser create(AppUserDTO appUserDTO) {
         this.appUserRepository.deleteByUsername(appUserDTO.getUsername());// Why ?
         AppUser user = new AppUser(appUserDTO.getUsername(), appUserDTO.getEmail(), appUserDTO.getPassword(), appUserDTO.getPhoneNumber(),appUserDTO.getRole());
@@ -35,6 +38,7 @@ public class AppUserServiceImpl implements AppUserService {
     }
 
     @Override
+    @Transactional
     public AppUser update(Long id, AppUserDTO appUserDTO) {
         AppUser user = this.findById(id);
         user.setUsername(appUserDTO.getUsername());
@@ -46,6 +50,7 @@ public class AppUserServiceImpl implements AppUserService {
     }
 
     @Override
+    @Transactional
     public void deleteById(Long id) {
         this.appUserRepository.deleteById(id);
     }
