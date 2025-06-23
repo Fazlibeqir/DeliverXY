@@ -1,0 +1,1 @@
+app.cors.allowed-origins=https://your-production-domain.com,http://your-ec2-ip

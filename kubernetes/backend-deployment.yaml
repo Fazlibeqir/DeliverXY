@@ -68,3 +68,7 @@ spec:
               secretKeyRef:
                 name: postgres-secret
                 key: POSTGRES_PASSWORD
+
+          # Set Spring active profile here:
+          - name: SPRING_PROFILES_ACTIVE
+            value: dev  # or "prod" for production environment
