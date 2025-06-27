@@ -25,7 +25,7 @@ public class CorsConfig {
         config.setAllowCredentials(true);
        // List<String> origins = Arrays.asList(allowedOrigins.split(","));
        
-        config.setAllowedOrigins(Arrays.asList("http://13.48.56.2:3000", "http://ec2-13-48-56-2.eu-north-1.compute.amazonaws.com:3000"));
+        config.setAllowedOrigins(Arrays.asList("http://13.48.56.2:3000", "http://ec2-13-48-56-2.eu-north-1.compute.amazonaws.com:3000","http://deliverxy.local/api"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
 
