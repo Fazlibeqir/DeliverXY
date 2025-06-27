@@ -65,7 +65,7 @@ onMounted(fetchStats)
 
     <div class="mt-10 flex gap-4">
       <RouterLink to="/users" class="btn btn-primary"> Manage Users</RouterLink>
-      <RouterLink to="/deliveries" class="btn btn-success">🚚 Manage Deliveries</RouterLink>
+      <RouterLink to="/deliveries" class="btn btn-success"> Manage Deliveries</RouterLink>
     </div>
   </div>
 </template>
