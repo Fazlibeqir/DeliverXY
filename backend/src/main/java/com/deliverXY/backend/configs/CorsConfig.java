@@ -1,5 +1,6 @@
 package com.deliverXY.backend.configs;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.context.annotation.Bean;
@@ -15,14 +16,16 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class CorsConfig {
 
     @Value("${app.cors.allowed-origins}")
-    private List<String> allowedOrigins;
+    private String allowedOrigins;
 
     @Bean
     public CorsFilter corsFilter() {
        
         CorsConfiguration config=new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.setAllowedOrigins(allowedOrigins);
+        List<String> origins = Arrays.asList(allowedOrigins.split(","));
+       
+        config.setAllowedOrigins(origins);
         config.setAllowedHeaders(List.of("*"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
 
