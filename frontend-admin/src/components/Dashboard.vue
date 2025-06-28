@@ -41,7 +41,7 @@ onMounted(fetchStats)
 
 <template>
   <div class="p-6 bg-gray-100 min-h-screen">
-    <h1 class="text-3xl font-bold text-gray-800 mb-8">📊 Admin Dashboard and aws CD test</h1>
+    <h1 class="text-3xl font-bold text-gray-800 mb-8">📊 Admin Dashboard and aws CD test2.0</h1>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <DashboardCard title="Total Users" :count="userCount" color="blue" />
