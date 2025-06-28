@@ -41,4 +41,18 @@ The Kubernetes cluster is managed with ArgoCD for continuous deployment.
 
     - For AWS EC2: Docker images are deployed automatically to the server using GitHub Actions and Docker Compose.
 
-    - For Kubernetes: Deployment manifests are synced and managed automatically using ArgoCD.
+    - For Kubernetes: Deployment manifests are automatically synced and managed by ArgoCD.
+      
+## Using ngrok for ArgoCD Access and Syncing
+To enable GitHub Actions to communicate with your ArgoCD server securely, expose ArgoCD via port-forwarding and ngrok:
+   1. Forward the ArgoCD server port locally:
+      ```bash
+      kubectl -n argocd port-forward svc/argocd-server 8080:80
+      ```
+   2. Start ngrok to expose your local ArgoCD port to the internet:
+       ```bash
+      ngrok http 8080
+      ```
+   3. Use the generated ngrok URL (e.g., https://8657-92-53-30-197.ngrok-free.app) as your ARGOCD_SERVER secret in GitHub.
+   4. GitHub Actions uses this public ngrok URL to log in to ArgoCD and sync the latest manifests automatically after each successful CI run.
+      
