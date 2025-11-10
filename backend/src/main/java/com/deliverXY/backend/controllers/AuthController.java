@@ -3,16 +3,14 @@ package com.deliverXY.backend.controllers;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.deliverXY.backend.models.AppUser;
 import com.deliverXY.backend.models.dto.ReqRes;
 import com.deliverXY.backend.service.AppUserService;
 import com.deliverXY.backend.service.AuthService;
+
+import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -31,25 +29,44 @@ public class AuthController {
         return ResponseEntity.status(401).build(); // Not authenticated
     }
 
-    String email = userDetails.getUsername(); // Usually the email or username
-    AppUser user = appUserService.findByEmail(email); // You need to implement this
+    String identifier  = userDetails.getUsername(); // Usually the email or username
+        AppUser user = appUserService.findByUsername(identifier)
+                .or(() -> appUserService.findByEmail(identifier))
+                .orElseThrow(() -> new NoSuchElementException("User not found")); // You need to implement this
 
-    if (user != null) {
         return ResponseEntity.ok(user);
-    } else {
-        return ResponseEntity.notFound().build();
     }
-}
-    @PostMapping("/signup")
-    public ResponseEntity<ReqRes> signUp(@RequestBody ReqRes signUpRequest){
-        return ResponseEntity.ok().body(authService.signUp(signUpRequest));
+    @PostMapping("/register")
+    public ResponseEntity<ReqRes> register(@RequestBody ReqRes registerRequest){
+        return ResponseEntity.ok().body(authService.signUp(registerRequest));
     }
-    @PostMapping("/signin")
-    public ResponseEntity<ReqRes> signIn(@RequestBody ReqRes signInRequest){
-        return ResponseEntity.ok().body(authService.signIn(signInRequest));
+    @PostMapping("/login")
+    public ResponseEntity<ReqRes> signIn(@RequestBody ReqRes loginRequest){
+        return ResponseEntity.ok().body(authService.signIn(loginRequest));
     }
     @PostMapping("/refresh")
-    public ResponseEntity<ReqRes> refresh(@RequestBody ReqRes refreshRequest){
-        return ResponseEntity.ok().body(authService.refreshToken(refreshRequest));
+    public ResponseEntity<ReqRes> refresh(
+            @RequestBody(required = false) ReqRes refreshRequest,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        String token = (refreshRequest != null && refreshRequest.getToken() != null)
+                ? refreshRequest.getToken()
+                : (authHeader != null && authHeader.startsWith("Bearer ")
+                ? authHeader.substring(7)
+                : null);
+
+        if (token == null) {
+            ReqRes response = new ReqRes();
+            response.setStatusCode(400);
+            response.setError("Missing token in body or header");
+            return ResponseEntity.badRequest().body(response);
+        }
+        ReqRes request = new ReqRes();
+        request.setToken(token);
+        request.setRefreshToken(token);
+
+        ReqRes response = authService.refreshToken(request);
+        return ResponseEntity.ok(response);
     }
+
 }
