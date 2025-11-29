@@ -1,0 +1,20 @@
+package com.deliverXY.backend.NewCode.exceptions;
+
+public abstract class BaseException extends RuntimeException {
+
+    private final String errorCode;
+
+    public BaseException(String message) {
+        super(message);
+        this.errorCode = null;
+    }
+
+    public BaseException(String message, String errorCode) {
+        super(message);
+        this.errorCode = errorCode;
+    }
+
+    public String getErrorCode() {
+        return errorCode;
+    }
+}
