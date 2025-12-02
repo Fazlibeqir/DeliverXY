@@ -15,4 +15,6 @@ public interface AuthService {
     AuthResponseDTO refresh(RefreshTokenRequest refreshTokenRequest);
 
     UserResponseDTO getCurrentUser(UserPrincipal principal);
+
+    void logout(String authHeader, UserPrincipal principal);
 }

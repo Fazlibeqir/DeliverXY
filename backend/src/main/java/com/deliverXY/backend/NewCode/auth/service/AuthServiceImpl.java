@@ -30,7 +30,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserFactory userFactory;
     private final AuthMapper mapper;
     private final AuthValidationService authValidationService;
-
+    private final TokenBlacklistService tokenBlacklistService;
 
 
     @Override
@@ -73,6 +73,10 @@ public class AuthServiceImpl implements AuthService {
 
         String token = req.getRefreshToken();
 
+        if (jwtService.isExpired(token)){
+            throw new UnauthorizedException("Refresh token expired");
+        }
+
         // Validate type
         Claims claims = jwtService.parseClaims(token);
         String type = claims.get("type", String.class);
@@ -103,6 +107,18 @@ public class AuthServiceImpl implements AuthService {
             throw new UnauthorizedException("User not logged in");
         }
         return mapper.toBasicUser(principal.getUser());
+    }
+
+    @Override
+    public void logout(String authHeader, UserPrincipal principal) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")){
+            throw new BadRequestException("Invalid authorization header");
+        }
+        String token = authHeader.substring(7);
+        if (!jwtService.validate(token)){
+            throw new BadRequestException("Invalid token");
+        }
+        tokenBlacklistService.blacklist(token);
     }
 
     private AuthResponseDTO buildTokens(AppUser user) {

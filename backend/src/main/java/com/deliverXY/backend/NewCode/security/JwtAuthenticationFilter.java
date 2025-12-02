@@ -1,5 +1,6 @@
 package com.deliverXY.backend.NewCode.security;
 
+import com.deliverXY.backend.NewCode.auth.service.TokenBlacklistService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -26,6 +27,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final TokenBlacklistService tokenBlacklistService;
 
 
     @Override
@@ -36,6 +38,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
        String token = resolveToken(request);
+        if (tokenBlacklistService.isBlacklisted(token)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
        if (token != null && jwtService.validate(token)) {
            Claims claims = jwtService.parseClaims(token);

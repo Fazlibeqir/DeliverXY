@@ -1,6 +1,6 @@
 package com.deliverXY.backend.NewCode.security;
 
-import com.deliverXY.backend.models.AppUser;
+import com.deliverXY.backend.NewCode.user.domain.AppUser;
 import com.deliverXY.backend.NewCode.user.service.AppUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;

@@ -37,6 +37,14 @@ public class AuthController {
     public ApiResponse<AuthResponseDTO> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.ok(authService.login(request));
     }
+    @PostMapping("/logout")
+    public ApiResponse<String> logout(@AuthenticationPrincipal UserPrincipal principal,
+                                      @RequestHeader("Authorization") String authHeader) {
+
+        authService.logout(authHeader, principal);
+        return ApiResponse.ok("Logged out successfully");
+    }
+
 
 
     @PostMapping("/refresh")

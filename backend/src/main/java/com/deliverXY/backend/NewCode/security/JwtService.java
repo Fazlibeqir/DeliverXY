@@ -94,4 +94,12 @@ public class JwtService {
     public long getRefreshTokenExpirySeconds() {
         return refreshExpiration / 1000;
     }
+
+    public boolean isExpired(String token) {
+        try{
+            return parseClaims(token).getExpiration().before(new Date());
+        }catch (Exception e){
+            return true;
+        }
+    }
 }
