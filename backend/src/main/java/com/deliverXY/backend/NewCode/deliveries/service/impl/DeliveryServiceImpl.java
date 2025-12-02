@@ -214,7 +214,7 @@ public class DeliveryServiceImpl implements DeliveryService {
                 .orElse(new DeliveryPayment());
 
         payment.setDelivery(d);
-        payment.setPaymentStatus(PaymentStatus.PAID);
+        payment.setPaymentStatus(PaymentStatus.COMPLETED);
         payment.setFinalAmount(totalPrice);
         payment.setPaymentMethod(PaymentMethod.WALLET);
         payment.setPaidAt(LocalDateTime.now());

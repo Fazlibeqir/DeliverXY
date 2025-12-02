@@ -54,13 +54,18 @@ public class StripeProvider {
     public PaymentResultDTO confirm(String reference) {
         Stripe.apiKey = secretKey;
 
-        PaymentIntent intent = PaymentIntent.retrieve(reference);
+        PaymentIntent intent = null;
+        try {
+            intent = PaymentIntent.retrieve(reference);
+        } catch (StripeException e) {
+            throw new RuntimeException(e);
+        }
 
         Payment payment = paymentRepo.findByProviderReference(reference)
                 .orElseThrow(() -> new RuntimeException("Payment not found"));
 
         if (intent.getStatus().equals("succeeded")) {
-            payment.setStatus(PaymentStatus.PAID);
+            payment.setStatus(PaymentStatus.COMPLETED);
             paymentRepo.save(payment);
         }
 

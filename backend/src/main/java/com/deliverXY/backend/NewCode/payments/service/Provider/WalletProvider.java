@@ -31,7 +31,7 @@ public class WalletProvider {
 
         Payment p = new Payment();
         p.setProvider(PaymentProvider.WALLET);
-        p.setStatus(PaymentStatus.PAID);
+        p.setStatus(PaymentStatus.COMPLETED);
         p.setDelivery(d);
         paymentRepo.save(p);
 

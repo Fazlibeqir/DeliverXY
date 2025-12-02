@@ -35,7 +35,7 @@ public class CashProvider {
         Payment payment = paymentRepo.findByProviderReference(reference)
                 .orElseThrow();
 
-        payment.setStatus(PaymentStatus.PAID);
+        payment.setStatus(PaymentStatus.COMPLETED);
         paymentRepo.save(payment);
 
         return new PaymentResultDTO(null, payment.getId(), payment.getProvider());
