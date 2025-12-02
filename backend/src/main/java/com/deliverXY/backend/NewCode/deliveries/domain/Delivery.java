@@ -11,7 +11,14 @@ import lombok.ToString;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "deliveries")
+@Table(
+        name = "deliveries",
+        indexes = {
+                @Index(name = "idx_delivery_client", columnList = "client_id"),
+                @Index(name = "idx_delivery_agent", columnList = "agent_id"),
+                @Index(name = "idx_delivery_created", columnList = "created_at")
+        }
+)
 @Data
 @NoArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)

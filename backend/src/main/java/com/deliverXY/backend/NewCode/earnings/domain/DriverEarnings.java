@@ -9,7 +9,13 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "driver_earnings")
+@Table(
+        name = "driver_earnings",
+        indexes = {
+                @Index(name = "idx_earnings_agent", columnList = "agentId"),
+                @Index(name = "idx_earnings_created", columnList = "createdAt")
+        }
+)
 @Data
 @NoArgsConstructor
 public class DriverEarnings {
@@ -27,6 +33,7 @@ public class DriverEarnings {
     private BigDecimal driverEarnings = BigDecimal.ZERO;
     private BigDecimal tip = BigDecimal.ZERO;
 
+    @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
 }

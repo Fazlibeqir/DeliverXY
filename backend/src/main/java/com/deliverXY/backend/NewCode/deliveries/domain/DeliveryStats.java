@@ -7,7 +7,12 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "delivery_stats")
+@Table(
+        name = "delivery_stats",
+        indexes = {
+                @Index(name = "idx_stats_date", columnList = "stat_date")
+        }
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
