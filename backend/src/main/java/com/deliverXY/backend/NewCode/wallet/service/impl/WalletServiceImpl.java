@@ -86,6 +86,7 @@ public class WalletServiceImpl implements WalletService {
     }
 
     @Override
+    @Transactional
     public void deposit(Long userId, BigDecimal amount, String reference) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0)
             throw new NotFoundException("Deposit amount must be positive");
@@ -99,6 +100,7 @@ public class WalletServiceImpl implements WalletService {
     }
 
     @Override
+    @Transactional
     public boolean withdraw(Long userId, BigDecimal amount, String reference) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0)
             throw new IllegalArgumentException("Withdraw amount must be positive");
@@ -106,8 +108,8 @@ public class WalletServiceImpl implements WalletService {
         Wallet wallet = getWallet(userId);
 
         // not enough funds
-        if (wallet.getBalance().compareTo(amount) < 0) {
-            return false;
+        if (!wallet.canWithdraw(amount)) {
+            throw new NotFoundException("Insufficient funds");
         }
 
         wallet.setBalance(wallet.getBalance().subtract(amount));
@@ -128,6 +130,7 @@ public class WalletServiceImpl implements WalletService {
     }
 
     @Override
+    @Transactional
     public void addTransaction(Long userId, BigDecimal amount, String type, String reference) {
         // Convert old string type → enum
         TransactionType txType = TransactionType.valueOf(type.toUpperCase());

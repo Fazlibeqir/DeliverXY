@@ -15,8 +15,6 @@ public class DeliveryResponseDTO {
     private String packageType;
     private Double packageWeight;
     private String packageDimensions;
-    private Boolean isFragile;
-    private Boolean isUrgent;
     
     // Pickup Information
     private String pickupAddress;
@@ -59,23 +57,8 @@ public class DeliveryResponseDTO {
     // Tracking and Communication
     private Double estimatedDistance;
     private Integer estimatedDuration;
-    private Double currentLatitude;
-    private Double currentLongitude;
-    private LocalDateTime lastLocationUpdate;
     private String trackingCode;
-    
-    // Insurance and Safety
-    private Boolean isInsured;
-    private BigDecimal insuranceAmount;
-    
-    // Ratings and Reviews
-    private Integer clientRating;
-    private String clientReview;
-    private Integer agentRating;
-    private String agentReview;
-    private Boolean reviewedByClient;
-    private Boolean reviewedByAgent;
-    
+
     // Metadata
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

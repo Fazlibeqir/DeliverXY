@@ -3,16 +3,14 @@ package com.deliverXY.backend.NewCode.deliveries.service.impl;
 import com.deliverXY.backend.NewCode.common.enums.PaymentMethod;
 import com.deliverXY.backend.NewCode.common.enums.PaymentStatus;
 import com.deliverXY.backend.NewCode.deliveries.domain.*;
+import com.deliverXY.backend.NewCode.deliveries.dto.*;
 import com.deliverXY.backend.NewCode.deliveries.repository.*;
-import com.deliverXY.backend.NewCode.deliveries.dto.DeliveryDTO;
-import com.deliverXY.backend.NewCode.deliveries.dto.DeliveryResponseDTO;
-import com.deliverXY.backend.NewCode.deliveries.dto.FareEstimateDTO;
-import com.deliverXY.backend.NewCode.deliveries.dto.FareResponseDTO;
 import com.deliverXY.backend.NewCode.deliveries.mapper.DeliveryMapper;
 import com.deliverXY.backend.NewCode.deliveries.service.DeliveryService;
 import com.deliverXY.backend.NewCode.deliveries.validator.DeliveryValidator;
 import com.deliverXY.backend.NewCode.earnings.domain.DriverEarnings;
 import com.deliverXY.backend.NewCode.earnings.repository.DriverEarningsRepository;
+import com.deliverXY.backend.NewCode.exceptions.BadRequestException;
 import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
 import com.deliverXY.backend.NewCode.user.domain.AppUser;
 import com.deliverXY.backend.NewCode.common.enums.DeliveryStatus;
@@ -149,8 +147,17 @@ public class DeliveryServiceImpl implements DeliveryService {
         Delivery d = load(id);
 
         if (d.getStatus() != DeliveryStatus.REQUESTED)
-            throw new NotFoundException("Delivery is not open for assignment");
+            throw new BadRequestException("Delivery is not open for assignment");
 
+        if (!agent.getIsActive())
+            throw new BadRequestException("Agent is not active");
+
+        if (!agent.getIsVerified()){
+            throw new BadRequestException("Agent is not verified");
+        }
+        if (d.getAgent() != null){
+            throw new BadRequestException("Delivery is already assigned");
+        }
 
         d.setAgent(agent);
         d.setStatus(DeliveryStatus.ASSIGNED);
@@ -194,22 +201,22 @@ public class DeliveryServiceImpl implements DeliveryService {
                 d.getDropoffLongitude()
         ).getTotalFare());
 
-        boolean paymentOk = walletService.withdraw(
-                d.getClient().getId(),
-                totalPrice,
-                "Delivery payment for " + d.getTrackingCode()
-        );
-
-        if (!paymentOk) {
-            throw new NotFoundException("Insufficient funds");
-        }
-        DeliveryPayment payment = paymentRepo.findById(d.getId())
+       try{
+            walletService.withdraw(
+                   d.getClient().getId(),
+                   totalPrice,
+                   "Delivery payment for " + d.getTrackingCode()
+           );
+       }catch (Exception e){
+               throw new BadRequestException("Insufficient funds");
+       }
+        DeliveryPayment payment = paymentRepo.findByDeliveryId(d.getId())
                 .orElse(new DeliveryPayment());
 
         payment.setDelivery(d);
         payment.setPaymentStatus(PaymentStatus.PAID);
         payment.setFinalAmount(totalPrice);
-        payment.setPaymentMethod(String.valueOf(PaymentMethod.WALLET));
+        payment.setPaymentMethod(PaymentMethod.WALLET);
         payment.setPaidAt(LocalDateTime.now());
         paymentRepo.save(payment);
 
@@ -233,7 +240,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     public DeliveryResponseDTO updateLocation(Long id, Double lat, Double lng) {
         Delivery delivery = load(id);
 
-        DeliveryTracking tracking = trackingRepo.findById(id)
+        DeliveryTracking tracking = trackingRepo.findByDeliveryId((id))
                 .orElse(new DeliveryTracking());
 
         tracking.setDeliveryId(delivery.getId());
@@ -255,7 +262,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     //FARE ESTIMATION
     @Override
     public FareResponseDTO estimateFare(FareEstimateDTO dto, AppUser user) {
-        var breakdown = pricingService.getFareBreakdown(
+        FareBreakdown breakdown = pricingService.getFareBreakdown(
                 dto.getPickupLatitude(),
                 dto.getPickupLongitude(),
                 dto.getDropoffLatitude(),

@@ -3,7 +3,6 @@ package com.deliverXY.backend.NewCode.admin.service;
 import com.deliverXY.backend.NewCode.admin.dto.AdminDashboardDTO;
 import com.deliverXY.backend.NewCode.admin.dto.AdminUserDTO;
 import com.deliverXY.backend.NewCode.deliveries.dto.DeliveryResponseDTO;
-import com.deliverXY.backend.NewCode.user.domain.AppUser;
 
 import java.util.List;
 

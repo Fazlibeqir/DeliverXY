@@ -1,5 +1,6 @@
 package com.deliverXY.backend.NewCode.deliveries.domain;
 
+import com.deliverXY.backend.NewCode.common.enums.PaymentMethod;
 import com.deliverXY.backend.NewCode.common.enums.PaymentStatus;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -25,7 +26,7 @@ public class DeliveryPayment {
     @Enumerated(EnumType.STRING)
     private PaymentStatus paymentStatus = PaymentStatus.PENDING;
 
-    private String paymentMethod;
+    private PaymentMethod paymentMethod;
 
     private BigDecimal tipAmount = BigDecimal.ZERO;
     private BigDecimal finalAmount;

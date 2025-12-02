@@ -69,7 +69,7 @@ public class AdminServiceImpl implements AdminService {
     public List<AdminUserDTO> getAllUsers() {
         return userService.findAll()
                 .stream()
-                .map(e-> new AdminUserDTO(e))
+                .map(e-> new AdminUserDTO(e,kycService.getKYC(e.getId())))
                 .toList();
     }
 
