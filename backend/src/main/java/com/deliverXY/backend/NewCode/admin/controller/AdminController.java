@@ -2,8 +2,10 @@ package com.deliverXY.backend.NewCode.admin.controller;
 
 import com.deliverXY.backend.NewCode.admin.dto.AdminDashboardDTO;
 import com.deliverXY.backend.NewCode.admin.dto.AssignDeliveryDTO;
+import com.deliverXY.backend.NewCode.admin.service.AdminEarningsService;
 import com.deliverXY.backend.NewCode.admin.service.AdminService;
 import com.deliverXY.backend.NewCode.common.response.ApiResponse;
+import com.deliverXY.backend.NewCode.kyc.service.AppUserKYCService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 public class AdminController {
 
     private final AdminService adminService;
+    private final AdminEarningsService adminEarningsService;
+    private final AppUserKYCService kycService;
 
     @GetMapping("/dashboard")
     @PreAuthorize("hasRole('ADMIN')")
@@ -26,6 +30,26 @@ public class AdminController {
     public ApiResponse<?> getUsers() {
         return ApiResponse.ok(adminService.getAllUsers());
     }
+
+    @GetMapping("/earnings")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<?> getEarnings() {
+        return ApiResponse.ok(adminEarningsService.getEarnings());
+    }
+    @PostMapping("/kyc/{userId}/approve")
+    public ApiResponse<?> approveKYC(@PathVariable Long userId) {
+        return ApiResponse.ok(kycService.approveKYC(userId, "ADMIN"));
+    }
+
+    @PostMapping("/kyc/{userId}/reject")
+    public ApiResponse<?> rejectKYC(
+            @PathVariable Long userId,
+            @RequestBody String reason
+    ) {
+        return ApiResponse.ok(kycService.rejectKYC(userId, reason));
+    }
+
+
 
     @PostMapping("/users/{id}/block")
     @PreAuthorize("hasRole('ADMIN')")
@@ -56,4 +80,8 @@ public class AdminController {
         adminService.assignDelivery(deliveryId, request.getAgentId());
         return ApiResponse.ok("Delivery assigned");
     }
+    //TODO : FUTURE POST /api/admin/deliveries/{id}/refund
+    //TODO : FUTURE POST /api/admin/deliveries/{id}/cancel
+    //TODO: FUTURE search/filter users
+    //TODO: FUTURE search/filter deliveries
 }

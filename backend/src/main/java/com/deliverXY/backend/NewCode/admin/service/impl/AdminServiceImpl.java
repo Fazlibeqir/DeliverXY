@@ -7,6 +7,7 @@ import com.deliverXY.backend.NewCode.deliveries.dto.DeliveryResponseDTO;
 import com.deliverXY.backend.NewCode.deliveries.service.DeliveryService;
 import com.deliverXY.backend.NewCode.exceptions.BadRequestException;
 import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
+import com.deliverXY.backend.NewCode.kyc.domain.AppUserKYC;
 import com.deliverXY.backend.NewCode.user.domain.AppUser;
 import com.deliverXY.backend.NewCode.kyc.service.AppUserKYCService;
 import com.deliverXY.backend.NewCode.user.service.AppUserService;
@@ -69,7 +70,13 @@ public class AdminServiceImpl implements AdminService {
     public List<AdminUserDTO> getAllUsers() {
         return userService.findAll()
                 .stream()
-                .map(e-> new AdminUserDTO(e,kycService.getKYC(e.getId())))
+                .map(e-> {
+                    AppUserKYC kyc = null;
+                    try {
+                        kyc = kycService.getKYC(e.getId());
+                    } catch (Exception ignored){}
+                    return new AdminUserDTO(e, kyc);
+                })
                 .toList();
     }
 
