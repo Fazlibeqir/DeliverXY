@@ -6,6 +6,7 @@ import com.deliverXY.backend.NewCode.kyc.domain.AppUserKYC;
 import com.deliverXY.backend.NewCode.kyc.dto.KYCInfoDTO;
 import com.deliverXY.backend.NewCode.kyc.dto.KYCUpdateDTO;
 import com.deliverXY.backend.NewCode.kyc.service.AppUserKYCService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -26,15 +27,9 @@ public class KYCController {
     @PutMapping
     public ApiResponse<KYCInfoDTO> submitKYC(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody KYCUpdateDTO dto
+            @Valid @RequestBody KYCUpdateDTO dto
     ) {
-        AppUserKYC entity = new AppUserKYC();
-        entity.setIdFrontUrl(dto.getIdFrontUrl());
-        entity.setIdBackUrl(dto.getIdBackUrl());
-        entity.setSelfieUrl(dto.getSelfieUrl());
-        entity.setProofOfAddressUrl(dto.getProofOfAddressUrl());
-
-        AppUserKYC saved = kycService.submitKYC(principal.getUser().getId(), entity);
+        AppUserKYC saved = kycService.submitKYC(principal.getUser().getId(), dto);
 
         return ApiResponse.ok(toDTO(saved));
     }

@@ -48,16 +48,4 @@ public class FileUploadController {
         fileUploadService.deleteFile(fileUrl);
         return ApiResponse.ok("File deleted");
     }
-
-    @PostMapping("/validate")
-    public ApiResponse<String> validate(@RequestParam MultipartFile file) {
-
-        if (!fileUploadService.isValidFileType(file))
-            return new ApiResponse<>(false, "Invalid file type", System.currentTimeMillis(), 400, "INVALID_TYPE", "/api/upload/validate");
-
-        if (!fileUploadService.isValidFileSize(file))
-            return new ApiResponse<>(false, "File too large", System.currentTimeMillis(), 400, "FILE_TOO_LARGE", "/api/upload/validate");
-
-        return ApiResponse.ok("Valid");
-    }
 }

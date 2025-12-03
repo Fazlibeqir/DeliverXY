@@ -39,7 +39,9 @@ public class FileUploadServiceImpl implements FileUploadService {
         Path dir = Paths.get(uploadPath, "kyc", userId.toString());
         Files.createDirectories(dir);
 
-        String filename = documentType + "_" + uuidName(file);
+        String safeDocumentType = documentType.replaceAll("[^a-zA-Z0-9_-]", "");
+
+        String filename = safeDocumentType + "_" + uuidName(file);
         Path filePath = dir.resolve(filename);
 
         saveFile(file, filePath);
