@@ -1,5 +1,6 @@
 package com.deliverXY.backend.NewCode.earnings.service.impl;
 
+import com.deliverXY.backend.NewCode.common.enums.PayoutStatus;
 import com.deliverXY.backend.NewCode.earnings.domain.DriverPayout;
 import com.deliverXY.backend.NewCode.earnings.dto.DriverEarningsDTO;
 import com.deliverXY.backend.NewCode.earnings.dto.DriverPayoutDTO;
@@ -8,13 +9,16 @@ import com.deliverXY.backend.NewCode.earnings.dto.PayoutRequestDTO;
 import com.deliverXY.backend.NewCode.earnings.repository.DriverEarningsRepository;
 import com.deliverXY.backend.NewCode.earnings.repository.DriverPayoutRepository;
 import com.deliverXY.backend.NewCode.earnings.service.EarningsService;
+import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
 import com.deliverXY.backend.NewCode.wallet.service.WalletService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.beans.Transient;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -37,13 +41,13 @@ public class EarningsServiceImpl implements EarningsService {
                 .filter(e -> e.getAgentId().equals(driverId))
                 .toList();
 
-        double totalEarned = earnings.stream()
-                .mapToDouble(e -> e.getDriverEarnings().doubleValue())
-                .sum();
+        BigDecimal totalEarned = earnings.stream()
+                .map(e -> e.getDriverEarnings())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        double totalTips = earnings.stream()
-                .mapToDouble(e -> e.getTip().doubleValue())
-                .sum();
+        BigDecimal totalTips = earnings.stream()
+                .map(e -> e.getTip())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         double totalDistance = earnings.stream()
                 .mapToDouble(e -> e.getDelivery().getDistanceKm())
@@ -52,7 +56,7 @@ public class EarningsServiceImpl implements EarningsService {
         return new EarningsSummaryDTO(
                 totalEarned,
                 totalTips,
-                earnings.size(),
+                (long)earnings.size(),
                 totalDistance
         );
     }
@@ -62,13 +66,14 @@ public class EarningsServiceImpl implements EarningsService {
         return earningsRepo.findByAgentId(driverId, pageable)
                 .map(e -> new DriverEarningsDTO(
                         e.getDeliveryId(),
-                        e.getDriverEarnings().doubleValue(),
-                        e.getTip().doubleValue(),
+                        e.getDriverEarnings(),
+                        e.getTip(),
                         e.getCreatedAt().toString()
                 ));
     }
 
     @Override
+    @Transactional
     public DriverPayoutDTO requestManualPayout(Long driverId, PayoutRequestDTO request) {
         var earnings = earningsRepo.findAllByCreatedAtBetween(
                         request.getPeriodStart().atStartOfDay(),
@@ -77,28 +82,27 @@ public class EarningsServiceImpl implements EarningsService {
                 .filter(e -> e.getAgentId().equals(driverId))
                 .toList();
 
-        double total = earnings.stream()
-                .mapToDouble(e -> e.getDriverEarnings().doubleValue())
-                .sum();
-
-        walletService.deposit(driverId, BigDecimal.valueOf(total), "Manual payout");
+        BigDecimal total = earnings.stream()
+                .map(e -> e.getDriverEarnings())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         var payout = DriverPayout.builder()
                 .driverId(driverId)
-                .amountPaid(BigDecimal.valueOf(total))
+                .amountPaid(total)
                 .periodStart(request.getPeriodStart().atStartOfDay())
                 .periodEnd(request.getPeriodEnd().atTime(23, 59, 59))
+                .status(PayoutStatus.PENDING)
                 .build();
 
         payoutRepo.save(payout);
 
         return new DriverPayoutDTO(
                 payout.getId(),
-                payout.getAmountPaid().doubleValue(),
+                payout.getAmountPaid(),
                 payout.getPeriodStart().toString(),
                 payout.getPeriodEnd().toString(),
                 payout.getPaidAt().toString(),
-                "PAID"
+                payout.getStatus().name()
         );
     }
 
@@ -107,33 +111,45 @@ public class EarningsServiceImpl implements EarningsService {
         return payoutRepo.findByDriverId(driverId, pageable)
                 .map(p -> new DriverPayoutDTO(
                         p.getId(),
-                        p.getAmountPaid().doubleValue(),
+                        p.getAmountPaid(),
                         p.getPeriodStart().toString(),
                         p.getPeriodEnd().toString(),
-                        p.getPaidAt().toString(),
-                        "PAID"
+                        p.getPaidAt() != null ? p.getPaidAt().toString() : null,
+                        p.getStatus().name()
                 ));
     }
 
     @Override
     public Page<DriverPayoutDTO> getPendingPayouts(Pageable pageable) {
-        return payoutRepo.findPending(pageable)
+        return payoutRepo.findByStatus(PayoutStatus.PENDING,pageable)
                 .map(p -> new DriverPayoutDTO(
                         p.getId(),
-                        p.getAmountPaid().doubleValue(),
+                        p.getAmountPaid(),
                         p.getPeriodStart().toString(),
                         p.getPeriodEnd().toString(),
-                        p.getPaidAt().toString(),
-                        "PENDING"
+                        null,
+                        p.getStatus().name()
                 ));
     }
 
     @Override
     public void processPayout(Long payoutId, String transactionRef, String processedBy) {
         var payout = payoutRepo.findById(payoutId)
-                .orElseThrow(() -> new RuntimeException("Payout not found"));
+                .orElseThrow(() -> new NotFoundException("Payout not found with ID: " + payoutId));
 
+        if (payout.getStatus() != PayoutStatus.PAID) {
+            log.warn("Attempt to re-process paid payout: {}", payoutId);
+            return;
+        }
+        walletService.deposit(payout.getDriverId(),
+                payout.getAmountPaid(), "Manual payout processing. Ref: " + transactionRef);
+
+        // 2. Update payout record
         payout.setPaidAt(LocalDateTime.now());
+        payout.setTransactionRef(transactionRef);
+        payout.setProcessedBy(processedBy);
+        payout.setStatus(PayoutStatus.PAID);
         payoutRepo.save(payout);
+        log.info("Processed payout {} for driver {}", payoutId, payout.getDriverId());
     }
 }

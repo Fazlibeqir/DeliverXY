@@ -1,5 +1,6 @@
 package com.deliverXY.backend.NewCode.earnings.domain;
 
+import com.deliverXY.backend.NewCode.common.enums.PayoutStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -28,5 +29,18 @@ public class DriverPayout {
     private LocalDateTime periodStart;
     private LocalDateTime periodEnd;
 
+    @Enumerated(EnumType.STRING) // <-- NEW: Status tracking
+    private PayoutStatus status = PayoutStatus.PENDING;
+
     private LocalDateTime paidAt = LocalDateTime.now();
+
+    private String transactionRef; // <-- Added for processing
+    private String processedBy; // <-- Added for processing
+
+    @PrePersist // Ensure paidAt is only set if status is PAID
+    protected void onCreate() {
+        if (paidAt == null && status == PayoutStatus.PAID) {
+            paidAt = LocalDateTime.now();
+        }
+    }
 }
