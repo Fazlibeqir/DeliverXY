@@ -9,6 +9,7 @@ import com.deliverXY.backend.NewCode.notifications.websocket.NotificationWebSock
 import com.deliverXY.backend.NewCode.user.domain.AppUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -18,6 +19,7 @@ public class NotificationService {
     private final NotificationWebSocketService ws;
     private final FirebasePushService firebasePush;
 
+    @Transactional
     public Notification create(
             AppUser user,
             String title,
@@ -51,7 +53,7 @@ public class NotificationService {
                 delivery.getId().toString()
         );
     }
-
+    @Transactional
     public void markRead(Long id) {
         repo.findById(id).ifPresent(n -> {
             n.setIsRead(true);

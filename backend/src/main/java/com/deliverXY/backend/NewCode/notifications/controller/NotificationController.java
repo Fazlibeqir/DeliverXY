@@ -1,7 +1,6 @@
 package com.deliverXY.backend.NewCode.notifications.controller;
 
 import com.deliverXY.backend.NewCode.common.response.ApiResponse;
-import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
 import com.deliverXY.backend.NewCode.notifications.dto.NotificationDTO;
 import com.deliverXY.backend.NewCode.notifications.repository.NotificationRepository;
 import com.deliverXY.backend.NewCode.notifications.service.NotificationService;
@@ -22,8 +21,7 @@ public class NotificationController {
 
     @GetMapping
     public ApiResponse<?> all(@AuthenticationPrincipal UserPrincipal principal) {
-        var user = userService.findById(principal.getUser().getId())
-                .orElseThrow(()->new NotFoundException("User not found"));
+        var user = userService.requireById(principal.getUser().getId());
         return ApiResponse.ok(
                 repo.findByUserOrderByCreatedAtDesc(user)
                         .stream().map(NotificationDTO::from).toList()

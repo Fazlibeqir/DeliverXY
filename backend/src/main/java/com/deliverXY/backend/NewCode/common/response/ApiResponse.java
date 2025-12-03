@@ -45,4 +45,16 @@ public class ApiResponse<T> {
                 message
         );
     }
+
+    public static ApiResponse<String> error(String tokenIsRequired, int i) {
+        return new ApiResponse<>(
+                false,
+                null,
+                System.currentTimeMillis(),
+                i,
+                "BAD_REQUEST",
+                null,
+                tokenIsRequired
+        );
+    }
 }

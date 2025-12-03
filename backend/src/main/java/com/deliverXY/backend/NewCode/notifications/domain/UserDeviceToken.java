@@ -6,7 +6,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "user_device_tokens")
+@Table(name = "user_device_tokens",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"user_id", "deviceToken", "platform"})
+        }
+)
 @Data
 @NoArgsConstructor
 public class UserDeviceToken {
