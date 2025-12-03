@@ -97,7 +97,13 @@ public class JwtService {
 
     public boolean isExpired(String token) {
         try{
-            return parseClaims(token).getExpiration().before(new Date());
+            parseClaims(token);
+            return false;
+        }catch (ExpiredJwtException e){
+            return true;
+        }catch (JwtException e){
+            log.warn("Non-expiration JWT issue encountered: {}",e.getMessage());
+            return true;
         }catch (Exception e){
             return true;
         }

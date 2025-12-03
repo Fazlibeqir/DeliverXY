@@ -111,13 +111,14 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void logout(String authHeader, UserPrincipal principal) {
+        if (principal == null){
+            throw new UnauthorizedException("User not logged in");
+        }
         if (authHeader == null || !authHeader.startsWith("Bearer ")){
             throw new BadRequestException("Invalid authorization header");
         }
         String token = authHeader.substring(7);
-        if (!jwtService.validate(token)){
-            throw new BadRequestException("Invalid token");
-        }
+
         tokenBlacklistService.blacklist(token);
     }
 

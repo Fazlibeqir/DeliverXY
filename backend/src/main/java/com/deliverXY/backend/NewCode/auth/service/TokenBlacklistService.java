@@ -7,6 +7,13 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * NOTE FOR SCALABILITY: This in-memory implementation is adequate for a single-instance
+ * deployment (Diploma Thesis). For production scale (multiple instances/load balancer),
+ * this MUST be replaced with a distributed store like Redis to ensure all instances
+ * share the same blacklist.
+ */
+
 @Service
 @RequiredArgsConstructor
 public class TokenBlacklistService {
