@@ -3,6 +3,7 @@ package com.deliverXY.backend.NewCode.user.repository;
 import com.deliverXY.backend.NewCode.user.domain.AppUser;
 import com.deliverXY.backend.NewCode.common.enums.UserRole;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -24,6 +25,8 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
     Long countByRoleAndIsActiveTrue(UserRole role);
 
     void deleteByUsername(String username);
+    @Query("SELECT COUNT(u) FROM AppUser u")
     long countAll();
+    @Query("SELECT COUNT(u) FROM AppUser u WHERE u.role = :role")
     long countByRole(UserRole role);
 }
