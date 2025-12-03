@@ -1,5 +1,6 @@
 package com.deliverXY.backend.NewCode.drivers.service;
 
+import com.deliverXY.backend.NewCode.common.constants.DriverConstants;
 import com.deliverXY.backend.NewCode.deliveries.domain.Delivery;
 import com.deliverXY.backend.NewCode.deliveries.service.impl.LocationService;
 import com.deliverXY.backend.NewCode.drivers.repository.DriverLocationRepository;
@@ -19,8 +20,8 @@ public class DriverMatchingService {
 
     public Optional<AppUser> findNearestDriver(double lat, double lon) {
 
-        double radius = 1.5; // km initial
-        double maxRadius = 10;
+        double radius = DriverConstants.INITIAL_SEARCH_RADIUS_KM; // km initial
+        double maxRadius = DriverConstants.MAX_SEARCH_RADIUS_KM;
 
         while (radius <= maxRadius) {
 
@@ -30,7 +31,7 @@ public class DriverMatchingService {
                 return Optional.of(drivers.get(0).getDriver());
             }
 
-            radius += 1.0;
+            radius += DriverConstants.SEARCH_RADIUS_INCREMENT_KM;
         }
 
         return Optional.empty();
@@ -41,7 +42,7 @@ public class DriverMatchingService {
         var drivers = locationRepo.findNearbyDrivers(
                 d.getPickupLatitude(),
                 d.getPickupLongitude(),
-                3.0
+                DriverConstants.BROADCAST_RADIUS_KM
         );
 
         for (var dl : drivers) {
@@ -58,7 +59,7 @@ public class DriverMatchingService {
                             pickupLat,
                             pickupLon
                     );
-                    return locationService.calculateETA(dist, 35);
+                    return locationService.calculateETA(dist, DriverConstants.AVERAGE_DRIVER_SPEED_KMH);
                 })
                 .orElse(0);
     }
