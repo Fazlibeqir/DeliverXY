@@ -1,14 +1,16 @@
-package com.deliverXY.backend.NewCode.drivers.service;
+package com.deliverXY.backend.NewCode.drivers.service.impl;
 
 import com.deliverXY.backend.NewCode.common.constants.DriverConstants;
 import com.deliverXY.backend.NewCode.deliveries.domain.Delivery;
 import com.deliverXY.backend.NewCode.deliveries.service.impl.LocationService;
+import com.deliverXY.backend.NewCode.drivers.domain.DriverLocation;
 import com.deliverXY.backend.NewCode.drivers.repository.DriverLocationRepository;
 import com.deliverXY.backend.NewCode.user.domain.AppUser;
 import com.deliverXY.backend.NewCode.notifications.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 @Service
 @RequiredArgsConstructor
@@ -62,5 +64,9 @@ public class DriverMatchingService {
                     return locationService.calculateETA(dist, DriverConstants.AVERAGE_DRIVER_SPEED_KMH);
                 })
                 .orElse(0);
+    }
+
+    public List<DriverLocation> listDriversInRadius(Double latitude, Double longitude, Double radius) {
+            return locationRepo.findNearbyDrivers(latitude, longitude, radius);
     }
 }
