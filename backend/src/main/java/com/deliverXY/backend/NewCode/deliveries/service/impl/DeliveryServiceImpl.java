@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -175,7 +176,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     @Transactional
     public DeliveryResponseDTO updateStatus(Long id, String status) {
         Delivery d = load(id);
-        DeliveryStatus newStatus = DeliveryStatus.valueOf(status.toUpperCase());
+        DeliveryStatus newStatus = DeliveryStatus.fromString(status);
 
         switch (newStatus) {
             case PICKED_UP -> d.setActualPickupTime(LocalDateTime.now());
@@ -185,6 +186,7 @@ public class DeliveryServiceImpl implements DeliveryService {
             }
 
             case CANCELLED -> d.setCancelledAt(LocalDateTime.now());
+            default -> { /*NOOP no idea*/}
         }
         d.setStatus(newStatus);
         deliveryRepo.save(d);
@@ -195,63 +197,54 @@ public class DeliveryServiceImpl implements DeliveryService {
     }
 
     private void processDeliveryPayment(Delivery d) {
-        BigDecimal totalPrice = BigDecimal.valueOf(pricingService.getFareBreakdown(
+        FareBreakdown breakdown = pricingService.getFareBreakdown(
                 d.getPickupLatitude(),
                 d.getPickupLongitude(),
                 d.getDropoffLatitude(),
                 d.getDropoffLongitude()
-        ).getTotalFare());
-
+        );
+        BigDecimal totalPrice = breakdown.getTotalFare();
+        DeliveryPayment payment = paymentRepo.findByDeliveryId(d.getId())
+                .orElse(new DeliveryPayment());
+        payment.setDelivery(d);
+        payment.setPaymentStatus(PaymentStatus.PROCESSING);
+        payment.setFinalAmount(totalPrice);
+        payment.setPaymentMethod(PaymentMethod.WALLET);
+        paymentRepo.save(payment); // Save status change before external call
        try{
             walletService.withdraw(
                    d.getClient().getId(),
                    totalPrice,
                    "Delivery payment for " + d.getTrackingCode()
            );
-       }catch (Exception e){
-               throw new BadRequestException("Insufficient funds");
+           payment.setPaymentStatus(PaymentStatus.COMPLETED);
+           payment.setPaidAt(LocalDateTime.now());
+           paymentRepo.save(payment);
+
+           BigDecimal driverCutPercentage = new BigDecimal("0.80");
+           BigDecimal driverEarnings = totalPrice.multiply(driverCutPercentage).setScale(2, RoundingMode.HALF_UP);
+           BigDecimal platformCut = totalPrice.subtract(driverEarnings);
+
+           // TODO: Must call WalletService.deposit for driver here, currently only recorded in DriverEarnings
+           // walletService.deposit(d.getAgent().getId(), driverEarnings, "Delivery earnings...");
+
+           DriverEarnings earnings = new DriverEarnings();
+           earnings.setDelivery(d);
+           earnings.setAgentId(d.getAgent().getId());
+           earnings.setDriverEarnings(driverEarnings);
+           earnings.setTip(BigDecimal.ZERO); // Tip should be handled separately
+           earningsRepo.save(earnings);
+           logHistory(d, "Payment processed. Driver earned " + driverEarnings + ", platform kept " + platformCut, "SYSTEM");
+       }catch (RuntimeException e){
+           payment.setPaymentStatus(PaymentStatus.FAILED);
+           paymentRepo.save(payment);
+           log.error("Payment failed for delivery {}: {}", d.getId(), e.getMessage());
+           throw new BadRequestException("Payment failed due to: " + e.getMessage());
        }
-        DeliveryPayment payment = paymentRepo.findByDeliveryId(d.getId())
-                .orElse(new DeliveryPayment());
 
-        payment.setDelivery(d);
-        payment.setPaymentStatus(PaymentStatus.COMPLETED);
-        payment.setFinalAmount(totalPrice);
-        payment.setPaymentMethod(PaymentMethod.WALLET);
-        payment.setPaidAt(LocalDateTime.now());
-        paymentRepo.save(payment);
-
-        BigDecimal driverCut = totalPrice.multiply(new BigDecimal("0.80"));
-        BigDecimal platformCut = totalPrice.subtract(driverCut);
-
-        DriverEarnings earnings = new DriverEarnings();
-        earnings.setDelivery(d);
-        earnings.setAgentId(d.getAgent().getId());
-        earnings.setDriverEarnings(driverCut);
-        earnings.setTip(BigDecimal.ZERO);
-
-        earningsRepo.save(earnings);
-
-
-        logHistory(d, "Payment processed. Driver earned " + driverCut + ", platform kept " + platformCut, "SYSTEM");
     }
 
-    @Override
-    @Transactional
-    public DeliveryResponseDTO updateLocation(Long id, Double lat, Double lng) {
-        Delivery delivery = load(id);
 
-        DeliveryTracking tracking = trackingRepo.findByDeliveryId((id))
-                .orElse(new DeliveryTracking());
-
-        tracking.setDeliveryId(delivery.getId());
-        tracking.setCurrentLatitude(lat);
-        tracking.setCurrentLongitude(lng);
-        tracking.setLastLocationUpdate(LocalDateTime.now());
-
-        trackingRepo.save(tracking);
-        return respond(delivery);
-    }
 
     @Override
     @Transactional
@@ -259,44 +252,6 @@ public class DeliveryServiceImpl implements DeliveryService {
         Delivery delivery = load(id);
         deliveryRepo.delete(delivery);
         historyRepo.deleteAll(historyRepo.findByDelivery_IdOrderByChangedAtAsc(id));
-    }
-    //FARE ESTIMATION
-    @Override
-    public FareResponseDTO estimateFare(FareEstimateDTO dto, AppUser user) {
-        FareBreakdown breakdown = pricingService.getFareBreakdown(
-                dto.getPickupLatitude(),
-                dto.getPickupLongitude(),
-                dto.getDropoffLatitude(),
-                dto.getDropoffLongitude()
-        );
-
-        double total = breakdown.getTotalFare();
-        double discount = 0;
-        String promoApplied = null;
-
-        if (hasPromo(dto)) {
-            double before = total;
-            total = pricingService.applyPromoCode(total, dto.getPromoCode(), user);
-            discount = before - total;
-            promoApplied = discount > 0 ? dto.getPromoCode() : null;
-        }
-        return new FareResponseDTO(
-                total,
-                breakdown.getCurrency(),
-                breakdown.getDistanceKm(),
-                breakdown.getEstimatedMinutes(),
-                breakdown.getBaseFare(),
-                breakdown.getDistanceFare(),
-                breakdown.getTimeFare(),
-                breakdown.getSurgeMultiplier(),
-                breakdown.getCityCenterCharge() > 0,
-                breakdown.getCityCenterCharge(),
-                breakdown.getAirportCharge() > 0,
-                breakdown.getAirportCharge(),
-                surgeReason(breakdown.getSurgeMultiplier()),
-                discount,
-                promoApplied
-        );
     }
 
     @Override
@@ -307,6 +262,48 @@ public class DeliveryServiceImpl implements DeliveryService {
     @Override
     public long countByStatus(DeliveryStatus deliveryStatus) {
         return deliveryRepo.countByStatus(deliveryStatus);
+    }
+
+    @Override
+    public FareResponseDTO estimateFare(FareEstimateDTO dto, AppUser user) {
+        FareBreakdown breakdown = pricingService.getFareBreakdown(
+                dto.getPickupLatitude(),
+                dto.getPickupLongitude(),
+                dto.getDropoffLatitude(),
+                dto.getDropoffLongitude()
+        );
+
+        BigDecimal total = breakdown.getTotalFare();
+        BigDecimal discount = BigDecimal.ZERO;
+        String promoApplied = null;
+
+        if (hasPromo(dto)) {
+            BigDecimal before = total;
+            // Use the new BigDecimal-based promo application
+            total = pricingService.applyPromoCode(total, dto.getPromoCode(), user);
+            discount = before.subtract(total).max(BigDecimal.ZERO); // Ensure discount is not negative
+            promoApplied = discount.compareTo(BigDecimal.ZERO) > 0 ? dto.getPromoCode() : null;
+        }
+
+        // Note: The FareResponseDTO fields (totalFare, discount, etc.) must now be BigDecimal or Double
+        // derived from the final BigDecimal total. Assuming they are doubles for DTO compatibility:
+        return new FareResponseDTO(
+                total.doubleValue(), // Final total
+                breakdown.getCurrency(),
+                breakdown.getDistanceKm(),
+                breakdown.getEstimatedMinutes(),
+                breakdown.getBaseFare().doubleValue(),
+                breakdown.getDistanceFare().doubleValue(),
+                breakdown.getTimeFare().doubleValue(),
+                breakdown.getSurgeMultiplier(),
+                breakdown.getCityCenterCharge().doubleValue() > 0,
+                breakdown.getCityCenterCharge().doubleValue(),
+                breakdown.getAirportCharge().doubleValue() > 0,
+                breakdown.getAirportCharge().doubleValue(),
+                surgeReason(breakdown.getSurgeMultiplier()),
+                discount.doubleValue(), // Final discount
+                promoApplied
+        );
     }
 
     private boolean hasPromo(FareEstimateDTO dto) {

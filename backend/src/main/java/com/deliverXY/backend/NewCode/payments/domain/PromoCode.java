@@ -24,6 +24,9 @@ public class PromoCode {
     @Column(nullable = false)
     private String description;
 
+    @Column(nullable = false)
+    private String currency = "MKD";
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private DiscountType discountType;

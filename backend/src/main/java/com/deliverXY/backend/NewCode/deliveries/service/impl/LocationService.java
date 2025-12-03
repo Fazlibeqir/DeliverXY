@@ -1,26 +1,21 @@
 package com.deliverXY.backend.NewCode.deliveries.service.impl;
 
 
+import com.deliverXY.backend.NewCode.common.constants.DeliveryConstants;
 import org.springframework.stereotype.Service;
 
 @Service
 public class LocationService {
 
-    private static final double EARTH_RADIUS_KM = 6371.0;
+    private static final double EARTH_RADIUS_KM = DeliveryConstants.EARTH_RADIUS_KM;
 
     // Skopje City Center Polygon
-    private static final double[][] CITY_CENTER_POLYGON = {
-            {41.99461, 21.43043},
-            {41.99843, 21.42539},
-            {41.99981, 21.43367},
-            {41.99361, 21.43855},
-            {41.99095, 21.43143}
-    };
+    private static final double[][] CITY_CENTER_POLYGON = DeliveryConstants.CITY_CENTER_POLYGON;
 
     // Airport
-    private static final double AIRPORT_LAT = 41.9611;
-    private static final double AIRPORT_LON = 21.6241;
-    private static final double AIRPORT_RADIUS_KM = 1; // 1km
+    private static final double AIRPORT_LAT = DeliveryConstants.SKOPJE_AIRPORT_LAT;
+    private static final double AIRPORT_LON = DeliveryConstants.SKOPJE_AIRPORT_LON;
+    private static final double AIRPORT_RADIUS_KM = DeliveryConstants.AIRPORT_RADIUS_KM; // 1km
 
     /**
      * HAVERSINE distance
@@ -41,7 +36,7 @@ public class LocationService {
      * ETA based on average city speed
      */
     public int calculateETA(double distanceKm, double speedKmh) {
-        if (speedKmh <= 0) speedKmh = 35;
+        if (speedKmh <= 0) speedKmh = DeliveryConstants.AVERAGE_CITY_SPEED_KMH;
         return (int) Math.ceil((distanceKm / speedKmh) * 60);
     }
 

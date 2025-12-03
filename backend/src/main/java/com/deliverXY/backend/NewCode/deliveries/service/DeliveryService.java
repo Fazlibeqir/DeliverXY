@@ -6,6 +6,7 @@ import com.deliverXY.backend.NewCode.deliveries.dto.DeliveryResponseDTO;
 import com.deliverXY.backend.NewCode.deliveries.dto.FareEstimateDTO;
 import com.deliverXY.backend.NewCode.deliveries.dto.FareResponseDTO;
 import com.deliverXY.backend.NewCode.user.domain.AppUser;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -25,13 +26,13 @@ public interface DeliveryService {
 
     DeliveryResponseDTO assign(Long id, AppUser agent);
     DeliveryResponseDTO updateStatus(Long id, String status);
-    DeliveryResponseDTO updateLocation(Long id, Double lat, Double lng);
 
     void delete(Long id);
 
-    FareResponseDTO estimateFare(FareEstimateDTO dto, AppUser user);
 
     long countAll();
 
     long countByStatus(DeliveryStatus deliveryStatus);
+
+    FareResponseDTO estimateFare(@Valid FareEstimateDTO request, AppUser user);
 }

@@ -2,13 +2,17 @@ package com.deliverXY.backend.NewCode.deliveries.service.impl;
 
 import com.deliverXY.backend.NewCode.common.constants.DeliveryConstants;
 import com.deliverXY.backend.NewCode.common.constants.TimeConstants;
+import com.deliverXY.backend.NewCode.deliveries.domain.PricingConfig;
+import com.deliverXY.backend.NewCode.deliveries.dto.FareBreakdown; // Assume this DTO now uses BigDecimal for currency fields
 import com.deliverXY.backend.NewCode.deliveries.service.PricingConfigService;
 import com.deliverXY.backend.NewCode.payments.service.PromoCodeService;
-import com.deliverXY.backend.NewCode.deliveries.domain.PricingConfig;
+import com.deliverXY.backend.NewCode.user.domain.AppUser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -23,86 +27,136 @@ public class PricingService {
     private final PricingConfigService pricingConfigService;
 
     private static final String DEFAULT_CITY = "Skopje";
+    private static final int SCALE = 2; // For currency
 
     // -------------------------------------------------------------
-    // MAIN FARE CALCULATION
+    // MAIN FARE BREAKDOWN (REPLACES calculateFare and calculateFareFromCoordinates)
     // -------------------------------------------------------------
-    public double calculateFare(double distanceKm, int estimatedMinutes) {
+    /**
+     * Calculates the full fare breakdown using BigDecimal for accuracy.
+     */
+    public FareBreakdown getFareBreakdown(double pickupLat, double pickupLon,
+                                          double dropoffLat, double dropoffLon) {
 
         PricingConfig config = pricingConfigService.getActivePricing(DEFAULT_CITY);
 
-        double baseFare = config.getBaseFare();
-        double distanceFare = distanceKm * config.getPerKmRate();
-        double timeFare = estimatedMinutes * config.getPerMinuteRate();
+        double distanceKm = geolocationService.distanceKm(pickupLat, pickupLon, dropoffLat, dropoffLon);
+        int estimatedMinutes = geolocationService.calculateETA(distanceKm, DeliveryConstants.AVERAGE_CITY_SPEED_KMH);
 
-        double surge = getSurgeMultiplier(config);
-        double total = (baseFare + distanceFare + timeFare) * surge;
+        // Convert configuration rates to BigDecimal
+        BigDecimal baseFare = BigDecimal.valueOf(config.getBaseFare());
+        BigDecimal perKmRate = BigDecimal.valueOf(config.getPerKmRate());
+        BigDecimal perMinuteRate = BigDecimal.valueOf(config.getPerMinuteRate());
+        BigDecimal minimumFare = BigDecimal.valueOf(config.getMinimumFare());
 
-        total = Math.max(total, config.getMinimumFare());
+        // Calculate Distance and Time Fares
+        BigDecimal distanceDec = BigDecimal.valueOf(distanceKm);
+        BigDecimal minutesDec = BigDecimal.valueOf(estimatedMinutes);
 
-        return round(total);
+        BigDecimal distanceFare = distanceDec.multiply(perKmRate).setScale(SCALE, RoundingMode.HALF_UP);
+        BigDecimal timeFare = minutesDec.multiply(perMinuteRate).setScale(SCALE, RoundingMode.HALF_UP);
+
+        // Calculate Surge Multiplier
+        BigDecimal surgeMultiplier = getSurgeMultiplier(config);
+
+        // Base Calculation: (Base + Distance + Time) * Surge
+        BigDecimal preSurgeTotal = baseFare.add(distanceFare).add(timeFare);
+        BigDecimal total = preSurgeTotal.multiply(surgeMultiplier).setScale(SCALE, RoundingMode.HALF_UP);
+
+        // Apply Zone Charges (City Center Multiplier and Airport Surcharge)
+        BigDecimal cityCenterMultiplier = getCityCenterMultiplier(config, pickupLat, pickupLon, dropoffLat, dropoffLon);
+        BigDecimal airportSurcharge = getAirportSurcharge(config, pickupLat, pickupLon, dropoffLat, dropoffLon);
+
+        // Apply City Center multiplier *after* surge/base calculation
+        total = total.multiply(cityCenterMultiplier).setScale(SCALE, RoundingMode.HALF_UP);
+
+        // Add Airport Surcharge
+        total = total.add(airportSurcharge);
+
+        // Apply Minimum Fare
+        total = total.max(minimumFare);
+
+        return new FareBreakdown(
+                total,
+                baseFare,
+                distanceFare,
+                timeFare,
+                distanceKm,
+                estimatedMinutes,
+                config.getCurrency(),
+                surgeMultiplier.doubleValue(),
+                isPickupOrDropoffInCityCenter(pickupLat, pickupLon, dropoffLat, dropoffLon) ? cityCenterMultiplier.subtract(BigDecimal.ONE).multiply(total).setScale(SCALE, RoundingMode.HALF_UP) : BigDecimal.ZERO,
+                airportSurcharge
+        );
+    }
+
+    /**
+     * Applies the promo code discount to the total fare.
+     */
+    public BigDecimal applyPromoCode(BigDecimal totalFare, String promoCode, AppUser user) {
+        // Implementation depends on PromoCodeService, assuming a BigDecimal return
+        return promoCodeService.applyPromoCode(totalFare, promoCode, user);
     }
 
     // -------------------------------------------------------------
-    // COORDINATE-BASED
+    // ZONE CHARGE HELPERS
     // -------------------------------------------------------------
-    public double calculateFareFromCoordinates(double pickupLat, double pickupLon,
+    private BigDecimal getCityCenterMultiplier(PricingConfig config, double pickupLat, double pickupLon,
                                                double dropoffLat, double dropoffLon) {
+        if (isPickupOrDropoffInCityCenter(pickupLat, pickupLon, dropoffLat, dropoffLon)) {
+            return BigDecimal.valueOf(config.getCityCenterMultiplier());
+        }
+        return BigDecimal.ONE; // Return 1 (no multiplication effect)
+    }
 
-        PricingConfig config = pricingConfigService.getActivePricing(DEFAULT_CITY);
+    private BigDecimal getAirportSurcharge(PricingConfig config, double pickupLat, double pickupLon,
+                                           double dropoffLat, double dropoffLon) {
+        if (isPickupOrDropoffAtAirport(pickupLat, pickupLon, dropoffLat, dropoffLon)) {
+            return BigDecimal.valueOf(config.getAirportSurcharge());
+        }
+        return BigDecimal.ZERO;
+    }
 
-        double distance = geolocationService.distanceKm(pickupLat, pickupLon, dropoffLat, dropoffLon);
-        int mins = geolocationService.calculateETA(distance, DeliveryConstants.AVERAGE_CITY_SPEED_KMH);
+    private boolean isPickupOrDropoffInCityCenter(double pickupLat, double pickupLon,
+                                                  double dropoffLat, double dropoffLon) {
+        // Re-implementing the original logic delegation
+        return isInCityCenter(pickupLat, pickupLon) || isInCityCenter(dropoffLat, dropoffLon);
+    }
 
-        double fare = calculateFare(distance, mins);
-        fare = applyZoneCharges(fare, pickupLat, pickupLon, dropoffLat, dropoffLon, config);
-
-        return round(fare);
+    private boolean isPickupOrDropoffAtAirport(double pickupLat, double pickupLon,
+                                               double dropoffLat, double dropoffLon) {
+        // Re-implementing the original logic delegation
+        return isAtAirport(pickupLat, pickupLon) || isAtAirport(dropoffLat, dropoffLon);
     }
 
     // -------------------------------------------------------------
-    // ZONE CHARGES
+    // SURGE LOGIC
     // -------------------------------------------------------------
-    private double applyZoneCharges(double fare, double pickupLat, double pickupLon,
-                                    double dropoffLat, double dropoffLon,
-                                    PricingConfig config) {
-
-        if (isInCityCenter(pickupLat, pickupLon) || isInCityCenter(dropoffLat, dropoffLon)) {
-            fare *= config.getCityCenterMultiplier();
-        }
-
-        if (isAtAirport(pickupLat, pickupLon) || isAtAirport(dropoffLat, dropoffLon)) {
-            fare += config.getAirportSurcharge();
-        }
-
-        return fare;
-    }
-
-    // -------------------------------------------------------------
-    // SURGE LOGIC BASED ON DB CONFIG
-    // -------------------------------------------------------------
-    private double getSurgeMultiplier(PricingConfig config) {
-
+    private BigDecimal getSurgeMultiplier(PricingConfig config) {
         LocalDateTime now = LocalDateTime.now();
         LocalTime time = now.toLocalTime();
 
+        // NOTE: NIGHT_START/NIGHT_END requires careful comparison across midnight.
+        // The original logic handles this by checking isAfter OR isBefore.
         if (time.isAfter(TimeConstants.NIGHT_START) || time.isBefore(TimeConstants.NIGHT_END))
-            return config.getNightMultiplier();
+            return BigDecimal.valueOf(config.getNightMultiplier());
 
-        if (time.isAfter(TimeConstants.MORNING_PEAK_START) && time.isBefore(TimeConstants.MORNING_PEAK_END))
-            return config.getPeakHourMultiplier();
-
-        if (time.isAfter(TimeConstants.EVENING_PEAK_START) && time.isBefore(TimeConstants.EVENING_PEAK_END))
-            return config.getPeakHourMultiplier();
+        if ((time.isAfter(TimeConstants.MORNING_PEAK_START) && time.isBefore(TimeConstants.MORNING_PEAK_END)) ||
+                (time.isAfter(TimeConstants.EVENING_PEAK_START) && time.isBefore(TimeConstants.EVENING_PEAK_END)))
+            return BigDecimal.valueOf(config.getPeakHourMultiplier());
 
         if (now.getDayOfWeek() == DayOfWeek.SATURDAY || now.getDayOfWeek() == DayOfWeek.SUNDAY)
-            return config.getWeekendMultiplier();
+            return BigDecimal.valueOf(config.getWeekendMultiplier());
 
-        return config.getSurgeMultiplier(); // default multiplier
+        return BigDecimal.valueOf(config.getSurgeMultiplier());
     }
 
     // -------------------------------------------------------------
-    // LOCATION HELPERS
+    // REDUNDANT METHODS REMOVED: calculateFare, calculateFareFromCoordinates, applyZoneCharges.
+    // -------------------------------------------------------------
+
+    // -------------------------------------------------------------
+    // LOCATION HELPERS (Kept for delegation consistency)
     // -------------------------------------------------------------
     private boolean isInCityCenter(double lat, double lon) {
         return geolocationService.isWithinRadius(
@@ -123,9 +177,7 @@ public class PricingService {
     }
 
     // -------------------------------------------------------------
-    // HELPERS
+    // HELPERS (Removed double round, only keeping BigDecimal round if needed)
     // -------------------------------------------------------------
-    private double round(double val) {
-        return Math.round(val * 100.0) / 100.0;
-    }
+    // The previous `round(double val)` method is removed as we primarily use BigDecimal.
 }

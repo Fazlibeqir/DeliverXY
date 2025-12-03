@@ -4,15 +4,17 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class FareBreakdown {
 
-    private double totalFare;
-    private double baseFare;
-    private double distanceFare;
-    private double timeFare;
+    private BigDecimal totalFare;
+    private BigDecimal baseFare;
+    private BigDecimal distanceFare;
+    private BigDecimal timeFare;
 
     private double distanceKm;
     private int estimatedMinutes;
@@ -21,6 +23,6 @@ public class FareBreakdown {
 
     private double surgeMultiplier;
 
-    private double cityCenterCharge;
-    private double airportCharge;
+    private BigDecimal cityCenterCharge;
+    private BigDecimal airportCharge;
 }

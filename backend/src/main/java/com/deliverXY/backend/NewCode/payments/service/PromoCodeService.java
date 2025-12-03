@@ -2,6 +2,7 @@
 package com.deliverXY.backend.NewCode.payments.service;
 
 import com.deliverXY.backend.NewCode.deliveries.domain.Delivery;
+import com.deliverXY.backend.NewCode.exceptions.BadRequestException;
 import com.deliverXY.backend.NewCode.user.domain.AppUser;
 import com.deliverXY.backend.NewCode.common.enums.DiscountType;
 import com.deliverXY.backend.NewCode.payments.domain.PromoCode;
@@ -14,6 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -27,61 +30,77 @@ public class PromoCodeService {
     private final PromoCodeUsageRepository promoCodeUsageRepository;
     private final DeliveryRepository deliveryRepository;
 
+    private static final int SCALE = 2; // Currency scale
+    private static final RoundingMode ROUNDING_MODE = RoundingMode.HALF_UP;
+
+    public BigDecimal applyPromoCode(BigDecimal totalFare, String code, AppUser user) {
+        // Validate the code using the new BigDecimal validation method
+        PromoCodeValidationResult result = validatePromoCode(code, user, totalFare);
+
+        if (!result.isValid()) {
+            // If the code is invalid, we don't throw an error during fare ESTIMATION,
+            // we simply return the original amount.
+            log.warn("Promo code '{}' invalid for user {}: {}", code, user.getId(), result.getMessage());
+            return totalFare.setScale(SCALE, ROUNDING_MODE);
+        }
+
+        // Apply discount: total - discount
+        BigDecimal discountedTotal = totalFare.subtract(result.getDiscountAmount());
+
+        return discountedTotal.setScale(SCALE, ROUNDING_MODE).max(BigDecimal.ZERO);
+    }
     /**
      * Validate and apply promo code
      */
-    public PromoCodeValidationResult validatePromoCode(String code, AppUser user, double orderAmount) {
-        log.info("Validating promo code '{}' for user {} with order amount {} MKD", code, user.getId(), orderAmount);
+    public PromoCodeValidationResult validatePromoCode(String code, AppUser user, BigDecimal orderAmount) {
+        log.info("Validating promo code '{}' for user {} with order amount {}", code, user.getId(), orderAmount);
 
         Optional<PromoCode> promoCodeOpt = promoCodeRepository.findByCodeIgnoreCase(code);
 
         if (promoCodeOpt.isEmpty()) {
-            return new PromoCodeValidationResult(false, "Promo code not found", 0.0, null);
+            return new PromoCodeValidationResult(false, "Promo code not found", BigDecimal.ZERO, null);
         }
 
         PromoCode promoCode = promoCodeOpt.get();
 
-        // Check if promo code is valid
+        // Check if promo code is valid (Assuming isValid checks dates/activity)
         if (!promoCode.isValid()) {
-            return new PromoCodeValidationResult(false, "Promo code is expired or inactive", 0.0, null);
+            return new PromoCodeValidationResult(false, "Promo code is expired or inactive", BigDecimal.ZERO, null);
         }
 
         // Check minimum order amount
-        if (promoCode.getMinOrderAmount() != null && orderAmount < promoCode.getMinOrderAmount()) {
+        if (promoCode.getMinOrderAmount() != null &&
+                orderAmount.compareTo(BigDecimal.valueOf(promoCode.getMinOrderAmount())) < 0) {
             return new PromoCodeValidationResult(
                     false,
-                    String.format("Minimum order amount is %.2f MKD", promoCode.getMinOrderAmount()),
-                    0.0,
+                    String.format("Minimum order amount is %.2f %s", promoCode.getMinOrderAmount(), promoCode.getCurrency()), // Assuming currency is available
+                    BigDecimal.ZERO,
                     null
             );
         }
 
-        // Check if user is eligible (new user only promos)
-        if (promoCode.getApplicableForNewUsersOnly()) {
-            long userDeliveryCount = deliveryRepository.countByClientId(user.getId());
-            if (userDeliveryCount > 0) {
-                return new PromoCodeValidationResult(false, "This promo code is only for new users", 0.0, null);
-            }
+        // Check if user is eligible (new user only promos) - First delivery check logic consolidated below
+        long userDeliveryCount = deliveryRepository.countByClientId(user.getId());
+
+        if (promoCode.getApplicableForNewUsersOnly() && userDeliveryCount > 0) {
+            return new PromoCodeValidationResult(false, "This promo code is only for new users", BigDecimal.ZERO, null);
         }
 
-        // Check if it's first order only
-        if (promoCode.getIsFirstOrderOnly()) {
-            long userDeliveryCount = deliveryRepository.countByClientId(user.getId());
-            if (userDeliveryCount > 0) {
-                return new PromoCodeValidationResult(false, "This promo code is only valid for first order", 0.0, null);
-            }
+        // Check if it's first order only (this is redundant if 'ApplicableForNewUsersOnly' exists, but we keep it for now)
+        if (promoCode.getIsFirstOrderOnly() && userDeliveryCount > 0) {
+            return new PromoCodeValidationResult(false, "This promo code is only valid for first order", BigDecimal.ZERO, null);
         }
 
         // Check usage per user limit
         long userUsageCount = promoCodeUsageRepository.countByPromoCodeAndUser(promoCode, user);
         if (promoCode.getUsagePerUser() != null && userUsageCount >= promoCode.getUsagePerUser()) {
-            return new PromoCodeValidationResult(false, "You have already used this promo code", 0.0, null);
+            return new PromoCodeValidationResult(false, "You have already used this promo code the maximum number of times", BigDecimal.ZERO, null);
         }
 
-        // Calculate discount
-        double discount = calculateDiscount(promoCode, orderAmount);
+        // Calculate discount (now returns BigDecimal)
+        BigDecimal discount = calculateDiscount(promoCode, orderAmount);
 
-        log.info("Promo code '{}' validated successfully. Discount: {} MKD", code, discount);
+        log.info("Promo code '{}' validated successfully. Discount: {}", code, discount);
 
         return new PromoCodeValidationResult(true, "Promo code applied successfully", discount, promoCode);
     }
@@ -89,24 +108,28 @@ public class PromoCodeService {
     /**
      * Calculate discount amount based on promo code type
      */
-    private double calculateDiscount(PromoCode promoCode, double orderAmount) {
-        double discount = 0.0;
+    private BigDecimal calculateDiscount(PromoCode promoCode, BigDecimal orderAmount) {
+        BigDecimal discount = BigDecimal.ZERO;
+        BigDecimal discountValue = BigDecimal.valueOf(promoCode.getDiscountValue());
 
         if (promoCode.getDiscountType() == DiscountType.PERCENTAGE) {
-            discount = orderAmount * (promoCode.getDiscountValue() / 100.0);
+            // Calculate: orderAmount * (discountValue / 100)
+            BigDecimal percentage = discountValue.divide(BigDecimal.valueOf(100), SCALE, ROUNDING_MODE);
+            discount = orderAmount.multiply(percentage).setScale(SCALE, ROUNDING_MODE);
 
             // Apply max discount cap if specified
             if (promoCode.getMaxDiscountAmount() != null) {
-                discount = Math.min(discount, promoCode.getMaxDiscountAmount());
+                BigDecimal maxDiscount = BigDecimal.valueOf(promoCode.getMaxDiscountAmount());
+                discount = discount.min(maxDiscount);
             }
         } else if (promoCode.getDiscountType() == DiscountType.FIXED_AMOUNT) {
-            discount = promoCode.getDiscountValue();
+            discount = discountValue.setScale(SCALE, ROUNDING_MODE);
         }
 
         // Ensure discount doesn't exceed order amount
-        discount = Math.min(discount, orderAmount);
+        discount = discount.min(orderAmount).max(BigDecimal.ZERO);
 
-        return Math.round(discount * 100.0) / 100.0;
+        return discount;
     }
 
     /**
@@ -114,14 +137,24 @@ public class PromoCodeService {
      */
     @Transactional
     public void recordPromoCodeUsage(PromoCode promoCode, AppUser user, Delivery delivery,
-                                     double originalAmount, double discountAmount) {
+                                     BigDecimal originalAmount, BigDecimal discountAmount) {
+
+        // Input validation to avoid data loss
+        if (originalAmount == null || discountAmount == null) {
+            throw new BadRequestException("Cannot record promo usage with null amounts.");
+        }
+
         PromoCodeUsage usage = new PromoCodeUsage();
         usage.setPromoCode(promoCode);
         usage.setUser(user);
         usage.setDelivery(delivery);
-        usage.setOriginalAmount(originalAmount);
-        usage.setDiscountAmount(discountAmount);
-        usage.setFinalAmount(originalAmount - discountAmount);
+
+        // Store BigDecimal values
+        usage.setOriginalAmount(originalAmount.setScale(SCALE, ROUNDING_MODE).doubleValue());
+        usage.setDiscountAmount(discountAmount.setScale(SCALE, ROUNDING_MODE).doubleValue());
+
+        BigDecimal finalAmount = originalAmount.subtract(discountAmount).max(BigDecimal.ZERO);
+        usage.setFinalAmount(finalAmount.doubleValue());
 
         promoCodeUsageRepository.save(usage);
 
@@ -129,7 +162,7 @@ public class PromoCodeService {
         promoCode.setCurrentUsage(promoCode.getCurrentUsage() + 1);
         promoCodeRepository.save(promoCode);
 
-        log.info("Recorded promo code usage for code '{}' by user {}", promoCode.getCode(), user.getId());
+        log.info("Recorded promo code usage for code '{}' by user {}. Discount: {}", promoCode.getCode(), user.getId(), discountAmount);
     }
 
     /**
@@ -138,7 +171,7 @@ public class PromoCodeService {
     @Transactional
     public PromoCode createPromoCode(PromoCode promoCode, String adminEmail) {
         if (promoCodeRepository.existsByCodeIgnoreCase(promoCode.getCode())) {
-            throw new RuntimeException("Promo code already exists");
+            throw new BadRequestException("Promo code already exists");
         }
 
         promoCode.setCreatedBy(adminEmail);
@@ -191,7 +224,7 @@ public class PromoCodeService {
     public static class PromoCodeValidationResult {
         private boolean valid;
         private String message;
-        private double discountAmount;
+        private BigDecimal discountAmount;
         private PromoCode promoCode;
     }
 }
