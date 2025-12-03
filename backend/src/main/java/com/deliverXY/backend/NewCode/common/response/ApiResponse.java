@@ -15,31 +15,34 @@ public class ApiResponse<T> {
     private Integer status;
     private String errorCode;
     private String path;
+    private String message;
 
     public static <T> ApiResponse<T> ok(T data) {
-        return new ApiResponse<>(true, data, System.currentTimeMillis(), 200, null, null);
+        return new ApiResponse<>(true, data, System.currentTimeMillis(), 200, null, null,null);
     }
 
     // ERROR RESPONSE
     public static <T> ApiResponse<T> error(String message) {
         return new ApiResponse<>(
                 false,
-                (T) message,
+                null,
                 System.currentTimeMillis(),
                 400,
                 "BAD_REQUEST",
-                null
+                null,
+                message
         );
     }
 
     public static <T> ApiResponse<T> error(String message, int status, String code, String path) {
         return new ApiResponse<>(
                 false,
-                (T) message,
+                null,
                 System.currentTimeMillis(),
                 status,
                 code,
-                path
+                path,
+                message
         );
     }
 }

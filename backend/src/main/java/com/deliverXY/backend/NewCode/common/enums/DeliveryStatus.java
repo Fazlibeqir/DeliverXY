@@ -5,7 +5,6 @@ import lombok.Getter;
 @Getter
 public enum DeliveryStatus {
 
-    PENDING("Pending request"),
     REQUESTED("Delivery requested"),
 
     ASSIGNED("Driver assigned (legacy alias)"),
@@ -31,13 +30,6 @@ public enum DeliveryStatus {
         if (status == null) return null;
 
         String s = status.trim().toUpperCase();
-
-        // Handle legacy aliases
-        if (s.equals("ASSIGNED"))
-            return ASSIGNED;
-
-        if (s.equals("PENDING"))
-            return REQUESTED; // Normalize early state
 
         try {
             return DeliveryStatus.valueOf(s);
