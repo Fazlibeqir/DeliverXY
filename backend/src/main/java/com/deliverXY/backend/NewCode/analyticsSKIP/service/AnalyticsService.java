@@ -1,11 +1,9 @@
-package com.deliverXY.backend.NewCode.analytics.service;
+package com.deliverXY.backend.NewCode.analyticsSKIP.service;
 
-import com.deliverXY.backend.NewCode.analytics.dto.DriverStatsDTO;
-import com.deliverXY.backend.NewCode.analytics.dto.PlatformStatsDTO;
-import com.deliverXY.backend.NewCode.analytics.dto.TripDTO;
-import com.deliverXY.backend.NewCode.analytics.dto.UserStatsDTO;
-import com.deliverXY.backend.NewCode.analytics.service.impl.AnalyticsServiceImpl;
-import com.deliverXY.backend.NewCode.deliveries.domain.Delivery;
+import com.deliverXY.backend.NewCode.analyticsSKIP.dto.DriverStatsDTO;
+import com.deliverXY.backend.NewCode.analyticsSKIP.dto.PlatformStatsDTO;
+import com.deliverXY.backend.NewCode.analyticsSKIP.dto.TripDTO;
+import com.deliverXY.backend.NewCode.analyticsSKIP.dto.UserStatsDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

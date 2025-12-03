@@ -1,4 +1,4 @@
-package com.deliverXY.backend.NewCode.analytics.dto;
+package com.deliverXY.backend.NewCode.analyticsSKIP.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

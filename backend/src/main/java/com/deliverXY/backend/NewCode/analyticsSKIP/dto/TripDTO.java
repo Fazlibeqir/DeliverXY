@@ -1,4 +1,4 @@
-package com.deliverXY.backend.NewCode.analytics.dto;
+package com.deliverXY.backend.NewCode.analyticsSKIP.dto;
 
 import com.deliverXY.backend.NewCode.deliveries.domain.Delivery;
 import lombok.Data;

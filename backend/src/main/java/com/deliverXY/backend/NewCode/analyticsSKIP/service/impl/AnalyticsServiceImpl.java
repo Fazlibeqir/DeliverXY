@@ -1,7 +1,7 @@
-package com.deliverXY.backend.NewCode.analytics.service.impl;
+package com.deliverXY.backend.NewCode.analyticsSKIP.service.impl;
 
-import com.deliverXY.backend.NewCode.analytics.dto.*;
-import com.deliverXY.backend.NewCode.analytics.service.AnalyticsService;
+import com.deliverXY.backend.NewCode.analyticsSKIP.dto.*;
+import com.deliverXY.backend.NewCode.analyticsSKIP.service.AnalyticsService;
 import com.deliverXY.backend.NewCode.common.enums.DeliveryStatus;
 import com.deliverXY.backend.NewCode.common.enums.UserRole;
 import com.deliverXY.backend.NewCode.deliveries.domain.Delivery;

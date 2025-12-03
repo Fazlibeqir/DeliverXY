@@ -1,4 +1,4 @@
-package com.deliverXY.backend.NewCode.analytics.domain;
+package com.deliverXY.backend.NewCode.analyticsSKIP.domain;
 
 import jakarta.persistence.*;
 import lombok.Data;

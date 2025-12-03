@@ -1,7 +1,7 @@
-package com.deliverXY.backend.NewCode.analytics.controller;
+package com.deliverXY.backend.NewCode.analyticsSKIP.controller;
 
-import com.deliverXY.backend.NewCode.analytics.dto.*;
-import com.deliverXY.backend.NewCode.analytics.service.AnalyticsService;
+import com.deliverXY.backend.NewCode.analyticsSKIP.dto.*;
+import com.deliverXY.backend.NewCode.analyticsSKIP.service.AnalyticsService;
 import com.deliverXY.backend.NewCode.common.response.ApiResponse;
 import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
 import com.deliverXY.backend.NewCode.user.domain.AppUser;
