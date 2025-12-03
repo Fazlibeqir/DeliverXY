@@ -1,14 +1,16 @@
 package com.deliverXY.backend.NewCode.user.service.impl;
 
+import com.deliverXY.backend.NewCode.common.enums.UserRole;
 import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
 import com.deliverXY.backend.NewCode.user.domain.AppUser;
 import com.deliverXY.backend.NewCode.user.repository.AppUserRepository;
 import com.deliverXY.backend.NewCode.user.service.AppUserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -49,8 +51,8 @@ public class AppUserServiceImpl implements AppUserService {
     }
 
     @Override
-    public List<AppUser> findAll() {
-        return repo.findAll();
+    public Page<AppUser> findAll(Pageable pageable) {
+        return repo.findAll(pageable);
     }
 
     @Override
@@ -99,5 +101,15 @@ public class AppUserServiceImpl implements AppUserService {
         AppUser user = requireById(id);
         user.setIsActive(false);
         repo.save(user);
+    }
+
+    @Override
+    public long countALL() {
+        return repo.countAll();
+    }
+
+    @Override
+    public long countByRole(UserRole userRole) {
+        return repo.countByRole(userRole);
     }
 }

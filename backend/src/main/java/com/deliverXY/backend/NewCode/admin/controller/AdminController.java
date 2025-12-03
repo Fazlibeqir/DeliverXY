@@ -7,6 +7,7 @@ import com.deliverXY.backend.NewCode.admin.service.AdminService;
 import com.deliverXY.backend.NewCode.common.response.ApiResponse;
 import com.deliverXY.backend.NewCode.kyc.service.AppUserKYCService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,27 +28,12 @@ public class AdminController {
 
     @GetMapping("/users")
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<?> getUsers() {
-        return ApiResponse.ok(adminService.getAllUsers());
+    public ApiResponse<?> getUsers( @RequestParam(defaultValue = "0") int page,
+                                    @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.ok(adminService.getAllUsers(PageRequest.of(page, size)));
     }
 
-    @GetMapping("/earnings")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<?> getEarnings() {
-        return ApiResponse.ok(adminEarningsService.getEarnings());
-    }
-    @PostMapping("/kyc/{userId}/approve")
-    public ApiResponse<?> approveKYC(@PathVariable Long userId) {
-        return ApiResponse.ok(kycService.approveKYC(userId, "ADMIN"));
-    }
 
-    @PostMapping("/kyc/{userId}/reject")
-    public ApiResponse<?> rejectKYC(
-            @PathVariable Long userId,
-            @RequestBody String reason
-    ) {
-        return ApiResponse.ok(kycService.rejectKYC(userId, reason));
-    }
 
 
 
@@ -67,8 +53,9 @@ public class AdminController {
 
     @GetMapping("/deliveries")
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<?> getDeliveries() {
-        return ApiResponse.ok(adminService.getAllDeliveries());
+    public ApiResponse<?> getDeliveries(@RequestParam(defaultValue = "0") int page,
+                                        @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.ok(adminService.getAllDeliveries(PageRequest.of(page, size)));
     }
 
     @PostMapping("/deliveries/{deliveryId}/assign")
@@ -79,6 +66,24 @@ public class AdminController {
 
         adminService.assignDelivery(deliveryId, request.getAgentId());
         return ApiResponse.ok("Delivery assigned");
+    }
+    @GetMapping("/earnings")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<?> getEarnings() {
+        return ApiResponse.ok(adminEarningsService.getEarnings());
+    }
+
+    @PostMapping("/kyc/{userId}/approve")
+    public ApiResponse<?> approveKYC(@PathVariable Long userId) {
+        return ApiResponse.ok(kycService.approveKYC(userId, "ADMIN"));
+    }
+
+    @PostMapping("/kyc/{userId}/reject")
+    public ApiResponse<?> rejectKYC(
+            @PathVariable Long userId,
+            @RequestBody String reason
+    ) {
+        return ApiResponse.ok(kycService.rejectKYC(userId, reason));
     }
     //TODO : FUTURE POST /api/admin/deliveries/{id}/refund
     //TODO : FUTURE POST /api/admin/deliveries/{id}/cancel

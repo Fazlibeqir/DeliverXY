@@ -7,6 +7,8 @@ import com.deliverXY.backend.NewCode.deliveries.dto.FareResponseDTO;
 import com.deliverXY.backend.NewCode.deliveries.service.DeliveryService;
 import com.deliverXY.backend.NewCode.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,8 +25,9 @@ public class DeliveryController {
     private final DeliveryService deliveryService;
 
     @GetMapping
-    public ResponseEntity<List<DeliveryResponseDTO>> getAll() {
-        return ResponseEntity.ok(deliveryService.getAllDeliveries());
+    public ResponseEntity<Page<DeliveryResponseDTO>> getAll(@RequestParam(defaultValue = "0") int page,
+                                                            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(deliveryService.getAllDeliveries(PageRequest.of(page, size)));
     }
 
     @GetMapping("/{id}")

@@ -15,6 +15,8 @@ import com.deliverXY.backend.NewCode.common.enums.DeliveryStatus;
 import com.deliverXY.backend.NewCode.common.enums.KYCStatus;
 import com.deliverXY.backend.NewCode.common.enums.UserRole;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -30,29 +32,16 @@ public class AdminServiceImpl implements AdminService {
     @Override
     public AdminDashboardDTO getDashboardStats() {
 
-        var users = userService.findAll();
-        var deliveries = deliveryService.getAllDeliveries();
 
-        long totalUsers = users.size();
-        long totalClients = users.stream()
-                .filter(u -> u.getRole() == UserRole.CLIENT)
-                .count();
-        long totalAgents = users.stream()
-                .filter(u -> u.getRole() == UserRole.AGENT)
-                .count();
-
+        long totalUsers = userService.countALL();
+        long totalClients = userService.countByRole(UserRole.CLIENT);
+        long totalAgents = userService.countByRole(UserRole.AGENT);
         long pendingKYC = kycService.countByStatus(KYCStatus.PENDING);
 
-        long totalDeliveries = deliveries.size();
-        long pendingDeliveries = deliveries.stream()
-                .filter(d -> d.getStatus() == DeliveryStatus.REQUESTED)
-                .count();
-        long activeDeliveries = deliveries.stream()
-                .filter(d -> d.getStatus() == DeliveryStatus.IN_TRANSIT)
-                .count();
-        long completedDeliveries = deliveries.stream()
-                .filter(d -> d.getStatus() == DeliveryStatus.DELIVERED)
-                .count();
+        long totalDeliveries = deliveryService.countAll();
+        long pendingDeliveries = deliveryService.countByStatus(DeliveryStatus.REQUESTED);
+        long activeDeliveries = deliveryService.countByStatus(DeliveryStatus.IN_TRANSIT);
+        long completedDeliveries = deliveryService.countByStatus(DeliveryStatus.DELIVERED);
 
         return new AdminDashboardDTO(
                 totalUsers,
@@ -67,17 +56,15 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    public List<AdminUserDTO> getAllUsers() {
-        return userService.findAll()
-                .stream()
+    public Page<AdminUserDTO> getAllUsers(Pageable pageable) {
+        return userService.findAll(pageable)
                 .map(e-> {
                     AppUserKYC kyc = null;
                     try {
                         kyc = kycService.getKYC(e.getId());
                     } catch (Exception ignored){}
                     return new AdminUserDTO(e, kyc);
-                })
-                .toList();
+                });
     }
 
     @Override
@@ -101,8 +88,8 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    public List<DeliveryResponseDTO> getAllDeliveries() {
-        return deliveryService.getAllDeliveries();
+    public Page<DeliveryResponseDTO> getAllDeliveries(Pageable pageable) {
+        return deliveryService.getAllDeliveries(pageable);
     }
 
     @Override

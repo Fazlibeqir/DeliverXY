@@ -1,15 +1,18 @@
 package com.deliverXY.backend.NewCode.deliveries.service;
 
+import com.deliverXY.backend.NewCode.common.enums.DeliveryStatus;
 import com.deliverXY.backend.NewCode.deliveries.dto.DeliveryDTO;
 import com.deliverXY.backend.NewCode.deliveries.dto.DeliveryResponseDTO;
 import com.deliverXY.backend.NewCode.deliveries.dto.FareEstimateDTO;
 import com.deliverXY.backend.NewCode.deliveries.dto.FareResponseDTO;
 import com.deliverXY.backend.NewCode.user.domain.AppUser;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
 public interface DeliveryService {
-    List<DeliveryResponseDTO> getAllDeliveries();
+    Page<DeliveryResponseDTO> getAllDeliveries(Pageable pageable);
     DeliveryResponseDTO getDeliveryById(Long id);
 
     List<DeliveryResponseDTO> getByStatus(String status);
@@ -27,4 +30,8 @@ public interface DeliveryService {
     void delete(Long id);
 
     FareResponseDTO estimateFare(FareEstimateDTO dto, AppUser user);
+
+    long countAll();
+
+    long countByStatus(DeliveryStatus deliveryStatus);
 }

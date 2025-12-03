@@ -3,6 +3,8 @@ package com.deliverXY.backend.NewCode.admin.service;
 import com.deliverXY.backend.NewCode.admin.dto.AdminDashboardDTO;
 import com.deliverXY.backend.NewCode.admin.dto.AdminUserDTO;
 import com.deliverXY.backend.NewCode.deliveries.dto.DeliveryResponseDTO;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -10,12 +12,12 @@ public interface AdminService {
 
     AdminDashboardDTO getDashboardStats();
 
-    List<AdminUserDTO> getAllUsers();
+    Page<AdminUserDTO> getAllUsers(Pageable pageable);
 
     void blockUser(Long id);
     void unblockUser(Long id);
 
-    List<DeliveryResponseDTO> getAllDeliveries();
+    Page<DeliveryResponseDTO> getAllDeliveries(Pageable pageable);
 
     void assignDelivery(Long deliveryId, Long agentId);
 }

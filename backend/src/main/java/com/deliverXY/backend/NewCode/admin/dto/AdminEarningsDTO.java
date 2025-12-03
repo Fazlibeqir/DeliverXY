@@ -8,5 +8,5 @@ import java.math.BigDecimal;
 public class AdminEarningsDTO {
     private BigDecimal totalPlatformRevenue;
     private BigDecimal totalDriverEarnings;
-    private BigDecimal totalDelivered;
+    private Long totalDelivered;
 }

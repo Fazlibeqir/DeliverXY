@@ -44,7 +44,7 @@ public class AdminEarningsServiceImpl implements AdminEarningsService {
         AdminEarningsDTO dto = new AdminEarningsDTO();
         dto.setTotalDriverEarnings(driverTotal.add(tipTotal));
         dto.setTotalPlatformRevenue(platformRevenue);
-        dto.setTotalDelivered(BigDecimal.valueOf(list.size()));
+        dto.setTotalDelivered((long)list.size());
         return dto;
     }
     private BigDecimal safe(BigDecimal value) {

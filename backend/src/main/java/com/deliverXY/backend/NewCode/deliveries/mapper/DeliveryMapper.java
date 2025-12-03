@@ -27,8 +27,6 @@ public class DeliveryMapper {
         dto.setPackageType(delivery.getPackageType());
         dto.setPackageWeight(delivery.getPackageWeight());
         dto.setPackageDimensions(delivery.getPackageDimensions());
-        dto.setIsFragile(delivery.getIsFragile());
-        dto.setIsUrgent(delivery.getIsUrgent());
 
         // Pickup
         dto.setPickupAddress(delivery.getPickupAddress());
@@ -99,8 +97,6 @@ public class DeliveryMapper {
         delivery.setPackageType(dto.getPackageType());
         delivery.setPackageWeight(dto.getPackageWeight());
         delivery.setPackageDimensions(dto.getPackageDimensions());
-        delivery.setIsFragile(dto.getIsFragile());
-        delivery.setIsUrgent(dto.getIsUrgent());
 
         // Pickup
         delivery.setPickupAddress(dto.getPickupAddress());

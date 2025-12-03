@@ -10,7 +10,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -20,6 +19,7 @@ public interface DeliveryRepository extends JpaRepository<Delivery,Long> {
     List<Delivery> findByStatus(DeliveryStatus status);
     List<Delivery> findByAgentId(Long agentId);
     List<Delivery> findByClientId(Long clientId);
+    long countAll();
     long countByStatus(DeliveryStatus status);
     long countByAgentId(Long agentId);
     long countByClientId(Long clientId);

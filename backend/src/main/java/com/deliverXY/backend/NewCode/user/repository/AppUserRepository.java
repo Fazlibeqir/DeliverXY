@@ -24,4 +24,6 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
     Long countByRoleAndIsActiveTrue(UserRole role);
 
     void deleteByUsername(String username);
+    long countAll();
+    long countByRole(UserRole role);
 }

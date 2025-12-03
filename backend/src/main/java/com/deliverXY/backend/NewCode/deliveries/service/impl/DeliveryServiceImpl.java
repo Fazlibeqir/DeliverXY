@@ -17,6 +17,8 @@ import com.deliverXY.backend.NewCode.common.enums.DeliveryStatus;
 import com.deliverXY.backend.NewCode.wallet.service.WalletService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +35,6 @@ public class DeliveryServiceImpl implements DeliveryService {
     private final DeliveryHistoryRepository historyRepo;
     private final DeliveryTrackingRepository trackingRepo;
     private final WalletService walletService;
-    private final DeliveryInsuranceRepository insuranceRepo;
     private final DeliveryPaymentRepository paymentRepo;
     private final DeliveryRatingRepository ratingRepo;
     private final DriverEarningsRepository earningsRepo;
@@ -62,8 +63,8 @@ public class DeliveryServiceImpl implements DeliveryService {
     }
     //GETTERS
     @Override
-    public List<DeliveryResponseDTO> getAllDeliveries() {
-        return deliveryRepo.findAll().stream().map(mapper::toResponse).toList();
+    public Page<DeliveryResponseDTO> getAllDeliveries(Pageable pageable) {
+        return deliveryRepo.findAll(pageable).map(mapper::toResponse);
     }
 
     @Override
@@ -297,6 +298,17 @@ public class DeliveryServiceImpl implements DeliveryService {
                 promoApplied
         );
     }
+
+    @Override
+    public long countAll() {
+        return deliveryRepo.countAll();
+    }
+
+    @Override
+    public long countByStatus(DeliveryStatus deliveryStatus) {
+        return deliveryRepo.countByStatus(deliveryStatus);
+    }
+
     private boolean hasPromo(FareEstimateDTO dto) {
         return dto.getPromoCode() != null && !dto.getPromoCode().isBlank();
     }
