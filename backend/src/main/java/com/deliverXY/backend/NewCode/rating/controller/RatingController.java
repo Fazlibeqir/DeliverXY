@@ -5,6 +5,7 @@ import com.deliverXY.backend.NewCode.rating.domain.Rating;
 import com.deliverXY.backend.NewCode.rating.dto.RatingRequestDTO;
 import com.deliverXY.backend.NewCode.rating.service.RatingService;
 import com.deliverXY.backend.NewCode.security.UserPrincipal;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -21,7 +22,7 @@ public class RatingController {
     @PostMapping
     public ApiResponse<Rating> create(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody RatingRequestDTO dto
+            @Valid @RequestBody RatingRequestDTO dto
     ) {
         return ApiResponse.ok(
                 ratingService.createRating(principal.getUser().getId(), dto)
@@ -47,7 +48,7 @@ public class RatingController {
     public ApiResponse<Rating> update(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
-            @RequestBody RatingRequestDTO dto
+            @Valid @RequestBody RatingRequestDTO dto
     ) {
         return ApiResponse.ok(
                 ratingService.updateRating(principal.getUser().getId(), id, dto)
