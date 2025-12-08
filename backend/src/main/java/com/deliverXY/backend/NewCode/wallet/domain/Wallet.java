@@ -81,10 +81,6 @@ public class Wallet {
         this.lastResetDate = LocalDateTime.now();
     }
     
-    public void resetMonthlyLimits() {
-        this.monthlySpent = BigDecimal.ZERO;
-    }
-    
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();

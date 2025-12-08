@@ -1,12 +1,16 @@
 package com.deliverXY.backend.NewCode.wallet.controller;
 
 import com.deliverXY.backend.NewCode.common.response.ApiResponse;
+import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
 import com.deliverXY.backend.NewCode.security.UserPrincipal;
 import com.deliverXY.backend.NewCode.wallet.dto.WalletTransactionDTO;
 import com.deliverXY.backend.NewCode.wallet.service.WalletService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.math.BigDecimal;
 
 @RestController
 @RequiredArgsConstructor
@@ -21,12 +25,16 @@ public class WalletController {
     @PostMapping("/topup/initiate")
     public ApiResponse<?> initiateTopUp(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody WalletTransactionDTO dto
+            @Valid @RequestBody WalletTransactionDTO dto
 
     ){
+        BigDecimal amount = dto.getAmount();
+        if (amount == null) {
+            return ApiResponse.error("Amount is required for top-up.", 400, "AMOUNT_REQUIRED", "/api/wallet/topup/initiate");
+        }
         return ApiResponse.ok(walletService.initiateTopUp(
                 principal.getUser().getId(),
-                dto.getAmount()
+                amount
         ));
     }
     @PostMapping("/topup/callback")
@@ -43,11 +51,15 @@ public class WalletController {
     @PostMapping("/deposit")
     public ApiResponse<String> deposit(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody WalletTransactionDTO dto
+            @Valid @RequestBody WalletTransactionDTO dto
     ) {
+        BigDecimal amount = dto.getAmount();
+        if (amount == null) {
+            return ApiResponse.error("Amount is required for deposit.", 400, "AMOUNT_REQUIRED", "/api/wallet/deposit");
+        }
         walletService.deposit(
                 principal.getUser().getId(),
-                dto.getAmount(),
+                amount,
                 dto.getReference()
         );
         return ApiResponse.ok("Deposit successful");
@@ -56,24 +68,27 @@ public class WalletController {
     @PostMapping("/withdraw")
     public ApiResponse<?> withdraw(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody WalletTransactionDTO dto
+            @Valid @RequestBody WalletTransactionDTO dto
     ) {
-        boolean success = walletService.withdraw(
-                principal.getUser().getId(),
-                dto.getAmount(),
-                dto.getReference()
-        );
-
-        if (!success) {
-            return new ApiResponse<>(
-                    false,
-                    "Insufficient funds or daily/monthly limit reached",
-                    System.currentTimeMillis(),
+        BigDecimal amount = dto.getAmount();
+        if (amount == null) {
+            return ApiResponse.error("Amount is required for withdrawal.", 400, "AMOUNT_REQUIRED", "/api/wallet/withdraw");
+        }
+        try {
+            walletService.withdraw(
+                    principal.getUser().getId(),
+                    amount,
+                    dto.getReference()
+            );
+        }catch (NotFoundException e){
+            return ApiResponse.error(
+                    e.getMessage(),
                     400,
                     "WALLET_WITHDRAW_DENIED",
                     "/api/wallet/withdraw"
             );
         }
+
 
         return ApiResponse.ok("Withdraw successful");
     }

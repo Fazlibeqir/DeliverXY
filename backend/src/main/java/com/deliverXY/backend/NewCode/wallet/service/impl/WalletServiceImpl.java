@@ -19,6 +19,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,7 +38,29 @@ public class WalletServiceImpl implements WalletService {
         return walletRepository.findByUserId(userId)
                 .orElseThrow(()-> new NotFoundException("Wallet not found for user:" + userId));
     }
+    //Check and reset limits if needed
+    private void checkAndResetLimits(Wallet wallet) {
+        LocalDate now = LocalDate.now();
+        LocalDateTime lastResetDateTime = wallet.getLastResetDate();
+        LocalDate lastResetDate = lastResetDateTime.toLocalDate();
 
+        // 1. Daily Reset: If the last reset was on a different day
+        if (!now.isEqual(lastResetDate)) {
+            wallet.setDailySpent(BigDecimal.ZERO);
+            // We set the date here, but will refine the monthly logic below
+        }
+
+        // 2. Monthly Reset: If the last reset was in a different month
+        if (now.getMonth() != lastResetDate.getMonth() || now.getYear() != lastResetDate.getYear()) {
+            wallet.setMonthlySpent(BigDecimal.ZERO);
+        }
+
+        // Update the last reset date only if any reset occurred
+        if (!now.isEqual(lastResetDate) || now.getMonth() != lastResetDate.getMonth()) {
+            wallet.setLastResetDate(LocalDateTime.now());
+        }
+        // Note: The Wallet entity will be saved automatically by the @Transactional context.
+    }
     @Override
     public Wallet getWallet(Long userId) {
         AppUser user = userRepo.findById(userId)
@@ -105,14 +129,16 @@ public class WalletServiceImpl implements WalletService {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0)
             throw new IllegalArgumentException("Withdraw amount must be positive");
 
-        Wallet wallet = getWallet(userId);
+        Wallet wallet = getWalletEntity(userId);
+
+        checkAndResetLimits(wallet);
 
         // not enough funds
         if (!wallet.canWithdraw(amount)) {
             throw new NotFoundException("Insufficient funds");
         }
 
-        wallet.setBalance(wallet.getBalance().subtract(amount));
+        wallet.deductFunds(amount);
         walletRepository.save(wallet);
 
         saveTransaction(wallet, amount.negate(), TransactionType.WITHDRAW, reference);
