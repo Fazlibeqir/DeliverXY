@@ -1,53 +1,124 @@
 package com.deliverXY.backend.NewCode.payments.service.Provider;
 
 import com.deliverXY.backend.NewCode.common.enums.PaymentProvider;
+import com.deliverXY.backend.NewCode.common.enums.PaymentStatus;
+import com.deliverXY.backend.NewCode.deliveries.dto.FareResponseDTO;
+import com.deliverXY.backend.NewCode.deliveries.repository.DeliveryRepository;
+import com.deliverXY.backend.NewCode.deliveries.service.DeliveryService;
+import com.deliverXY.backend.NewCode.exceptions.BadRequestException;
+import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
 import com.deliverXY.backend.NewCode.payments.domain.Payment;
 import com.deliverXY.backend.NewCode.payments.dto.PaymentResultDTO;
 import com.deliverXY.backend.NewCode.payments.repository.PaymentRepository;
+import com.deliverXY.backend.NewCode.payments.service.PaymentGatewayProvider;
 import com.deliverXY.backend.NewCode.payments.service.PaymentService;
+import com.deliverXY.backend.NewCode.user.domain.AppUser;
+import com.deliverXY.backend.NewCode.user.service.AppUserService;
 import com.stripe.exception.StripeException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class PaymentServiceImpl implements PaymentService {
 
-    private final StripeProvider stripe;
-    private final CPayProvider cpay;
-    private final WalletProvider wallet;
-    private final CashProvider cash;
+    private final Map<PaymentProvider, PaymentGatewayProvider> providers;
     private final PaymentRepository paymentRepo;
+    private final DeliveryRepository deliveryRepo;
+    private final DeliveryService deliveryService;
+    private final AppUserService userService;
+
+    public PaymentServiceImpl(List<PaymentGatewayProvider> providerList,
+                              PaymentRepository paymentRepo,
+                              DeliveryRepository deliveryRepo,
+                              DeliveryService deliveryService,
+                              AppUserService userService) {
+        this.paymentRepo = paymentRepo;
+        this.deliveryRepo = deliveryRepo;
+        this.deliveryService = deliveryService;
+        this.userService = userService;
+        this.providers = providerList.stream()
+                .collect(Collectors.toMap(PaymentGatewayProvider::getProviderType, Function.identity()));
+    }
+
+    private PaymentGatewayProvider getGatewayProvider(PaymentProvider provider) {
+        PaymentGatewayProvider gateway = providers.get(provider);
+        if (gateway == null) {
+            throw new BadRequestException("Payment provider '" + provider + "' is not supported.");
+        }
+        return gateway;
+    }
 
     @Override
+    @Transactional
     public PaymentResultDTO initializePayment(Long deliveryId, PaymentProvider provider, Long userId)
             throws StripeException {
 
-        return switch (provider) {
-            case STRIPE -> stripe.initPayment(deliveryId);
-            case CPAY -> cpay.initPayment(deliveryId);
-            case WALLET -> wallet.initPayment(deliveryId);
-            case CASH -> cash.initPayment(deliveryId);
-            case PAYPAL_API -> throw new UnsupportedOperationException("PayPal not implemented");
-        };
+        var delivery = deliveryRepo.findById(deliveryId)
+                .orElseThrow(() -> new NotFoundException("Delivery not found"));
+
+        FareResponseDTO fare = deliveryService.getFareForDelivery(deliveryId);
+        BigDecimal finalAmount = BigDecimal.valueOf(fare.getTotalFare());
+
+        if (delivery.getDeliveryPayment() != null && delivery.getDeliveryPayment().getPaymentStatus() != PaymentStatus.PENDING) {
+            throw new BadRequestException("A payment already exists for this delivery.");
+        }
+        Payment payment = Payment.builder()
+                .delivery(delivery)
+                .payerId(userId)
+                .amount(finalAmount)
+                .method(provider.getDefaultMethod())
+                .provider(provider)
+                .status(PaymentStatus.PENDING)
+                .initiatedAt(LocalDateTime.now())
+                .build();
+        paymentRepo.save(payment);
+
+        PaymentGatewayProvider gateway = getGatewayProvider(provider);
+
+        PaymentResultDTO result = gateway.initiateTransaction(payment);
+
+        payment.setProviderReference(result.getProviderReference());
+        payment.setProviderSessionId(result.getProviderSessionId());
+        payment.setStatus(result.getStatus());
+
+        // If the result status is COMPLETED (e.g., Mock or instant provider like WALLET)
+        if (result.getStatus() == PaymentStatus.COMPLETED) {
+            payment.setCompletedAt(LocalDateTime.now());
+            // TODO: Trigger driver earnings distribution or delivery status update
+        }
+
+        paymentRepo.save(payment);
+
+        return result;
     }
 
     @Override
     public PaymentResultDTO confirmPayment(String reference) {
 
         Payment payment = paymentRepo.findByProviderReference(reference)
-                .orElseThrow(() -> new RuntimeException("Invalid payment reference"));
+                .orElseThrow(() -> new NotFoundException("Invalid payment reference"));
 
-        return switch (payment.getProvider()) {
-            case STRIPE -> stripe.confirm(reference);
-            case CPAY -> cpay.confirm(reference);
-            case WALLET -> wallet.confirm(reference);
-            case CASH -> cash.confirm(reference);
-            case PAYPAL_API -> throw new UnsupportedOperationException("PayPal not implemented");
-        };
+        PaymentGatewayProvider gateway = getGatewayProvider(payment.getProvider());
+        PaymentResultDTO result = gateway.confirmTransaction(reference);
+
+        if (payment.getStatus() != result.getStatus()) {
+            payment.setStatus(result.getStatus());
+            if (result.getStatus() == PaymentStatus.COMPLETED) {
+                payment.setCompletedAt(LocalDateTime.now());
+                // TODO: Trigger driver earnings distribution or delivery status update
+            }
+            paymentRepo.save(payment);
+        }
+
+        return result;
     }
 
     @Override
@@ -57,7 +128,18 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public PaymentResultDTO payWithWallet(Long deliveryId, Long userId) {
-        return wallet.initPayment(deliveryId);
+        // FIX: Delegation should go through the generic map, assuming WalletPaymentProvider exists.
+        // 1. Fetch user (required for wallet access)
+        AppUser user = userService.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        // 2. Delegate to the main initializePayment, forcing the provider to WALLET
+        try {
+            return initializePayment(deliveryId, PaymentProvider.WALLET, userId);
+        } catch (StripeException e) {
+            // Wallet payment shouldn't throw StripeException, but we catch it for compatibility
+            throw new BadRequestException("Wallet payment initialization failed: " + e.getMessage());
+        }
     }
 
     @Override

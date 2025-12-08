@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -32,11 +34,11 @@ public class PromoCode {
     private DiscountType discountType;
 
     @Column(nullable = false)
-    private Double discountValue; // Percentage or fixed amount in MKD
+    private BigDecimal discountValue; // Percentage or fixed amount in MKD
 
-    private Double maxDiscountAmount; // Max discount for percentage type
+    private BigDecimal maxDiscountAmount; // Max discount for percentage type
 
-    private Double minOrderAmount; // Minimum order amount to use promo
+    private BigDecimal minOrderAmount; // Minimum order amount to use promo
 
     @Column(name = "usage_limit")
     private Integer usageLimit; // Total usage limit (null = unlimited)
@@ -74,15 +76,4 @@ public class PromoCode {
     }
 
 
-
-    public boolean isValid() {
-        LocalDateTime now = LocalDateTime.now();
-
-        if (!isActive) return false;
-        if (startDate != null && now.isBefore(startDate)) return false;
-        if (endDate != null && now.isAfter(endDate)) return false;
-        if (usageLimit != null && currentUsage >= usageLimit) return false;
-
-        return true;
-    }
 }

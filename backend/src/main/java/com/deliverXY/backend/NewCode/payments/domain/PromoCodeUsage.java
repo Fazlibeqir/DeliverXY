@@ -6,6 +6,8 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -32,13 +34,13 @@ public class PromoCodeUsage {
     private Delivery delivery;
 
     @Column(name = "discount_amount")
-    private Double discountAmount;
+    private BigDecimal discountAmount;
 
     @Column(name = "original_amount")
-    private Double originalAmount;
+    private BigDecimal originalAmount;
 
     @Column(name = "final_amount")
-    private Double finalAmount;
+    private BigDecimal finalAmount;
 
     @Column(name = "used_at")
     private LocalDateTime usedAt;

@@ -29,15 +29,15 @@ public class DriverPayout {
     private LocalDateTime periodStart;
     private LocalDateTime periodEnd;
 
-    @Enumerated(EnumType.STRING) // <-- NEW: Status tracking
+    @Enumerated(EnumType.STRING)
     private PayoutStatus status = PayoutStatus.PENDING;
 
     private LocalDateTime paidAt = LocalDateTime.now();
 
-    private String transactionRef; // <-- Added for processing
-    private String processedBy; // <-- Added for processing
+    private String transactionRef;
+    private String processedBy;
 
-    @PrePersist // Ensure paidAt is only set if status is PAID
+    @PrePersist
     protected void onCreate() {
         if (paidAt == null && status == PayoutStatus.PAID) {
             paidAt = LocalDateTime.now();

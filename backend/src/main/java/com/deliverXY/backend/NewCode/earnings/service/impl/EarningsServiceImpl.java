@@ -101,7 +101,7 @@ public class EarningsServiceImpl implements EarningsService {
                 payout.getAmountPaid(),
                 payout.getPeriodStart().toString(),
                 payout.getPeriodEnd().toString(),
-                payout.getPaidAt().toString(),
+                payout.getPaidAt() !=null ? payout.getPaidAt().toString() : null,
                 payout.getStatus().name()
         );
     }

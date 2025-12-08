@@ -35,4 +35,6 @@ public interface DeliveryService {
     long countByStatus(DeliveryStatus deliveryStatus);
 
     FareResponseDTO estimateFare(@Valid FareEstimateDTO request, AppUser user);
+
+    FareResponseDTO getFareForDelivery(Long deliveryId);
 }
