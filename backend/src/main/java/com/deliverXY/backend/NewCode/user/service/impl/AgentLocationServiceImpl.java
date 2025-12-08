@@ -9,7 +9,6 @@ import com.deliverXY.backend.NewCode.user.service.AppUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -27,7 +26,6 @@ public class AgentLocationServiceImpl implements AgentLocationService {
         loc.setUser(user);
         loc.setLatitude(lat);
         loc.setLongitude(lon);
-        loc.setUpdatedAt(LocalDateTime.now());
 
         return repo.save(loc);
     }

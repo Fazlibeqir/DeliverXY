@@ -3,6 +3,7 @@ package com.deliverXY.backend.NewCode.user.service.impl;
 import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
 import com.deliverXY.backend.NewCode.user.domain.AppUser;
 import com.deliverXY.backend.NewCode.user.domain.AppUserAgentProfile;
+import com.deliverXY.backend.NewCode.user.dto.AgentProfileDTO;
 import com.deliverXY.backend.NewCode.user.repository.AppUserAgentProfileRepository;
 import com.deliverXY.backend.NewCode.user.service.AgentProfileService;
 import com.deliverXY.backend.NewCode.user.service.AppUserService;
@@ -23,7 +24,7 @@ public class AgentProfileServiceImpl implements AgentProfileService {
     }
 
     @Override
-    public AppUserAgentProfile updateProfile(Long userId, AppUserAgentProfile data) {
+    public AppUserAgentProfile updateProfile(Long userId, AgentProfileDTO data) {
         AppUser user = userService.requireById(userId);
 
         AppUserAgentProfile profile = repo.findById(userId)
@@ -34,6 +35,11 @@ public class AgentProfileServiceImpl implements AgentProfileService {
         profile.setDriversLicenseExpiry(data.getDriversLicenseExpiry());
         profile.setDriversLicenseFrontUrl(data.getDriversLicenseFrontUrl());
         profile.setDriversLicenseBackUrl(data.getDriversLicenseBackUrl());
+
+        // Added status update logic (optional)
+        if (data.getIsAvailable() != null) {
+            profile.setIsAvailable(data.getIsAvailable());
+        }
 
         return repo.save(profile);
     }

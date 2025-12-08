@@ -4,6 +4,7 @@ import com.deliverXY.backend.NewCode.common.response.ApiResponse;
 import com.deliverXY.backend.NewCode.security.UserPrincipal;
 import com.deliverXY.backend.NewCode.user.domain.AppUserAgentProfile;
 import com.deliverXY.backend.NewCode.user.domain.AppUserLocation;
+import com.deliverXY.backend.NewCode.user.dto.AgentProfileDTO;
 import com.deliverXY.backend.NewCode.user.dto.AgentStatusUpdateDTO;
 import com.deliverXY.backend.NewCode.user.service.AgentLocationService;
 import com.deliverXY.backend.NewCode.user.service.AgentProfileService;
@@ -26,7 +27,7 @@ public class AgentController {
     @PutMapping("/profile")
     public ApiResponse<AppUserAgentProfile> updateProfile(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody AppUserAgentProfile profile
+            @RequestBody AgentProfileDTO profile
     ) {
         return ApiResponse.ok(profileService.updateProfile(principal.getUser().getId(), profile));
     }
