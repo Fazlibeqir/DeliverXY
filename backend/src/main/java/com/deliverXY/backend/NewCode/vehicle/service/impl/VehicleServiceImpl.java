@@ -9,10 +9,12 @@ import com.deliverXY.backend.NewCode.vehicle.dto.VehicleRequestDTO;
 import com.deliverXY.backend.NewCode.vehicle.dto.VehicleResponseDTO;
 import com.deliverXY.backend.NewCode.vehicle.repository.VehicleRepository;
 import com.deliverXY.backend.NewCode.vehicle.service.VehicleService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -21,11 +23,24 @@ public class VehicleServiceImpl implements VehicleService {
     private final VehicleRepository repo;
     private final AppUserRepository userRepo;
 
+    private void checkUniqueLicensePlate(Long currentVehicleId, String newPlate){
+        if (repo.existsByLicensePlate(newPlate)) {
+            // Fetch potential vehicle with the same plate
+            Vehicle existing = repo.findByLicensePlate(newPlate)
+                    .orElse(null);
+
+            // If found, check if it's a *different* vehicle
+            if (existing != null && !Objects.equals(existing.getId(), currentVehicleId)) {
+                throw new BadRequestException("License plate already registered for another vehicle");
+            }
+        }
+    }
+
     @Override
+    @Transactional
     public VehicleResponseDTO create(Long userId, VehicleRequestDTO dto) {
 
-        if (repo.existsByLicensePlate(dto.getLicensePlate()))
-            throw new BadRequestException("License plate already registered");
+        checkUniqueLicensePlate(null, dto.getLicensePlate());
 
         AppUser owner = userRepo.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
@@ -40,6 +55,7 @@ public class VehicleServiceImpl implements VehicleService {
     }
 
     @Override
+    @Transactional
     public VehicleResponseDTO update(Long userId, Long id, VehicleRequestDTO dto) {
 
         Vehicle v = repo.findById(id)
@@ -48,6 +64,10 @@ public class VehicleServiceImpl implements VehicleService {
         if (!v.getOwner().getId().equals(userId))
             throw new BadRequestException("You do not own this vehicle");
 
+        if (!v.getLicensePlate().equals(dto.getLicensePlate())) {
+            checkUniqueLicensePlate(id, dto.getLicensePlate());
+        }
+
         map(v, dto);
         repo.save(v);
 
@@ -55,6 +75,7 @@ public class VehicleServiceImpl implements VehicleService {
     }
 
     @Override
+    @Transactional
     public void delete(Long userId, Long id) {
         Vehicle v = repo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Vehicle not found"));

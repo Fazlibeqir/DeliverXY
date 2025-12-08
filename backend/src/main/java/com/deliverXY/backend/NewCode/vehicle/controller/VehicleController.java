@@ -6,6 +6,7 @@ import com.deliverXY.backend.NewCode.vehicle.dto.VehicleRequestDTO;
 import com.deliverXY.backend.NewCode.vehicle.dto.VehicleResponseDTO;
 import com.deliverXY.backend.NewCode.vehicle.service.VehicleService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,7 +22,7 @@ public class VehicleController {
     @PostMapping
     public ApiResponse<VehicleResponseDTO> create(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody VehicleRequestDTO dto
+            @Valid @RequestBody VehicleRequestDTO dto
     ) {
         return ApiResponse.ok(service.create(principal.getUser().getId(), dto));
     }
@@ -30,7 +31,7 @@ public class VehicleController {
     public ApiResponse<VehicleResponseDTO> update(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
-            @RequestBody VehicleRequestDTO dto
+            @Valid @RequestBody VehicleRequestDTO dto
     ) {
         return ApiResponse.ok(service.update(principal.getUser().getId(), id, dto));
     }
