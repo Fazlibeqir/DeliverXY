@@ -17,6 +17,15 @@ public class ApiResponse<T> {
     private String path;
     private String message;
 
+    public ApiResponse(boolean b, String message, long l, int value, String errorCode, String path) {
+        this.success = b;
+        this.message = message;
+        this.timestamp = l;
+        this.status = value;
+        this.errorCode = errorCode;
+        this.path = path;
+    }
+
     public static <T> ApiResponse<T> ok(T data) {
         return new ApiResponse<>(true, data, System.currentTimeMillis(), 200, null, null,null);
     }

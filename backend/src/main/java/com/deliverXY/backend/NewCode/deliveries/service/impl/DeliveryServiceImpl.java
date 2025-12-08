@@ -256,7 +256,7 @@ public class DeliveryServiceImpl implements DeliveryService {
 
     @Override
     public long countAll() {
-        return deliveryRepo.countAll();
+        return deliveryRepo.count();
     }
 
     @Override

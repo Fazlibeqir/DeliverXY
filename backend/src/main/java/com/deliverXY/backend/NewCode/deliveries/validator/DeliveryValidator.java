@@ -20,9 +20,6 @@ public class DeliveryValidator {
             throw new ValidationException("Dropoff address is required.");
         }
 
-        if (dto.getBasePrice() == null || dto.getBasePrice().doubleValue() <= 0) {
-            throw new ValidationException("Base price must be > 0.");
-        }
 
         if (dto.getPickupLatitude() == null || dto.getPickupLongitude() == null) {
             throw new ValidationException("Pickup location is required.");

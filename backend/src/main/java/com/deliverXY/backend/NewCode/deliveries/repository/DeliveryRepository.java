@@ -19,7 +19,7 @@ public interface DeliveryRepository extends JpaRepository<Delivery,Long> {
     List<Delivery> findByStatus(DeliveryStatus status);
     List<Delivery> findByAgentId(Long agentId);
     List<Delivery> findByClientId(Long clientId);
-    long countAll();
+
     long countByStatus(DeliveryStatus status);
     long countByAgentId(Long agentId);
     long countByClientId(Long clientId);

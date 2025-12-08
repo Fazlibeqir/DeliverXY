@@ -3,10 +3,12 @@ package com.deliverXY.backend.NewCode.wallet.controller;
 import com.deliverXY.backend.NewCode.common.response.ApiResponse;
 import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
 import com.deliverXY.backend.NewCode.security.UserPrincipal;
+import com.deliverXY.backend.NewCode.wallet.dto.TopUpInitDTO;
 import com.deliverXY.backend.NewCode.wallet.dto.WalletTransactionDTO;
 import com.deliverXY.backend.NewCode.wallet.service.WalletService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,7 +27,7 @@ public class WalletController {
     @PostMapping("/topup/initiate")
     public ApiResponse<?> initiateTopUp(
             @AuthenticationPrincipal UserPrincipal principal,
-            @Valid @RequestBody WalletTransactionDTO dto
+            @Valid @RequestBody TopUpInitDTO dto
 
     ){
         BigDecimal amount = dto.getAmount();
@@ -34,9 +36,24 @@ public class WalletController {
         }
         return ApiResponse.ok(walletService.initiateTopUp(
                 principal.getUser().getId(),
-                amount
+                amount,
+                dto.getProvider()
         ));
     }
+    @PostMapping("/create-initial/{userId}")
+    @PreAuthorize( "hasRole('ADMIN')")
+    public ApiResponse<String> createInitialWalletForUser(@PathVariable Long userId) {
+        // Calling a zero-amount deposit is a clean way to ensure the wallet is created
+        // if it doesn't exist, without performing a real monetary transaction.
+        // If your underlying service requires a dedicated 'create' method, use that instead.
+        walletService.deposit(
+                userId,
+                BigDecimal.ZERO, // Amount zero to only create the wallet structure
+                "Initial Wallet Setup"
+        );
+        return ApiResponse.ok("Initial wallet created for user: " + userId);
+    }
+
     @PostMapping("/topup/callback")
     public ApiResponse<?> finishTopUp(
             @RequestParam Long topUpId,

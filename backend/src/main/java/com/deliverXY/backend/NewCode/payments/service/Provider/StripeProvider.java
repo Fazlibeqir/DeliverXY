@@ -17,11 +17,11 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 
-@Service
+//@Service
 @RequiredArgsConstructor
 public class StripeProvider {
 
-    @Value(staticConstructor = "${stripe.secret-key}")
+//    @Value(staticConstructor = "${stripe.secret-key}")
     private String secretKey;
 
     private final PaymentRepository paymentRepo;

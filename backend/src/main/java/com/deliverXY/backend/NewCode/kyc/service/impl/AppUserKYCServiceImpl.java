@@ -26,7 +26,6 @@ public class AppUserKYCServiceImpl implements AppUserKYCService {
 
         AppUserKYC existing = findKYC(userId).orElse(new AppUserKYC());
         existing.setUser(user);
-        existing.setId(userId);
 
         existing.setIdFrontUrl(kyc.getIdFrontUrl());
         existing.setIdBackUrl(kyc.getIdBackUrl());
@@ -44,6 +43,11 @@ public class AppUserKYCServiceImpl implements AppUserKYCService {
         AppUserKYC kyc = findKYC(userId)
                 .orElseThrow(() -> new NotFoundException("KYC record not found for approval"));
 
+        AppUser user = kyc.getUser();
+        if (user != null) {
+            user.setIsVerified(true);
+            userService.save(user);
+        }
         kyc.setKycStatus(KYCStatus.APPROVED);
         kyc.setVerifiedAt(LocalDateTime.now());
         kyc.setRejectionReason(null);

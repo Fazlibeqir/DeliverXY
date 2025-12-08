@@ -1,5 +1,6 @@
 package com.deliverXY.backend.NewCode.wallet.service.impl;
 
+import com.deliverXY.backend.NewCode.common.enums.PaymentProvider;
 import com.deliverXY.backend.NewCode.common.enums.TopUpStatus;
 import com.deliverXY.backend.NewCode.common.enums.TransactionType;
 import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
@@ -78,7 +79,7 @@ public class WalletServiceImpl implements WalletService {
     }
 
     @Override
-    public TopUpRequest initiateTopUp(Long userId, BigDecimal amount) {
+    public TopUpRequest initiateTopUp(Long userId, BigDecimal amount, PaymentProvider provider) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0)
             throw new NotFoundException("Top-up amount must be positive");
 
@@ -88,10 +89,15 @@ public class WalletServiceImpl implements WalletService {
 
         // generate unique reference for bank/cpay/stripe/etc.
         req.setReferenceId(UUID.randomUUID().toString());
-        req.setProvider("CPAY"); // Placeholder until CPay integration
+        req.setProvider(provider !=null ? provider.name() : "MOCK"); // Placeholder until CPay integration
         req.setStatus(TopUpStatus.PENDING);
 
-        return topUpRepository.save(req);
+        TopUpRequest savedReq = topUpRepository.save(req);
+        if (provider == PaymentProvider.MOCK){
+//            Thread.sleep(500);
+            finalizeTopUp(savedReq.getId(), true, savedReq.getReferenceId());
+        }
+        return savedReq;
     }
 
     @Override

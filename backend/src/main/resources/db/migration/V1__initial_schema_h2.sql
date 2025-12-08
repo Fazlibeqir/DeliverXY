@@ -231,4 +231,4 @@ CREATE INDEX IF NOT EXISTS idx_ratings_delivery_id ON ratings(delivery_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_delivery_id ON chat_messages(delivery_id);
 
 -- Note: Triggers are not needed for H2 as JPA will handle updated_at automatically
--- The @PreUpdate annotation in the entity classes will handle this 
+-- The @PreUpdate annotation in the entity classes will handle this

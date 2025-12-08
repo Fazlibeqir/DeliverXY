@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS app_user (
     password VARCHAR(255) NOT NULL,
     phone_number VARCHAR(20),
     role VARCHAR(20) NOT NULL DEFAULT 'CLIENT',
-    
+
     -- KYC Fields
     kyc_status VARCHAR(20) DEFAULT 'PENDING',
     id_front_url VARCHAR(500),
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS app_user (
     kyc_submitted_at TIMESTAMP,
     kyc_verified_at TIMESTAMP,
     kyc_rejection_reason TEXT,
-    
+
     -- Agent Specific Fields
     is_available BOOLEAN DEFAULT FALSE,
     current_latitude DECIMAL(10, 8),
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS app_user (
     rating DECIMAL(3, 2) DEFAULT 0.0,
     total_deliveries INTEGER DEFAULT 0,
     total_earnings DECIMAL(10, 2) DEFAULT 0.0,
-    
+
     -- Account Status
     is_active BOOLEAN DEFAULT TRUE,
     is_verified BOOLEAN DEFAULT FALSE,
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS wallets (
 -- Deliveries Table
 CREATE TABLE IF NOT EXISTS deliveries (
     id BIGSERIAL PRIMARY KEY,
-    
+
     -- Basic Delivery Info
     title VARCHAR(255) NOT NULL,
     description TEXT,
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS deliveries (
     package_dimensions VARCHAR(100),
     is_fragile BOOLEAN DEFAULT FALSE,
     is_urgent BOOLEAN DEFAULT FALSE,
-    
+
     -- Pickup Information
     pickup_address TEXT NOT NULL,
     pickup_latitude DECIMAL(10, 8),
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS deliveries (
     pickup_contact_name VARCHAR(100),
     pickup_contact_phone VARCHAR(20),
     pickup_instructions TEXT,
-    
+
     -- Dropoff Information
     dropoff_address TEXT NOT NULL,
     dropoff_latitude DECIMAL(10, 8),
@@ -85,20 +85,20 @@ CREATE TABLE IF NOT EXISTS deliveries (
     dropoff_contact_name VARCHAR(100),
     dropoff_contact_phone VARCHAR(20),
     dropoff_instructions TEXT,
-    
+
     -- Timing
     requested_pickup_time TIMESTAMP,
     requested_delivery_time TIMESTAMP,
     actual_pickup_time TIMESTAMP,
     actual_delivery_time TIMESTAMP,
     expires_at TIMESTAMP,
-    
+
     -- Status and Assignment
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     client_id BIGINT NOT NULL REFERENCES app_user(id),
     agent_id BIGINT REFERENCES app_user(id),
     assigned_at TIMESTAMP,
-    
+
     -- Payment Information
     base_price DECIMAL(10, 2) NOT NULL,
     urgent_fee DECIMAL(10, 2) DEFAULT 0.0,
@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS deliveries (
     payment_status VARCHAR(20) DEFAULT 'PENDING',
     payment_method VARCHAR(20),
     paid_at TIMESTAMP,
-    
+
     -- Tracking and Communication
     estimated_distance DECIMAL(8, 2),
     estimated_duration INTEGER,
@@ -117,12 +117,12 @@ CREATE TABLE IF NOT EXISTS deliveries (
     current_longitude DECIMAL(11, 8),
     last_location_update TIMESTAMP,
     tracking_code VARCHAR(50) UNIQUE,
-    
+
     -- Insurance and Safety
     is_insured BOOLEAN DEFAULT FALSE,
     insurance_amount DECIMAL(10, 2) DEFAULT 0.0,
     insurance_premium DECIMAL(10, 2) DEFAULT 0.0,
-    
+
     -- Ratings and Reviews
     client_rating INTEGER CHECK (client_rating >= 1 AND client_rating <= 5),
     client_review TEXT,
@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS deliveries (
     agent_review TEXT,
     reviewed_by_client BOOLEAN DEFAULT FALSE,
     reviewed_by_agent BOOLEAN DEFAULT FALSE,
-    
+
     -- Metadata
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -244,4 +244,4 @@ CREATE TRIGGER update_ratings_updated_at BEFORE UPDATE ON ratings
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_chat_messages_updated_at BEFORE UPDATE ON chat_messages
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); 
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

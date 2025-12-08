@@ -34,4 +34,10 @@ public class PaymentResultDTO {
         this.status = status;
         this.message = "Cash on Delivery payment recorded successfully.";
     }
+
+    public PaymentResultDTO(String cashOnDelivery, Long id, PaymentProvider provider) {
+        this.paymentId=id;
+        this.providerReference=cashOnDelivery;
+        this.provider=provider;
+    }
 }
