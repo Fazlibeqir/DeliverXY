@@ -47,6 +47,16 @@ public class DeliveryController {
         // NOTE: Admin/internal endpoint. Normal users should use /me/deliveries.
         return ApiResponse.ok(deliveryService.getByClient(clientId));
     }
+    @GetMapping("/mine")
+    public ApiResponse<List<DeliveryResponseDTO>> myDeliveries(@AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResponse.ok(deliveryService.getByClient(principal.getUser().getId()));
+    }
+    @GetMapping("/assigned")
+    public ApiResponse<List<DeliveryResponseDTO>> assignedToMe(@AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResponse.ok(deliveryService.getByAgent(principal.getUser().getId()));
+    }
+
+
 
     @GetMapping("/agent/{agentId}")
     public ApiResponse<List<DeliveryResponseDTO>> getByAgent(@PathVariable Long agentId) {
