@@ -1,7 +1,17 @@
-import Vue from 'nativescript-vue'
+import Vue from 'nativescript-vue';
 
-import Home from './components/Home'
+import Login from './components/Login.vue';
+import Home from './components/Home.vue';
+
+import { getAccessToken } from './services/core/auth-store';
 
 new Vue({
-  render: (h) => h('frame', [h(Home)]),
-}).$start()
+    render(h) {
+        const token = getAccessToken();
+
+        return h(
+            'frame',
+            [ h(token ? Home : Login) ]  // If token exists → Home, else Login
+        );
+    }
+}).$start();
