@@ -1,12 +1,15 @@
 <template>
     <Page>
-        <ActionBar title="DeliverXY – Agent" />
+        <ActionBar title="DeliverXY – Agent">
+            <ActionItem text="Logout" @tap="logoutUser" ios.position="right" android.position="popup" />
+        </ActionBar>
 
         <ScrollView>
             <StackLayout class="container">
 
                 <!-- HEADER -->
-                <Label :text="'Welcome, ' + (user?.firstName || '')" class="title" />
+                <Label :text="'Welcome, ' + (user && user.firstName ? user.firstName : '')" class="title" />
+
 
                 <!-- EARNINGS CARD -->
                 <StackLayout class="card" @tap="goEarnings">
@@ -53,9 +56,10 @@
 
 <script>
 import { getMe } from "~/services/auth/auth.api";
-import { summary as getEarningsSummary } from "~/services/earnings/earnings.api";
+import { getEarnings } from "~/services/earnings/earnings.api";
 import { updateLocation } from "~/services/agent/agent.api";
-import { getMyDeliveries } from "~/services/deliveries/deliveries.api";
+import { getAssignedDeliveries } from "~/services/agent/agent.api";
+import { doLogout } from "~/services/auth/logout";
 
 export default {
     data() {
@@ -72,6 +76,12 @@ export default {
         this.loadEarnings();
         this.loadDeliveries();
     },
+    computed: {
+        earningsDisplay() {
+            if (!this.earnings) return "...";
+            return this.earnings.totalToday + " ден";
+        }
+    },
 
     methods: {
         async loadUser() {
@@ -79,18 +89,15 @@ export default {
         },
 
         async loadEarnings() {
-            this.earnings = await getEarningsSummary();
+            this.earnings = await getEarnings();
         },
 
-        get earningsDisplay() {
-            if (!this.earnings) return "...";
-            return this.earnings.total + " ден";
-        },
+
 
         async loadDeliveries() {
             this.loadingDeliveries = true;
             try {
-                this.deliveries = await getMyDeliveries();
+                this.deliveries = await getAssignedDeliveries();
             } finally {
                 this.loadingDeliveries = false;
             }
@@ -104,6 +111,9 @@ export default {
             } catch (e) {
                 alert(e.message);
             }
+        },
+        async logoutUser() {
+            await doLogout(this);
         },
 
         getCurrentLocation() {

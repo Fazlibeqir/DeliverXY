@@ -1,9 +1,9 @@
 import { ApplicationSettings } from "@nativescript/core";
 
 const ACCESS_TOKEN  = "access_token";
-const REFRSH_TOKEN = "refresh_token";
+const REFRESH_TOKEN = "refresh_token";
 
-export function saveToken(token) {
+export function saveToken(token, refresh) {
     ApplicationSettings.setString(ACCESS_TOKEN, token);
     ApplicationSettings.setString(REFRESH_TOKEN, refresh);
 }

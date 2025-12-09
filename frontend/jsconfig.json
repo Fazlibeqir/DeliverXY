@@ -4,7 +4,11 @@
     "paths": {
       "~/*": ["app/*"],
       "@/*": ["app/*"]
-    },
+    }
   },
-  "include": ["app/**/*"]
+  "include": ["app/**/*"],
+  "vueCompilerOptions": {
+    "globalTypesPath": "./node_modules/nativescript-vue/typings/index.d.ts"
+  }
 }
+

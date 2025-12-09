@@ -1,12 +1,17 @@
 <template>
     <Page>
-        <ActionBar title="DeliverXY – Client" />
+        <ActionBar title="DeliverXY – Client">
+            <ActionItem text="Logout" @tap="logoutUser" ios.position="right" android.position="popup" />
+        </ActionBar>
+
 
         <ScrollView>
             <StackLayout class="container">
 
+
                 <!-- USER HEADER -->
-                <Label :text="'Hello, ' + (user?.firstName || '')" class="title" />
+                <Label :text="'Hello, ' + ((user && user.firstName) ? user.firstName : '')" class="title" />
+
 
                 <!-- WALLET CARD -->
                 <StackLayout class="card" @tap="goWallet">
@@ -52,6 +57,10 @@
 import { getMe } from "~/services/auth/auth.api";
 import { getWallet } from "~/services/wallet/wallet.api";
 import { getMyDeliveries } from "~/services/deliveries/deliveries.api";
+import { doLogout } from "~/services/auth/logout.js";
+import CreateDelivery from "../deliveries/CreateDelivery.vue";
+import MyDeliveries from "../deliveries/DeliveryList.vue";
+import Login from "../Login.vue";
 
 export default {
     data() {
@@ -67,6 +76,12 @@ export default {
         this.loadUser();
         this.loadWallet();
         this.loadDeliveries();
+    },
+    computed: {
+        walletDisplay() {
+            if (!this.wallet) return "...";
+            return this.wallet.balance + " ден";
+        }
     },
 
     methods: {
@@ -87,18 +102,18 @@ export default {
                 this.loadingDeliveries = false;
             }
         },
-
-        get walletDisplay() {
-            if (!this.wallet) return "...";
-            return this.wallet.balance + " ден";
+        async logoutUser() {
+            await doLogout(this);
         },
-
         goCreateDelivery() {
             // navigate to delivery creation screen
+            
+            this.$navigateTo(CreateDelivery);
         },
 
         goMyDeliveries() {
             // navigate to deliveries list
+            this.$navigateTo(MyDeliveries);
         },
 
         goPromo() {

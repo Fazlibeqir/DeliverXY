@@ -11,7 +11,10 @@
 
             <Label v-if="error" :text="error" class="error" />
 
-            <Label text="Don't have an account? Register here." class="link" @tap="goRegister" />
+            <Label text="Don't have an account? Register here."
+           class="link"
+           @tap="goRegister"
+           marginTop="30" />
         </StackLayout>
     </Page>
 </template>
@@ -19,9 +22,12 @@
 <script>
 import { login } from "~/services/auth/auth.api";
 import { getMe } from "~/services/auth/auth.api";
-import AgentHome from "./AgentHome.vue";
-import ClientHome from "./ClientHome.vue";
+import AgentHome from "./home/AgentHome.vue";
+import ClientHome from "./home/ClientHome.vue";
 import Register from "./Register.vue";
+function normalizeRole(role) {
+    return role ? role.trim().toUpperCase() : null;
+}
 
 export default {
     data() {
@@ -45,8 +51,9 @@ export default {
                 await login(this.identifier, this.password);
 
                 const user = await getMe();
+                const role = normalizeRole(user.role);
 
-                if (user.role === "AGENT") {
+                if (role === "AGENT") {
                     this.$navigateTo(AgentHome, { clearHistory: true });
                 } else {
                     this.$navigateTo(ClientHome, { clearHistory: true });

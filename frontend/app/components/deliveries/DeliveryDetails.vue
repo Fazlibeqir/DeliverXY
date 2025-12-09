@@ -1,33 +1,33 @@
 <template>
     <Page>
-        <ActionBar title="Delivery Details" />
+        <ActionBar :title="'Delivery #' + deliveryId" />
 
         <ScrollView>
             <StackLayout class="container">
 
                 <ActivityIndicator :busy="loading" />
 
-                <StackLayout v-if="delivery">
+                <Label v-if="error" :text="error" class="error" />
 
-                    <Label :text="delivery.title" class="title" />
+                <StackLayout v-if="delivery">
 
                     <Label :text="'Status: ' + delivery.status" class="status" />
 
-                    <Label text="Pickup" class="section" />
-                    <Label :text="delivery.pickupAddress" />
-                    <Label :text="'Contact: ' + delivery.pickupContactName" />
-                    <Label :text="'Phone: ' + delivery.pickupContactPhone" />
+                    <Label :text="'Title: ' + delivery.title" class="label" />
+                    <Label :text="'Description: ' + delivery.description" class="label" />
 
-                    <Label text="Dropoff" class="section" />
-                    <Label :text="delivery.dropoffAddress" />
-                    <Label :text="'Contact: ' + delivery.dropoffContactName" />
-                    <Label :text="'Phone: ' + delivery.dropoffContactPhone" />
+                    <Label :text="'Pickup: ' + delivery.pickupAddress" class="label" />
+                    <Label :text="'Dropoff: ' + delivery.dropoffAddress" class="label" />
 
-                    <Label text="Times" class="section" />
-                    <Label :text="'Requested Pickup: ' + delivery.requestedPickupTime" />
-                    <Label :text="'Created: ' + delivery.createdAt" />
+                    <Label :text="'Package: ' + delivery.packageType + ' (' + delivery.packageWeight + 'kg)'"
+                        class="label" />
 
-                    <Button text="Track Delivery" class="btn btn-primary" @tap="goTrack" />
+                    <Label :text="'Requested Pickup: ' + delivery.requestedPickupTime" class="label" />
+
+                    <!-- Agent action buttons -->
+                    <AgentDeliveryActions v-if="isAgent" :deliveryId="deliveryId" :status="delivery.status"
+                        @updated="loadDelivery" />
+
                 </StackLayout>
 
             </StackLayout>
@@ -36,30 +36,47 @@
 </template>
 
 <script>
-import { getDelivery } from "~/services/deliveries/deliveries.api";
+import { getDeliveryById } from "~/services/deliveries/deliveries.api";
+import AgentDeliveryActions from "./AgentDeliveryActions.vue";
+import { getMe } from "~/services/auth/auth.api";
 
 export default {
+    components: { AgentDeliveryActions },
+
     props: ["deliveryId"],
 
     data() {
         return {
             delivery: null,
-            loading: false
+            loading: false,
+            error: null,
+            user: null
         };
     },
 
     async mounted() {
-        this.loading = true;
-        try {
-            this.delivery = await getDelivery(this.deliveryId);
-        } finally {
-            this.loading = false;
+        this.user = await getMe();
+        await this.loadDelivery();
+    },
+
+    computed: {
+        isAgent() {
+            return this.user?.role === "Agent" || this.user?.role === "AGENT";
         }
     },
 
     methods: {
-        goTrack() {
-            alert("Tracking screen soon...");
+        async loadDelivery() {
+            this.loading = true;
+            this.error = null;
+
+            try {
+                this.delivery = await getDeliveryById(this.deliveryId);
+            } catch (e) {
+                this.error = e.message;
+            } finally {
+                this.loading = false;
+            }
         }
     }
 };
@@ -70,26 +87,17 @@ export default {
     padding: 20;
 }
 
-.title {
-    font-size: 22;
+.label {
+    margin-bottom: 8;
+}
+
+.status {
+    font-size: 18;
     font-weight: bold;
     margin-bottom: 10;
 }
 
-.status {
-    margin-bottom: 20;
-    font-size: 16;
-}
-
-.section {
-    margin-top: 20;
-    font-weight: bold;
-    font-size: 18;
-}
-
-.btn-primary {
-    background-color: #007AFF;
-    color: white;
-    margin-top: 20;
+.error {
+    color: red;
 }
 </style>

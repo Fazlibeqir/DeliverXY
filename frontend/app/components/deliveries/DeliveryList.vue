@@ -25,7 +25,8 @@
 
 <script>
 import { getMe } from "~/services/auth/auth.api";
-import { getMyDeliveries, getAssignedDeliveries } from "~/services/deliveries/deliveries.api";
+import { getMyDeliveries } from "~/services/deliveries/deliveries.api";
+import { getAssignedDeliveries } from "~/services/agent/agent.api";
 import DeliveryDetails from "./DeliveryDetails.vue";
 
 export default {
