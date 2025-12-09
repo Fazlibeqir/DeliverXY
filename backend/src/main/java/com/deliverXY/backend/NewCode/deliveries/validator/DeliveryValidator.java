@@ -19,14 +19,13 @@ public class DeliveryValidator {
         if (dto.getDropoffAddress() == null) {
             throw new ValidationException("Dropoff address is required.");
         }
+//        if (dto.getPickupLatitude() == null || dto.getPickupLongitude() == null) {
+//            throw new ValidationException("Pickup location is required.");
+//        }
+//
+//        if (dto.getDropoffLatitude() == null || dto.getDropoffLongitude() == null) {
+//            throw new ValidationException("Dropoff location is required.");
+//        }
 
-
-        if (dto.getPickupLatitude() == null || dto.getPickupLongitude() == null) {
-            throw new ValidationException("Pickup location is required.");
-        }
-
-        if (dto.getDropoffLatitude() == null || dto.getDropoffLongitude() == null) {
-            throw new ValidationException("Dropoff location is required.");
-        }
     }
 }

@@ -15,11 +15,12 @@ public class CorsConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.setAllowedOrigins(Arrays.asList(
-                "http://13.48.56.2:3000",
-                "http://ec2-13-48-56-2.eu-north-1.compute.amazonaws.com:3000",
-                "http://deliverxy.local/api"
-        ));
+//        config.setAllowedOrigins(Arrays.asList(
+//                "http://13.48.56.2:3000",
+//                "http://ec2-13-48-56-2.eu-north-1.compute.amazonaws.com:3000",
+//                "http://deliverxy.local/api"
+//        ));
+        config.addAllowedOriginPattern("*");
         config.setAllowedHeaders(List.of("*"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
 

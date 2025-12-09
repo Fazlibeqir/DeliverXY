@@ -13,7 +13,10 @@ public class DeliveryDTO {
     private String packageDimensions;
     private Boolean isFragile;
     private Boolean isUrgent;
-    
+
+
+    //TODO the lat and long for pickup and dropoff better to get them somehow in map maybe idk
+
     // Pickup Information
     private String pickupAddress;
     private Double pickupLatitude;
