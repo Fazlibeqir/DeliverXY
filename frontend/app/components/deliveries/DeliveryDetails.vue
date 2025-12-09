@@ -61,7 +61,7 @@ export default {
 
     computed: {
         isAgent() {
-            return this.user?.role === "Agent" || this.user?.role === "AGENT";
+            return this.user?.role === "AGENT";
         }
     },
 

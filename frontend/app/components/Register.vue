@@ -74,7 +74,7 @@ export default {
                 const user = await register(payload);
 
                 // Navigate based on role
-                if (user.role === "Agent" || user.role === "AGENT") {
+                if (user.role === "AGENT") {
                     this.$navigateTo(AgentHome, { clearHistory: true });
                 } else {
                     this.$navigateTo(ClientHome, { clearHistory: true });

@@ -5,10 +5,7 @@ export function getMyDeliveries() {
   return apiFetch("/deliveries/mine");
 }
 
-// AGENT deliveries
-export function getAssignedDeliveries() {
-  return apiFetch("/deliveries/assigned");
-}
+
 // Delivery details
 export function getDelivery(id) {
   return apiFetch(`/deliveries/${id}`);
