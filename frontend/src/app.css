@@ -1,0 +1,39 @@
+@import 'tailwindcss';
+
+ActionBar {
+  background-color: #65adf1;
+  color: white;
+}
+
+Page {
+  background: white;
+  color: black;
+}
+
+.input {
+  padding: 12;
+  border-width: 1;
+  border-color: #ddd;
+  border-radius: 6;
+}
+
+.card {
+  padding: 12;
+  border-radius: 8;
+  background-color: white;
+}
+
+.btn-primary {
+  background-color: #2563eb;
+  color: white;
+  padding: 12;
+  border-radius: 6;
+}
+
+.btn-danger {
+  background-color: #dc2626;
+  color: white;
+  padding: 12;
+  border-radius: 6;
+}
+
