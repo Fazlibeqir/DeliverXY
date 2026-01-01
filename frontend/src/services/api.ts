@@ -1,7 +1,7 @@
 import { Http } from "@nativescript/core";
 import { secureStorage, TOKEN_KEYS } from "./secure-storage";
 
-const API_URL = "http://10.0.2.2:8080";
+const API_URL = "http://192.168.0.11:8080";
 
 async function getAccessToken() {
     return secureStorage.get({ key: TOKEN_KEYS.access });

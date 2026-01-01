@@ -5,7 +5,7 @@
       <!-- Center card -->
       <StackLayout
         row="1"
-        class="bg-white p-6 mx-6 rounded-lg shadow"
+        class="bg-white p-6 mx-6 rounded-lg"
       >
         <Label
           text="DeliverXY"
