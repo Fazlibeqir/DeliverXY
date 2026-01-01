@@ -1,0 +1,220 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    html,
+    body,
+    #app {
+      position: relative;
+      /* 🔥 creates stacking context */
+      height: 100%;
+      width: 100%;
+    }
+
+    #map {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    .panel {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      padding: 16px;
+      border-top: 1px solid #ddd;
+      font-family: sans-serif;
+
+      z-index: 2000;
+      /* 🔥 higher than Leaflet */
+      box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 10px;
+      
+    }
+
+    button {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <div id="map"></div>
+
+    <div id="panel" class="panel hidden">
+      <h3 id="title"></h3>
+      <p id="description"></p>
+
+      <div class="buttons">
+        <button id="reject">Reject</button>
+        <button id="accept">Accept</button>
+      </div>
+    </div>
+  </div>
+</body>
+
+
+<script>
+  const map = L.map("map").setView([41.9981, 21.4254], 13);
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+  }).addTo(map);
+
+  const deliveries = new Map();
+  let userMarker = null;
+  let routeLine = null;
+
+  // -------------------------
+  // USER / DRIVER LOCATION
+  // -------------------------
+  window.setUserLocation = function (lat, lng) {
+    if (!userMarker) {
+      userMarker = L.circleMarker([lat, lng], {
+        radius: 8,
+        color: "#007aff",
+        fillColor: "#007aff",
+        fillOpacity: 1,
+      }).addTo(map);
+    } else {
+      userMarker.setLatLng([lat, lng]);
+    }
+  };
+
+  // -------------------------
+  // DELIVERIES
+  // -------------------------
+  window.setDeliveries = function (items) {
+    const alive = new Set(items.map(d => d.id));
+
+    for (const [id, marker] of deliveries.entries()) {
+      if (!alive.has(id)) {
+        map.removeLayer(marker);
+        deliveries.delete(id);
+      }
+    }
+
+    for (const d of items) {
+      if (!deliveries.has(d.id)) {
+        const m = L.marker([d.lat, d.lng]).addTo(map);
+        m.on("click", () => {
+          showPanel({
+            id: d.id,
+            title: d.title,
+            description: d.description,
+            lat: d.lat,
+            lng: d.lng,
+          });
+        });
+
+        deliveries.set(d.id, m);
+      } else {
+        deliveries.get(d.id).setLatLng([d.lat, d.lng]);
+      }
+    }
+  };
+
+  // -------------------------
+  // ROUTE (OSRM)
+  // -------------------------
+  window.drawRoute = async function (fromLat, fromLng, toLat, toLng) {
+    const url =
+      `https://router.project-osrm.org/route/v1/driving/` +
+      `${fromLng},${fromLat};${toLng},${toLat}` +
+      `?overview=full&geometries=geojson`;
+
+    const res = await fetch(url);
+    const json = await res.json();
+
+    if (!json.routes || !json.routes.length) return;
+
+    const coords = json.routes[0].geometry.coordinates.map(
+      ([lng, lat]) => [lat, lng]
+    );
+
+    if (routeLine) {
+      map.removeLayer(routeLine);
+    }
+
+    routeLine = L.polyline(coords, {
+      color: "#ff3b30",
+      weight: 5,
+    }).addTo(map);
+
+    map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+  };
+
+  window.clearRoute = function () {
+    if (routeLine) {
+      map.removeLayer(routeLine);
+      routeLine = null;
+    }
+  };
+
+  // -------------------------
+  // PANEL                    
+  // -------------------------
+  let selectedDelivery = null;
+
+  function showPanel(delivery) {
+    selectedDelivery = delivery;
+
+    document.getElementById("title").innerText = delivery.title;
+    document.getElementById("description").innerText = delivery.description;
+
+    document.getElementById("panel").classList.remove("hidden");
+  }
+
+  function hidePanel() {
+    selectedDelivery = null;
+    document.getElementById("panel").classList.add("hidden");
+  }
+
+  document.getElementById("reject").onclick = () => {
+    hidePanel();
+    clearRoute();
+  };
+
+  document.getElementById("accept").onclick = async () => {
+    if (!userMarker || !selectedDelivery) return;
+
+    const from = userMarker.getLatLng();
+    await drawRoute(
+      from.lat,
+      from.lng,
+      selectedDelivery.lat,
+      selectedDelivery.lng
+    );
+
+    // OPTIONAL: notify NativeScript
+    if (window.nsEmit) {
+      window.nsEmit({
+        type: "accepted",
+        data: selectedDelivery
+      });
+    }
+  };
+
+  window.nsReady = true;
+</script>
+</body>
+
+</html>

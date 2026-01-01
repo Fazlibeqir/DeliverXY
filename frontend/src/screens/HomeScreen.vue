@@ -1,165 +1,138 @@
 <template>
   <GridLayout rows="*,auto">
+    <WebView ref="wv" row="0" src="~/assets/map.html" @loadFinished="onLoaded" @consoleMessage="onConsoleMessage" />
 
-    <!-- MAP -->
-    <MapLibreView row="0" height="100%" width="100%" @mapReady="onMapReady" />
-
-    <!-- BOTTOM CARD -->
-    <StackLayout row="1" class="bg-white p-4">
-      <Label text="Nearby deliveries" class="font-bold mb-2" />
-
-      <Label v-if="!selected" text="Tap a delivery on the map" class="text-gray-500" />
-
-      <StackLayout v-else>
-        <Label :text="selected.title" class="font-bold" />
-        <Label :text="selected.pickupAddress" class="text-gray-500 mb-2" />
-        <Button text="Accept Delivery" />
-      </StackLayout>
-    </StackLayout>
+   
 
   </GridLayout>
 </template>
 
 
+
 <script setup lang="ts">
+import { isAndroid, isIOS } from "@nativescript/core";
 import { ref, onMounted } from "vue";
 import {
   enableLocationRequest,
   getCurrentLocation,
+  watchLocation,
 } from "@nativescript/geolocation";
 
-import { Http } from "@nativescript/core";
-import type { MapEventData } from "@nativescript-community/ui-maplibre";
 
-const selected = ref<any>(null);
+const wv = ref<any>(null);
+const webReady = ref(false);
 
-// Example deliveries (later comes from backend)
+
+// Example deliveries (later from backend)
 const deliveries = [
   {
     id: "d1",
     title: "Delivery #1",
     description: "Pickup near center",
-    lng: 21.4254,
     lat: 41.9981,
+    lng: 21.4254,
   },
   {
     id: "d2",
     title: "Delivery #2",
     description: "Express delivery",
-    lng: 21.44,
     lat: 42.0,
+    lng: 21.44,
   },
 ];
+
+
+
+
+function js(obj: any) {
+  return JSON.stringify(obj)
+    .replace(/\\/g, "\\\\")
+    .replace(/`/g, "\\`");
+}
+
+function runJS(code: string) {
+  const webview = wv.value?.nativeView;
+  if (!webview) return;
+
+  if (isAndroid && webview.android) {
+    webview.android.evaluateJavascript(code, null);
+  } else if (isIOS && webview.ios) {
+    webview.ios.evaluateJavaScriptCompletionHandler(code, null);
+  }
+}
+// ✅ SAFE WRAPPER (THIS WAS MISSING)
+function safeRunJS(code: string) {
+  if (!webReady.value) return;
+
+  runJS(`
+    if (window.nsReady) {
+      ${code}
+    }
+  `);
+}
+function injectBridge() {
+  safeRunJS(`
+    window.nsEmit = function(payload) {
+      try {
+        console.log(JSON.stringify({
+          __nsEvent: true,
+          payload: payload
+        }));
+      } catch (e) {
+        console.log("NS_BRIDGE_ERROR");
+      }
+    };
+  `);
+}
+
+
+
+function onLoaded() {
+  webReady.value = true;
+  setTimeout(() => {
+    injectBridge();
+    safeRunJS(`window.setDeliveries(${js(deliveries)});`);
+  }, 300);
+}
+
+
+function onConsoleMessage(e: any) {
+  let msg = e?.android?.message ?? e?.message;
+  if (!msg) return;
+
+  if (msg.startsWith('"') && msg.endsWith('"')) {
+    msg = msg.slice(1, -1);
+  }
+
+  try {
+    const parsed = JSON.parse(msg);
+    if (parsed.type === "accepted") {
+      console.log("Delivery accepted:", parsed.data);
+      // call backend, change tab, etc.
+    }
+  } catch {}
+}
+
+
+
+
+
+
+
+
+
+
 onMounted(async () => {
   await enableLocationRequest(true);
-});
 
-function onMapReady(event: any) {
-  const mapView = event.object; // ✅ THIS is correct
-  const map = mapView.getMap(); // get native map instance
+  const loc = await getCurrentLocation({ timeout: 20000 });
+  safeRunJS(`window.setUserLocation(${loc.latitude}, ${loc.longitude});`);
 
-  map.setStyle(
-    new URL("https://demotiles.maplibre.org/style.json")
+  watchLocation(
+    (l) =>
+    safeRunJS(`window.setUserLocation(${l.latitude}, ${l.longitude});`),
+    (e) => console.log("watch error", e),
+    { minimumUpdateTime: 2000, desiredAccuracy: 3 }
   );
-
-  map.on("load", async () => {
-    let loc;
-    // User location
-    try {
-      loc = await getCurrentLocation({
-        desiredAccuracy: 3,
-        timeout: 20000,
-      });
-      console.log("Location:", loc);
-    } catch {
-      // fallback: Skopje
-      loc = { latitude: 41.9981, longitude: 21.4254 };
-    }
-
-    // Center map
-    map.easeTo({
-      center: [loc.longitude, loc.latitude],
-      zoom: 14,
-    });
-    map.addLayer({
-  id: "test",
-  type: "background",
-  paint: {
-    "background-color": "red",
-  },
 });
-
-
-    // Draw user location
-    addUserLocation(map, loc);
-
-    // Draw deliveries
-    addDeliveries(map);
-
-    // Handle taps on deliveries
-    map.on("click", "deliveries-layer", (e: any) => {
-      selected.value = e.features[0].properties;
-    });
-  });
-}
-function addUserLocation(map: any, loc: any) {
-  map.addSource("user-location", {
-    type: "geojson",
-    data: {
-      type: "FeatureCollection",
-      features: [
-        {
-          type: "Feature",
-          geometry: {
-            type: "Point",
-            coordinates: [loc.longitude, loc.latitude],
-          },
-        },
-      ],
-    },
-  });
-  map.addLayer({
-    id: "user-location-layer",
-    type: "circle",
-    source: "user-location",
-    paint: {
-      "circle-radius": 10,
-      "circle-color": "#007aff",
-      "circle-stroke-width": 3,
-      "circle-stroke-color": "#ffffff",
-    },
-  });
-}
-
-function addDeliveries(map: any) {
-  map.addSource("deliveries", {
-    type: "geojson",
-    data: {
-      type: "FeatureCollection",
-      features: deliveries.map((d) => ({
-        type: "Feature",
-        geometry: {
-          type: "Point",
-          coordinates: [d.lng, d.lat],
-        },
-        properties: {
-          title: d.title,
-          description: d.description,
-        },
-      })),
-    },
-  });
-
-  map.addLayer({
-    id: "deliveries-layer",
-    type: "circle",
-    source: "deliveries",
-    paint: {
-      "circle-radius": 8,
-      "circle-color": "#ff3b30",
-      "circle-stroke-width": 2,
-      "circle-stroke-color": "#ffffff",
-    },
-  });
-}
 </script>
