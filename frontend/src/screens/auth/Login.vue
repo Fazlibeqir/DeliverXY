@@ -3,44 +3,19 @@
     <GridLayout rows="*,auto,*" class="bg-gray-100">
 
       <!-- Center card -->
-      <StackLayout
-        row="1"
-        class="bg-white p-6 mx-6 rounded-lg"
-      >
-        <Label
-          text="DeliverXY"
-          class="text-2xl font-bold text-center mb-2"
-        />
-        <Label
-          text="Sign in to continue"
-          class="text-gray-500 text-center mb-4"
-        />
+      <StackLayout row="1" class="bg-white p-6 mx-6 rounded-lg">
+        <Label text="DeliverXY" class="text-2xl font-bold text-center mb-2" />
+        <Label text="Sign in to continue" class="text-gray-500 text-center mb-4" />
 
-        <TextField
-          v-model="identifier"
-          hint="Email or Username"
-          class="input mb-3"
-        />
+        <TextField v-model="identifier" hint="Email or Username" class="input mb-3" />
 
-        <TextField
-          v-model="password"
-          hint="Password"
-          secure
-          class="input mb-3"
-        />
+        <TextField v-model="password" hint="Password" secure class="input mb-3" />
 
-        <Label
-          v-if="error"
-          :text="error"
-          class="text-red-500 text-center mb-2"
-        />
+        <Label v-if="error" :text="error" class="text-red-500 text-center mb-2" />
 
-        <Button
-          :text="loading ? 'Logging in…' : 'Login'"
-          :isEnabled="!loading"
-          class="btn-primary"
-          @tap="submit"
-        />
+        <Button :text="loading ? 'Logging in…' : 'Login'" :isEnabled="!loading" class="btn-primary" @tap="submit" />
+        <Button text="Create an account" class="text-blue-500 text-center mt-3" @tap="goToRegister" />
+
       </StackLayout>
 
     </GridLayout>
@@ -48,14 +23,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { getCurrentInstance, ref } from "vue";
 import { authStore } from "../../stores/auth.store";
+import Register from "./Register.vue";
+
 
 const identifier = ref("");
 const password = ref("");
 const loading = ref(false);
 const error = ref("");
 
+const instance = getCurrentInstance();
+const navigateTo = instance!.proxy!.$navigateTo;
 async function submit() {
   error.value = "";
   loading.value = true;
@@ -67,5 +46,8 @@ async function submit() {
   } finally {
     loading.value = false;
   }
+}
+function goToRegister() {
+  navigateTo(Register);
 }
 </script>

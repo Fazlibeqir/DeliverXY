@@ -18,26 +18,33 @@ export async function register(payload: any) {
 }
 
 export async function refresh() {
-  const refreshToken = await secureStorage.get({ key: TOKEN_KEYS.refresh });
-  if (!refreshToken) throw new Error("NO_REFRESH");
+  try {
+    const refreshToken = await secureStorage.get({ key: TOKEN_KEYS.refresh });
+    if (!refreshToken) throw new Error("NO_REFRESH");
 
-  const res = await apiRequest("POST", "/api/auth/refresh", {
-    refreshToken,
-  });
-
-  await persistTokens(res);
-  return res.user;
+    const res = await apiRequest("POST", "/api/auth/refresh", { refreshToken });
+    await persistTokens(res);
+    return res.user;
+  } catch (e) {
+    await logout();
+    throw e;
+  }
 }
 
-async function persistTokens(res: any) {
-  const expiresAt = Date.now() + res.expiresIn * 1000;
 
-  await secureStorage.set({ key: TOKEN_KEYS.access, value: res.accessToken });
-  await secureStorage.set({ key: TOKEN_KEYS.refresh, value: res.refreshToken });
+async function persistTokens(res: any) {
+  const data = res.data ?? res
+  const expiresAt = Date.now() + data.expiresIn * 1000;
+
+  await secureStorage.set({ key: TOKEN_KEYS.access, value: data.accessToken });
+  await secureStorage.set({ key: TOKEN_KEYS.refresh, value: data.refreshToken });
   await secureStorage.set({ key: TOKEN_KEYS.expiresAt, value: expiresAt.toString() });
 }
 
 export async function logout() {
+  try {
+    await apiRequest("POST", "/api/auth/logout");
+  } catch {}
   await secureStorage.remove({ key: TOKEN_KEYS.access });
   await secureStorage.remove({ key: TOKEN_KEYS.refresh });
   await secureStorage.remove({ key: TOKEN_KEYS.expiresAt });
