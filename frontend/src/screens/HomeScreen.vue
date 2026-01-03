@@ -17,30 +17,16 @@ import {
   getCurrentLocation,
   watchLocation,
 } from "@nativescript/geolocation";
+import * as DeliveryService from "../services/deliveries.service";
+import * as LocationService from "../services/location.service";
+import { useDeliveriesStore } from "~/stores/useDeliveryStore";
 
+
+const store = useDeliveriesStore();
 
 const wv = ref<any>(null);
 const webReady = ref(false);
-
-
-// Example deliveries (later from backend)
-const deliveries = [
-  {
-    id: "d1",
-    title: "Delivery #1",
-    description: "Pickup near center",
-    lat: 41.9981,
-    lng: 21.4254,
-  },
-  {
-    id: "d2",
-    title: "Delivery #2",
-    description: "Express delivery",
-    lat: 42.0,
-    lng: 21.44,
-  },
-];
-
+const deliveries = ref<any[]>([]);
 
 
 
@@ -60,7 +46,6 @@ function runJS(code: string) {
     webview.ios.evaluateJavaScriptCompletionHandler(code, null);
   }
 }
-// ✅ SAFE WRAPPER (THIS WAS MISSING)
 function safeRunJS(code: string) {
   if (!webReady.value) return;
 
@@ -85,18 +70,33 @@ function injectBridge() {
   `);
 }
 
+async function refreshNearby(lat: number, lng: number) {
+  const res = await DeliveryService.getNearbyDeliveries(lat, lng);
+
+  deliveries.value = res.map((d: any) => ({
+    id: d.id,
+    title: d.title,
+    description: d.pickupAddress,
+    lat: d.pickupLatitude,
+    lng: d.pickupLongitude,
+  }));
+
+  safeRunJS(`window.setDeliveries(${js(deliveries.value)});`);
+}
+
+
 
 
 function onLoaded() {
   webReady.value = true;
   setTimeout(() => {
     injectBridge();
-    safeRunJS(`window.setDeliveries(${js(deliveries)});`);
+    safeRunJS(`window.setDeliveries(${js(deliveries.value)});`);
   }, 300);
 }
 
 
-function onConsoleMessage(e: any) {
+async function onConsoleMessage(e: any) {
   let msg = e?.android?.message ?? e?.message;
   if (!msg) return;
 
@@ -106,31 +106,50 @@ function onConsoleMessage(e: any) {
 
   try {
     const parsed = JSON.parse(msg);
+
     if (parsed.type === "accepted") {
-      console.log("Delivery accepted:", parsed.data);
-      // call backend, change tab, etc.
+      const deliveryId = parsed.data.id;
+
+      try {
+        await DeliveryService.assignDelivery(deliveryId);
+
+        // remove from map
+        deliveries.value = deliveries.value.filter(d => d.id !== deliveryId);
+        safeRunJS(`window.setDeliveries(${js(deliveries.value)});`);
+
+        store.loadAssigned();
+
+        console.log("Delivery assigned:", deliveryId);
+      } catch (e) {
+        console.log("Failed to assign delivery", e);
+      }
     }
   } catch {}
 }
 
-
-
-
-
-
-
-
-
+async function pushLocation(lat: number, lng: number) {
+  try {
+    await LocationService.updateDriverLocation(lat, lng);
+  } catch (e) {
+    console.log("Location update failed", e);
+  }
+}
 
 onMounted(async () => {
   await enableLocationRequest(true);
 
   const loc = await getCurrentLocation({ timeout: 20000 });
+
   safeRunJS(`window.setUserLocation(${loc.latitude}, ${loc.longitude});`);
+  await pushLocation(loc.latitude, loc.longitude);
+  await refreshNearby(loc.latitude, loc.longitude);
 
   watchLocation(
-    (l) =>
-    safeRunJS(`window.setUserLocation(${l.latitude}, ${l.longitude});`),
+    (l) =>{
+      safeRunJS(`window.setUserLocation(${l.latitude}, ${l.longitude});`);
+      pushLocation(l.latitude, l.longitude);
+      refreshNearby(l.latitude, l.longitude);
+    },
     (e) => console.log("watch error", e),
     { minimumUpdateTime: 2000, desiredAccuracy: 3 }
   );
