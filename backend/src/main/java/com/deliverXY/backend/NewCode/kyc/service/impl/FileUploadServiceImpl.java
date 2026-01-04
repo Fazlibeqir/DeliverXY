@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Base64;
 import java.util.UUID;
 @Service
 public class FileUploadServiceImpl implements FileUploadService {
@@ -62,6 +63,22 @@ public class FileUploadServiceImpl implements FileUploadService {
         saveFile(file, filePath);
 
         return "/uploads/profiles/" + userId + "/" + filename;
+    }
+
+    @Override
+    public String uploadKYCBase64(String base64, String documentType, Long userId) throws IOException {
+        byte[] bytes = Base64.getDecoder().decode(base64);
+
+        Path dir = Paths.get(uploadPath, "kyc", userId.toString());
+        Files.createDirectories(dir);
+
+        String safeType = documentType.replaceAll("[^a-zA-Z0-9_-]", "");
+        String filename = safeType + "_" + UUID.randomUUID() + ".jpg";
+
+        Path filePath = dir.resolve(filename);
+        Files.write(filePath, bytes);
+
+        return "/uploads/kyc/" + userId + "/" + filename;
     }
 
     @Override
