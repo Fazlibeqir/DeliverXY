@@ -36,9 +36,9 @@ public class WalletServiceImpl implements WalletService {
     private final TopUpRepository topUpRepository;
 
     private Wallet getWalletEntity(Long userId) {
-        return walletRepository.findByUserId(userId)
-                .orElseThrow(()-> new NotFoundException("Wallet not found for user:" + userId));
+        return getWallet(userId); // ✅ auto-create
     }
+
     //Check and reset limits if needed
     private void checkAndResetLimits(Wallet wallet) {
         LocalDate now = LocalDate.now();

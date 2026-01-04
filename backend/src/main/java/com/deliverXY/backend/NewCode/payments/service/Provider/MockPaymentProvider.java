@@ -32,7 +32,7 @@ public class MockPaymentProvider implements PaymentGatewayProvider {
 
     @Override
     public PaymentResultDTO initiateTransaction(Payment payment) {
-        if (payment.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+        if (payment.getAmount() == null || payment.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new BadRequestException("Mock Provider: Payment amount must be positive.");
         }
 
@@ -46,7 +46,7 @@ public class MockPaymentProvider implements PaymentGatewayProvider {
                 .provider(PaymentProvider.MOCK)
                 .amountPaid(payment.getAmount())
                 .providerReference(mockRef)
-                .message("Mock payment successful and confirmed instantly.")
+                .message("Mock payment successful (instant).")
                 .build();
     }
 
@@ -56,6 +56,7 @@ public class MockPaymentProvider implements PaymentGatewayProvider {
         if (providerReference == null || !providerReference.startsWith("MOCK-TX-")) {
             return PaymentResultDTO.builder()
                     .status(PaymentStatus.FAILED)
+                    .provider(PaymentProvider.MOCK)
                     .providerReference(providerReference)
                     .message("Mock Provider: Invalid reference format.")
                     .build();
@@ -64,6 +65,7 @@ public class MockPaymentProvider implements PaymentGatewayProvider {
         // Simulates a successful confirmation for an existing transaction
         return PaymentResultDTO.builder()
                 .status(PaymentStatus.COMPLETED)
+                .provider(PaymentProvider.MOCK)
                 .providerReference(providerReference)
                 .message("Mock Provider: Transaction confirmed successfully.")
                 .build();
@@ -72,10 +74,12 @@ public class MockPaymentProvider implements PaymentGatewayProvider {
     @Override
     public void refundTransaction(Payment payment, BigDecimal amount, String reason) {
         // Simulates an immediate, successful refund
-        if (amount.compareTo(BigDecimal.ZERO) <= 0 || amount.compareTo(payment.getAmount()) > 0) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0 || amount.compareTo(payment.getAmount()) > 0) {
             throw new BadRequestException("Mock Provider: Invalid refund amount.");
         }
-        System.out.printf("MOCK Refund initiated for Payment ID %d: %.2f (Reason: %s)\n",
-                payment.getId(), amount, reason);
+
+        // Simulate refund (no-op)
+        System.out.printf("MOCK Refund: PaymentId=%d Amount=%s Reason=%s%n",
+                payment.getId(), amount.toPlainString(), reason);
     }
 }

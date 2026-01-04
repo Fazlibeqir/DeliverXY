@@ -206,50 +206,54 @@ public class DeliveryServiceImpl implements DeliveryService {
     }
 
     private void processDeliveryPayment(Delivery d) {
-        FareBreakdown breakdown = pricingService.getFareBreakdown(
-                d.getPickupLatitude(),
-                d.getPickupLongitude(),
-                d.getDropoffLatitude(),
-                d.getDropoffLongitude()
-        );
-        BigDecimal totalPrice = breakdown.getTotalFare();
         DeliveryPayment payment = paymentRepo.findByDeliveryId(d.getId())
-                .orElse(new DeliveryPayment());
-        payment.setDelivery(d);
+                .orElseThrow(() -> new BadRequestException("Delivery payment not initialized"));
+
+        if (payment.getPaymentStatus() == PaymentStatus.COMPLETED) {
+            return;
+        }
+
         payment.setPaymentStatus(PaymentStatus.PROCESSING);
-        payment.setFinalAmount(totalPrice);
-        payment.setPaymentMethod(PaymentMethod.WALLET);
-        paymentRepo.save(payment); // Save status change before external call
-       try{
-            walletService.withdraw(
-                   d.getClient().getId(),
-                   totalPrice,
-                   "Delivery payment for " + d.getTrackingCode()
-           );
-           payment.setPaymentStatus(PaymentStatus.COMPLETED);
-           payment.setPaidAt(LocalDateTime.now());
-           paymentRepo.save(payment);
+        paymentRepo.save(payment);
 
-           BigDecimal driverCutPercentage = new BigDecimal("0.80");
-           BigDecimal driverEarnings = totalPrice.multiply(driverCutPercentage).setScale(2, RoundingMode.HALF_UP);
-           BigDecimal platformCut = totalPrice.subtract(driverEarnings);
+        BigDecimal totalAmount = payment.getFinalAmount();
+        try {
+            BigDecimal driverCut = totalAmount
+                    .multiply(new BigDecimal("0.80"))
+                    .setScale(2,RoundingMode.HALF_UP);
+            BigDecimal platformCut = totalAmount.subtract(driverCut);
 
-           // TODO: Must call WalletService.deposit for driver here, currently only recorded in DriverEarnings
-           // walletService.deposit(d.getAgent().getId(), driverEarnings, "Delivery earnings...");
+            //Pay Driver
+            walletService.deposit(
+                    d.getAgent().getId(),
+                    driverCut,
+                    "DELIVERY_EARNINGS_"+d.getTrackingCode()
+            );
+            // -------- RECORD EARNINGS --------
+            DriverEarnings earnings = new DriverEarnings();
+            earnings.setDelivery(d);
+            earnings.setAgentId(d.getAgent().getId());
+            earnings.setDriverEarnings(driverCut);
+            earnings.setTip(BigDecimal.ZERO);
+            earningsRepo.save(earnings);
 
-           DriverEarnings earnings = new DriverEarnings();
-           earnings.setDelivery(d);
-           earnings.setAgentId(d.getAgent().getId());
-           earnings.setDriverEarnings(driverEarnings);
-           earnings.setTip(BigDecimal.ZERO); // Tip should be handled separately
-           earningsRepo.save(earnings);
-           logHistory(d, "Payment processed. Driver earned " + driverEarnings + ", platform kept " + platformCut, "SYSTEM");
-       }catch (RuntimeException e){
-           payment.setPaymentStatus(PaymentStatus.FAILED);
-           paymentRepo.save(payment);
-           log.error("Payment failed for delivery {}: {}", d.getId(), e.getMessage());
-           throw new BadRequestException("Payment failed due to: " + e.getMessage());
-       }
+            // -------- FINALIZE PAYMENT --------
+            payment.setPaymentStatus(PaymentStatus.COMPLETED);
+            payment.setPaidAt(LocalDateTime.now());
+            paymentRepo.save(payment);
+
+            logHistory(
+                    d,
+                    "Delivery completed. Driver earned " + driverCut +
+                            ", platform earned " + platformCut,
+                    "SYSTEM"
+            );
+        } catch (Exception e) {
+            payment.setPaymentStatus(PaymentStatus.FAILED);
+            paymentRepo.save(payment);
+            log.error("Settlement failed for delivery {}: {}", d.getId(), e.getMessage());
+            throw new BadRequestException("Settlement failed: " + e.getMessage());
+        }
 
     }
 

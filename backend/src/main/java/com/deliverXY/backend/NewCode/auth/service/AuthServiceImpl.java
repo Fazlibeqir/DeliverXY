@@ -14,6 +14,7 @@ import com.deliverXY.backend.NewCode.user.domain.AppUser;
 import com.deliverXY.backend.NewCode.user.service.AppUserService;
 import com.deliverXY.backend.NewCode.user.dto.UserResponseDTO;
 import com.deliverXY.backend.NewCode.exceptions.UnauthorizedException;
+import com.deliverXY.backend.NewCode.wallet.service.WalletService;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -26,7 +27,7 @@ public class AuthServiceImpl implements AuthService {
     private final AppUserService userService;
     private final AuthenticationManager authManager;
     private final JwtService jwtService;
-
+    private final WalletService walletService;
     private final UserFactory userFactory;
     private final AuthMapper mapper;
     private final AuthValidationService authValidationService;
@@ -41,6 +42,8 @@ public class AuthServiceImpl implements AuthService {
         AppUser user = userFactory.create(req);
 
         userService.save(user);
+
+        walletService.createWalletForUser(user);
 
         return buildTokens(user);
     }

@@ -87,4 +87,10 @@ public class Payment {
     private LocalDateTime initiatedAt = LocalDateTime.now();
     private LocalDateTime completedAt;
     private LocalDateTime refundedAt;
+
+    @Column(name = "escrow_released", nullable = false)
+    private Boolean escrowReleased = false;
+
+    @Column(name = "escrow_released_at")
+    private LocalDateTime escrowReleasedAt;
 }

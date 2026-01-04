@@ -67,7 +67,8 @@ public class PaymentServiceImpl implements PaymentService {
         FareResponseDTO fare = deliveryService.getFareForDelivery(deliveryId);
         BigDecimal finalAmount = BigDecimal.valueOf(fare.getTotalFare());
 
-        if (delivery.getDeliveryPayment() != null && delivery.getDeliveryPayment().getPaymentStatus() != PaymentStatus.PENDING) {
+        if (delivery.getDeliveryPayment() != null
+                && delivery.getDeliveryPayment().getPaymentStatus() != PaymentStatus.PENDING) {
             throw new BadRequestException("A payment already exists for this delivery.");
         }
         Payment payment = Payment.builder()
@@ -87,15 +88,24 @@ public class PaymentServiceImpl implements PaymentService {
 
         payment.setProviderReference(result.getProviderReference());
         payment.setProviderSessionId(result.getProviderSessionId());
-        payment.setStatus(result.getStatus());
+        payment.setProviderChargeId(result.getProviderChargeId());
+
+        PaymentStatus newStatus = result.getStatus() !=null ? result.getStatus() : PaymentStatus.PENDING;
+        payment.setStatus(newStatus);
 
         // If the result status is COMPLETED (e.g., Mock or instant provider like WALLET)
-        if (result.getStatus() == PaymentStatus.COMPLETED) {
+        if (newStatus == PaymentStatus.COMPLETED) {
             payment.setCompletedAt(LocalDateTime.now());
-            // TODO: Trigger driver earnings distribution or delivery status update
+
+
         }
 
         paymentRepo.save(payment);
+
+        result.setPaymentId(payment.getId());
+        result.setDeliveryId(delivery.getId());
+        result.setProvider(provider);
+        result.setAmountPaid(payment.getAmount());
 
         return result;
     }
@@ -109,28 +119,40 @@ public class PaymentServiceImpl implements PaymentService {
         PaymentGatewayProvider gateway = getGatewayProvider(payment.getProvider());
         PaymentResultDTO result = gateway.confirmTransaction(reference);
 
-        if (payment.getStatus() != result.getStatus()) {
-            payment.setStatus(result.getStatus());
-            if (result.getStatus() == PaymentStatus.COMPLETED) {
+        PaymentStatus confirmedStatus = result.getStatus() != null ? result.getStatus() : payment.getStatus();
+
+
+        if (payment.getStatus() != confirmedStatus) {
+            payment.setStatus(confirmedStatus);
+            if (confirmedStatus == PaymentStatus.COMPLETED) {
                 payment.setCompletedAt(LocalDateTime.now());
-                // TODO: Trigger driver earnings distribution or delivery status update
+
             }
             paymentRepo.save(payment);
         }
+        result.setPaymentId(payment.getId());
+        result.setDeliveryId(payment.getDelivery().getId());
+        result.setProvider(payment.getProvider());
+        result.setAmountPaid(payment.getAmount());
+        result.setProviderReference(reference);
 
         return result;
     }
 
     @Override
     public void refund(Long paymentId, BigDecimal amount, String reason) {
-        // TODO: implement per provider logic here
+        Payment payment = paymentRepo.findById(paymentId)
+                .orElseThrow(() -> new NotFoundException("Payment not found: " + paymentId));
+
+        PaymentGatewayProvider gateway = getGatewayProvider(payment.getProvider());
+        gateway.refundTransaction(payment, amount, reason);
     }
 
     @Override
     public PaymentResultDTO payWithWallet(Long deliveryId, Long userId) {
         // FIX: Delegation should go through the generic map, assuming WalletPaymentProvider exists.
         // 1. Fetch user (required for wallet access)
-        AppUser user = userService.findById(userId)
+       userService.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
         // 2. Delegate to the main initializePayment, forcing the provider to WALLET
