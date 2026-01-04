@@ -1,11 +1,12 @@
 import { defineStore } from "pinia";
 import * as DeliveryService from "../services/deliveries.service";
+import type { DeliveryStatus } from "../services/deliveries.service";
 
 export type Delivery = {
   id: number;
   title: string;
   pickupAddress: string;
-  status: string;
+  status: DeliveryStatus;
 };
 
 export const useDeliveriesStore = defineStore("deliveries", {
@@ -17,7 +18,7 @@ export const useDeliveriesStore = defineStore("deliveries", {
   actions: {
     async loadAssigned(force = false) {
       if (this.loading && !force) return;
-      
+
       this.loading = true;
       try {
         this.assigned = await DeliveryService.getAssignedDeliveries();
@@ -26,7 +27,7 @@ export const useDeliveriesStore = defineStore("deliveries", {
       }
     },
 
-    async updateStatus(id: number, status: string) {
+    async updateStatus(id: number, status: DeliveryStatus) {
       await DeliveryService.updateDeliveryStatus(id, status);
       await this.loadAssigned();
     },

@@ -3,6 +3,7 @@
 
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -11,7 +12,6 @@
     body,
     #app {
       position: relative;
-      /* 🔥 creates stacking context */
       height: 100%;
       width: 100%;
     }
@@ -24,7 +24,7 @@
 
     .panel {
       position: absolute;
-      bottom: 0;
+      bottom: 56px;
       left: 0;
       right: 0;
       background: white;
@@ -33,7 +33,6 @@
       font-family: sans-serif;
 
       z-index: 2000;
-      /* 🔥 higher than Leaflet */
       box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
     }
 
@@ -73,7 +72,9 @@
 
 
 <script>
-  const map = L.map("map").setView([41.9981, 21.4254], 13);
+  const map = L.map("map",{
+    zoomControl: false,
+  }).setView([41.9981, 21.4254], 13);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
@@ -82,6 +83,8 @@
   const deliveries = new Map();
   let userMarker = null;
   let routeLine = null;
+
+
 
   // -------------------------
   // USER / DRIVER LOCATION
@@ -204,7 +207,6 @@
       selectedDelivery.lng
     );
 
-    // OPTIONAL: notify NativeScript
     if (window.nsEmit) {
       window.nsEmit({
         type: "accepted",

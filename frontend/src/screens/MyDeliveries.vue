@@ -1,6 +1,5 @@
 <template>
   <GridLayout rows="auto,*">
-
     <ScrollView row="1">
       <StackLayout class="p-4">
 
@@ -45,25 +44,37 @@
           />
         </StackLayout>
 
+        <Label
+          v-if="!store.loading && store.assigned.length === 0"
+          text="No assigned deliveries."
+          class="text-gray-500 text-center mt-6"
+        />
+
       </StackLayout>
     </ScrollView>
-
   </GridLayout>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { watch } from "vue";
 import { useDeliveriesStore } from "../stores/useDeliveryStore";
+import { authStore } from "../stores/auth.store";
+import type { DeliveryStatus } from "../services/deliveries.service";
 
 const store = useDeliveriesStore();
 
-onMounted(() => {
-  if (!store.assigned.length) {
-    store.loadAssigned();
-  }
-});
 
-function canCancel(status: string) {
-  return ["ASSIGNED", "PICKED_UP", "IN_TRANSIT"].includes(status);
+watch(
+  () => authStore.user,
+  (user) => {
+    if (user) store.loadAssigned(true);
+  },
+  { immediate: true }
+);
+
+function canCancel(status: DeliveryStatus) {
+  return status === "ASSIGNED"
+      || status === "PICKED_UP"
+      || status === "IN_TRANSIT";
 }
 </script>

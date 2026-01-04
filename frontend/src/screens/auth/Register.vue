@@ -80,11 +80,6 @@ async function submit() {
             password: password.value,
             role: role.value,
         });
-
-        navigateTo(
-            authStore.role === "CLIENT" ? ClientTabs : AgentTabs,
-            { clearHistory: true }
-        );
     } catch (e: any) {
         error.value = "Registration failed. Check your data.";
     } finally {

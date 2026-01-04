@@ -33,13 +33,23 @@ export async function refresh() {
 
 
 async function persistTokens(res: any) {
-  const data = res.data ?? res
-  const expiresAt = Date.now() + data.expiresIn * 1000;
+  // res = backend data object
+  const { accessToken, refreshToken, expiresIn } = res;
 
-  await secureStorage.set({ key: TOKEN_KEYS.access, value: data.accessToken });
-  await secureStorage.set({ key: TOKEN_KEYS.refresh, value: data.refreshToken });
-  await secureStorage.set({ key: TOKEN_KEYS.expiresAt, value: expiresAt.toString() });
+  if (!accessToken || !refreshToken) {
+    throw new Error("Invalid auth response");
+  }
+
+  const expiresAt = Date.now() + expiresIn * 1000;
+
+  await secureStorage.set({ key: TOKEN_KEYS.access, value: accessToken });
+  await secureStorage.set({ key: TOKEN_KEYS.refresh, value: refreshToken });
+  await secureStorage.set({
+    key: TOKEN_KEYS.expiresAt,
+    value: expiresAt.toString(),
+  });
 }
+
 
 export async function logout() {
   try {

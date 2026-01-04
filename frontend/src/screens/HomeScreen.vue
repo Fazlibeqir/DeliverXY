@@ -89,6 +89,19 @@ async function refreshNearby(lat: number, lng: number) {
 
 function onLoaded() {
   webReady.value = true;
+
+  // 🔥 disable Android WebView zoom UI (bottom bar)
+  const webview = wv.value?.nativeView;
+  if (isAndroid && webview?.android) {
+    const s = webview.android.getSettings();
+    s.setBuiltInZoomControls(false);   // removes bottom zoom bar
+    s.setDisplayZoomControls(false);   // extra safety
+    s.setSupportZoom(false);           // optional: disables zoom gestures too
+
+    s.setUseWideViewPort(false);
+    s.setLoadWithOverviewMode(true);
+  }
+
   setTimeout(() => {
     injectBridge();
     safeRunJS(`window.setDeliveries(${js(deliveries.value)});`);
