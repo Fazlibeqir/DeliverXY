@@ -3,7 +3,7 @@
 
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  
+
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -43,7 +43,7 @@
     .buttons {
       display: flex;
       gap: 10px;
-      
+
     }
 
     button {
@@ -72,7 +72,7 @@
 
 
 <script>
-  const map = L.map("map",{
+  const map = L.map("map", {
     zoomControl: false,
   }).setView([41.9981, 21.4254], 13);
 
@@ -83,6 +83,9 @@
   const deliveries = new Map();
   let userMarker = null;
   let routeLine = null;
+
+  let assigning = false;
+
 
 
 
@@ -108,6 +111,7 @@
   window.setDeliveries = function (items) {
     const alive = new Set(items.map(d => d.id));
 
+   
     for (const [id, marker] of deliveries.entries()) {
       if (!alive.has(id)) {
         map.removeLayer(marker);
@@ -132,6 +136,10 @@
       } else {
         deliveries.get(d.id).setLatLng([d.lat, d.lng]);
       }
+    }
+
+    if (selectedDelivery && !alive.has(selectedDelivery.id)) {
+      hidePanel();
     }
   };
 
@@ -171,6 +179,13 @@
       routeLine = null;
     }
   };
+  window.clearDeliveries = function () {
+    for (const marker of deliveries.values()) {
+      map.removeLayer(marker);
+    }
+    deliveries.clear();
+  };
+
 
   // -------------------------
   // PANEL                    
@@ -188,16 +203,26 @@
 
   function hidePanel() {
     selectedDelivery = null;
+    assigning = false;
     document.getElementById("panel").classList.add("hidden");
   }
 
   document.getElementById("reject").onclick = () => {
     hidePanel();
-    clearRoute();
   };
 
   document.getElementById("accept").onclick = async () => {
+    alert(
+    "DEBUG userMarker=" + !!userMarker +
+    " selectedDelivery=" + JSON.stringify(selectedDelivery)
+  );
+
     if (!userMarker || !selectedDelivery) return;
+    if (assigning) return;
+
+    assigning = true;
+    alert("ACCEPT CLICKED"+JSON.stringify(selectedDelivery.id));
+
 
     const from = userMarker.getLatLng();
     await drawRoute(
@@ -213,6 +238,7 @@
         data: selectedDelivery
       });
     }
+    hidePanel();
   };
 
   window.nsReady = true;

@@ -26,6 +26,10 @@ export function getNearbyDeliveries(
     );
 }
 
+export function getActiveDelivery() {
+    return apiRequest("GET", "/api/deliveries/active");
+}
+
 export function assignDelivery(id: number) {
     return apiRequest("POST", `/api/deliveries/${id}/assign`);
 }

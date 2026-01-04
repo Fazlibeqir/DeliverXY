@@ -36,7 +36,11 @@ import { ref } from "vue";
 const tabIndex = ref(0);
 
 function onTabChanged(e: any) {
-  // Deliveries tab index = 1
+  //HomeTab
+  if (e.newIndex === 0) {
+    (globalThis as any).__homeTabActivated?.();
+  }
+    // Deliveries tab index = 1
   if (e.newIndex === 1) {
     deliveriesStore.loadAssigned();
   }
