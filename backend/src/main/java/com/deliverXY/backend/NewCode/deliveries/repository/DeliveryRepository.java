@@ -30,7 +30,7 @@ public interface DeliveryRepository extends JpaRepository<Delivery,Long> {
     // PROXIMITY SEARCH
     @Query(value = """
             SELECT * FROM deliveries d 
-            WHERE d.status IN ('REQUESTED', 'ASSIGNED')
+            WHERE d.status IN 'REQUESTED'
             AND (
               6371 * acos(
                 cos(radians(:lat)) * 
