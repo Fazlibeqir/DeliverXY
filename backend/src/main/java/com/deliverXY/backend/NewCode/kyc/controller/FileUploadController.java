@@ -18,10 +18,13 @@ public class FileUploadController {
 
     private final FileUploadService fileUploadService;
 
-    @PostMapping("/kyc")
+    @PostMapping(
+            value = "/kyc",
+            consumes = "multipart/form-data"
+    )
     public ApiResponse<String> uploadKYC(
-            @RequestParam MultipartFile file,
-            @RequestParam String documentType,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("documentType") String documentType,
             @AuthenticationPrincipal UserPrincipal principal
     ) throws IOException {
 
