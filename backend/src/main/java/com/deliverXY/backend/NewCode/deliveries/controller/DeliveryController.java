@@ -55,6 +55,15 @@ public class DeliveryController {
     public ApiResponse<List<DeliveryResponseDTO>> assignedToMe(@AuthenticationPrincipal UserPrincipal principal) {
         return ApiResponse.ok(deliveryService.getByAgent(principal.getUser().getId()));
     }
+    @GetMapping("/active")
+    public ApiResponse<DeliveryResponseDTO> activeDelivery(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ApiResponse.ok(
+                deliveryService.getActiveDelivery(principal.getUser().getId())
+        );
+    }
+
 
 
 

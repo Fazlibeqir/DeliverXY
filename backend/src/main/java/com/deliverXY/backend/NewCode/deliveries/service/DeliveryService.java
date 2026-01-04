@@ -37,4 +37,6 @@ public interface DeliveryService {
     FareResponseDTO estimateFare(@Valid FareEstimateDTO request, AppUser user);
 
     FareResponseDTO getFareForDelivery(Long deliveryId);
+
+    DeliveryResponseDTO getActiveDelivery(Long agentId);
 }

@@ -27,6 +27,8 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static com.deliverXY.backend.NewCode.common.enums.DeliveryStatus.*;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -160,9 +162,16 @@ public class DeliveryServiceImpl implements DeliveryService {
         if (d.getAgent() != null){
             throw new BadRequestException("Delivery is already assigned");
         }
+        if (deliveryRepo.findFirstByAgentIdAndStatusInOrderByAssignedAtDesc(
+                agent.getId(),
+                List.of(ASSIGNED, PICKED_UP, IN_TRANSIT)
+        ).isPresent()) {
+            throw new BadRequestException("Agent already has an active delivery");
+        }
+
 
         d.setAgent(agent);
-        d.setStatus(DeliveryStatus.ASSIGNED);
+        d.setStatus(ASSIGNED);
         d.setAssignedAt(LocalDateTime.now());
 
         deliveryRepo.save(d);
@@ -334,6 +343,21 @@ public class DeliveryServiceImpl implements DeliveryService {
                 null // Promo Code
 
         );
+    }
+
+    @Override
+    public DeliveryResponseDTO getActiveDelivery(Long agentId) {
+        return deliveryRepo
+                .findFirstByAgentIdAndStatusInOrderByAssignedAtDesc(
+                        agentId,
+                        List.of(
+                                ASSIGNED,
+                                PICKED_UP,
+                                IN_TRANSIT
+                        )
+                )
+                .map(mapper::toResponse)
+                .orElse(null);
     }
 
     private boolean hasPromo(FareEstimateDTO dto) {

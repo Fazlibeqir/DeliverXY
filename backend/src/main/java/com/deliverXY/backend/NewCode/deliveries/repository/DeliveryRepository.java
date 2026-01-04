@@ -4,6 +4,7 @@ import com.deliverXY.backend.NewCode.common.enums.DeliveryStatus;
 import com.deliverXY.backend.NewCode.deliveries.domain.Delivery;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Range;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface DeliveryRepository extends JpaRepository<Delivery,Long> {
@@ -30,7 +32,8 @@ public interface DeliveryRepository extends JpaRepository<Delivery,Long> {
     // PROXIMITY SEARCH
     @Query(value = """
             SELECT * FROM deliveries d 
-            WHERE d.status IN 'REQUESTED'
+            WHERE d.status IN ('REQUESTED')
+            AND d.agent_id IS NULL
             AND (
               6371 * acos(
                 cos(radians(:lat)) * 
@@ -45,5 +48,10 @@ public interface DeliveryRepository extends JpaRepository<Delivery,Long> {
     List<Delivery> findNearbyDeliveries(@Param("lat") Double latitude,
                                         @Param("lng") Double longitude,
                                         @Param("radius") Double radiusKm);
+
+    Optional<Delivery> findFirstByAgentIdAndStatusInOrderByAssignedAtDesc(
+            Long agentId,
+            List<DeliveryStatus> statuses
+    );
 
 }
