@@ -9,12 +9,15 @@ import com.deliverXY.backend.NewCode.user.repository.AppUserRepository;
 import com.deliverXY.backend.NewCode.wallet.domain.TopUpRequest;
 import com.deliverXY.backend.NewCode.wallet.domain.Wallet;
 import com.deliverXY.backend.NewCode.wallet.domain.WalletTransaction;
+import com.deliverXY.backend.NewCode.wallet.dto.TopUpInitResponseDTO;
 import com.deliverXY.backend.NewCode.wallet.dto.WalletDTO;
 import com.deliverXY.backend.NewCode.wallet.dto.WalletTransactionDTO;
 import com.deliverXY.backend.NewCode.wallet.repository.TopUpRepository;
 import com.deliverXY.backend.NewCode.wallet.repository.WalletRepository;
 import com.deliverXY.backend.NewCode.wallet.repository.WalletTransactionRepository;
 import com.deliverXY.backend.NewCode.wallet.service.WalletService;
+import com.stripe.model.PaymentIntent;
+import com.stripe.param.PaymentIntentCreateParams;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -79,25 +82,61 @@ public class WalletServiceImpl implements WalletService {
     }
 
     @Override
-    public TopUpRequest initiateTopUp(Long userId, BigDecimal amount, PaymentProvider provider) {
+    public TopUpInitResponseDTO  initiateTopUp(Long userId, BigDecimal amount, PaymentProvider provider) {
+
+
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0)
             throw new NotFoundException("Top-up amount must be positive");
 
         TopUpRequest req = new TopUpRequest();
         req.setUserId(userId);
         req.setAmount(amount);
-
-        // generate unique reference for bank/cpay/stripe/etc.
-        req.setReferenceId(UUID.randomUUID().toString());
-        req.setProvider(provider !=null ? provider.name() : "MOCK"); // Placeholder until CPay integration
         req.setStatus(TopUpStatus.PENDING);
+        req.setProvider(provider !=null ? provider.name() : PaymentProvider.MOCK.name()); // Placeholder until CPay integration
+
+        topUpRepository.save(req);
+
+        req.setReferenceId(UUID.randomUUID().toString());
 
         TopUpRequest savedReq = topUpRepository.save(req);
         if (provider == PaymentProvider.MOCK){
 //            Thread.sleep(500);
-            finalizeTopUp(savedReq.getId(), true, savedReq.getReferenceId());
+            finalizeTopUp(req.getId(), true, "MOCK-" + req.getId());
+            return new TopUpInitResponseDTO(
+                    req.getId(),
+                    amount,
+                    null,
+                    PaymentProvider.MOCK.name()
+            );
         }
-        return savedReq;
+        if (provider == PaymentProvider.STRIPE) {
+            try {
+                PaymentIntent intent = PaymentIntent.create(
+                        PaymentIntentCreateParams.builder()
+                                .setAmount(amount.multiply(BigDecimal.valueOf(100)).longValue()) // cents
+                                .setCurrency("mkd")
+                                .putMetadata("topup_id", req.getId().toString())
+                                .putMetadata("user_id", userId.toString())
+                                .build()
+                );
+
+                // store Stripe reference
+                req.setReferenceId(intent.getId());
+                topUpRepository.save(req);
+
+                return new TopUpInitResponseDTO(
+                        req.getId(),
+                        amount,
+                        intent.getClientSecret(),
+                        PaymentProvider.STRIPE.name()
+                );
+
+            } catch (Exception e) {
+                throw new RuntimeException("Stripe PaymentIntent creation failed", e);
+            }
+        }
+
+        throw new IllegalArgumentException("Unsupported payment provider: " + provider);
     }
 
     @Override

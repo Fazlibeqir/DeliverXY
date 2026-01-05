@@ -4,6 +4,7 @@ import com.deliverXY.backend.NewCode.common.response.ApiResponse;
 import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
 import com.deliverXY.backend.NewCode.security.UserPrincipal;
 import com.deliverXY.backend.NewCode.wallet.dto.TopUpInitDTO;
+import com.deliverXY.backend.NewCode.wallet.dto.TopUpInitResponseDTO;
 import com.deliverXY.backend.NewCode.wallet.dto.WalletTransactionDTO;
 import com.deliverXY.backend.NewCode.wallet.service.WalletService;
 import jakarta.validation.Valid;
@@ -25,16 +26,21 @@ public class WalletController {
         return ApiResponse.ok(walletService.getWallet(principal.getUser().getId()));
     }
     @PostMapping("/topup/initiate")
-    public ApiResponse<?> initiateTopUp(
+    public ApiResponse<TopUpInitResponseDTO> initiateTopUp(
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody TopUpInitDTO dto
 
     ){
         BigDecimal amount = dto.getAmount();
         if (amount == null) {
-            return ApiResponse.error("Amount is required for top-up.", 400, "AMOUNT_REQUIRED", "/api/wallet/topup/initiate");
+            return ApiResponse.error(
+                    "Amount is required for top-up.",
+                    400, "AMOUNT_REQUIRED",
+                    "/api/wallet/topup/initiate"
+            );
         }
-        return ApiResponse.ok(walletService.initiateTopUp(
+        return ApiResponse.ok(
+                walletService.initiateTopUp(
                 principal.getUser().getId(),
                 amount,
                 dto.getProvider()
