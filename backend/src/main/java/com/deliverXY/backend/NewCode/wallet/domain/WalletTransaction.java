@@ -31,5 +31,9 @@ public class WalletTransaction {
 
     private String reference; // Delivery ID, Promo ID, etc.
 
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdAt;
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
 }

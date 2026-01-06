@@ -114,7 +114,7 @@ public class WalletServiceImpl implements WalletService {
                 PaymentIntent intent = PaymentIntent.create(
                         PaymentIntentCreateParams.builder()
                                 .setAmount(amount.multiply(BigDecimal.valueOf(100)).longValue()) // cents
-                                .setCurrency("mkd")
+                                .setCurrency("eur")
                                 .putMetadata("topup_id", req.getId().toString())
                                 .putMetadata("user_id", userId.toString())
                                 .build()
