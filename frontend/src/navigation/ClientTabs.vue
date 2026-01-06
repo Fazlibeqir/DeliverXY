@@ -27,6 +27,6 @@
 <script setup lang="ts">
 import ClientHome from "../screens/client/ClientHome.vue";
 import ClientDeliveries from "../screens/client/ClientDeliveries.vue";
-import Wallet from "../screens/Wallet.vue";
+import Wallet from "../screens/wallet/Wallet.vue";
 import Profile from "../screens/Profile.vue";
 </script>

@@ -27,7 +27,7 @@
 <script setup lang="ts">
 import HomeScreen from "../screens/HomeScreen.vue";
 import MyDeliveries from "../screens/MyDeliveries.vue";
-import Wallet from "../screens/Wallet.vue";
+import Wallet from "../screens/wallet/Wallet.vue";
 import Profile from "../screens/Profile.vue";
 import { useDeliveriesStore  } from "../stores/useDeliveryStore";
 
@@ -43,6 +43,13 @@ function onTabChanged(e: any) {
     // Deliveries tab index = 1
   if (e.newIndex === 1) {
     deliveriesStore.loadAssigned();
+  }
+  // 👇 ADD THIS
+  if (e.newIndex === 2) {
+    (globalThis as any).__refreshWallet?.();
+  }
+  if (e.newIndex === 3) {
+    (globalThis as any).__profileTabActivated?.();
   }
 }
 function goToDeliveries() {
