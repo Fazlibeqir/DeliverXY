@@ -24,9 +24,10 @@ public class PaymentController {
     public ApiResponse<PaymentResultDTO> initPayment(
             @RequestBody PaymentInitRequest request,
             @AuthenticationPrincipal UserPrincipal principal
-    ) throws StripeException {
+    ) {
         PaymentResultDTO result = paymentService.initializePayment(
                 request.getDeliveryId(),
+                request.getAmount(),
                 request.getProvider(),
                 principal.getUser().getId()
         );
@@ -52,10 +53,5 @@ public class PaymentController {
     @GetMapping("/my")
     public ApiResponse<?> getMyPayments(@AuthenticationPrincipal UserPrincipal principal) {
         return ApiResponse.ok(paymentService.getPaymentsByUser(principal.getUser().getId()));
-    }
-
-    @GetMapping("/delivery/{deliveryId}")
-    public ApiResponse<?> getPaymentsForDelivery(@PathVariable Long deliveryId) {
-        return ApiResponse.ok(paymentService.getPaymentsByDelivery(deliveryId));
     }
 }

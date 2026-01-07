@@ -1,6 +1,6 @@
 package com.deliverXY.backend.NewCode.deliveries.service.impl;
 
-import com.deliverXY.backend.NewCode.common.enums.PaymentMethod;
+import com.deliverXY.backend.NewCode.common.enums.PaymentProvider;
 import com.deliverXY.backend.NewCode.common.enums.PaymentStatus;
 import com.deliverXY.backend.NewCode.deliveries.domain.*;
 import com.deliverXY.backend.NewCode.deliveries.dto.*;
@@ -12,6 +12,9 @@ import com.deliverXY.backend.NewCode.earnings.domain.DriverEarnings;
 import com.deliverXY.backend.NewCode.earnings.repository.DriverEarningsRepository;
 import com.deliverXY.backend.NewCode.exceptions.BadRequestException;
 import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
+import com.deliverXY.backend.NewCode.payments.domain.Payment;
+import com.deliverXY.backend.NewCode.payments.repository.PaymentRepository;
+import com.deliverXY.backend.NewCode.payments.service.PaymentService;
 import com.deliverXY.backend.NewCode.user.domain.AppUser;
 import com.deliverXY.backend.NewCode.common.enums.DeliveryStatus;
 import com.deliverXY.backend.NewCode.wallet.service.WalletService;
@@ -38,10 +41,12 @@ public class DeliveryServiceImpl implements DeliveryService {
     private final DeliveryHistoryRepository historyRepo;
     private final DeliveryTrackingRepository trackingRepo;
     private final WalletService walletService;
-    private final DeliveryPaymentRepository paymentRepo;
     private final DeliveryRatingRepository ratingRepo;
     private final DriverEarningsRepository earningsRepo;
     private final LocationService locationService;
+    private final PaymentRepository paymentRepo;
+    private final GeocodingService geocodingService;
+    private final PaymentService paymentService;
 
     private final DeliveryMapper mapper;
     private final DeliveryValidator validator;
@@ -106,32 +111,83 @@ public class DeliveryServiceImpl implements DeliveryService {
         d.setClient(client);
         mapper.updateEntityFromDTO(d, dto);
 
-        if (d.getPickupLatitude() != null && d.getPickupLongitude() != null &&
-                d.getDropoffLatitude() != null && d.getDropoffLongitude() != null) {
+        // ─────────────────────────────────────────────
+        // 1. GEOCODE DROPOFF (if needed)
+        // ─────────────────────────────────────────────
+        if (d.getDropoffLatitude() == null || d.getDropoffLongitude() == null) {
 
-            double distance = locationService.distanceKm(
-                    d.getPickupLatitude(),
-                    d.getPickupLongitude(),
-                    d.getDropoffLatitude(),
-                    d.getDropoffLongitude()
-            );
+            if (dto.getDropoffLatitude() != null && dto.getDropoffLongitude() != null) {
+                d.setDropoffLatitude(dto.getDropoffLatitude());
+                d.setDropoffLongitude(dto.getDropoffLongitude());
+            } else {
+                if (d.getDropoffAddress() == null || d.getDropoffAddress().isBlank()) {
+                    throw new BadRequestException("Dropoff address or coordinates are required");
+                }
 
-            d.setDistanceKm(distance);
-        } else {
-            d.setDistanceKm(0.0);
+                GeocodingService.GeoPoint geo =
+                        geocodingService.geocode(d.getDropoffAddress(), "Skopje");
+
+                d.setDropoffLatitude(geo.lat());
+                d.setDropoffLongitude(geo.lng());
+            }
         }
 
+        // ─────────────────────────────────────────────
+        // 2. FARE BREAKDOWN (SINGLE SOURCE OF TRUTH)
+        // ─────────────────────────────────────────────
+        FareBreakdown breakdown = pricingService.getFareBreakdown(
+                d.getPickupLatitude(),
+                d.getPickupLongitude(),
+                d.getDropoffLatitude(),
+                d.getDropoffLongitude()
+        );
 
+        // distance is derived from pricing engine (NOT recalculated elsewhere)
+        d.setDistanceKm(
+                BigDecimal.valueOf(breakdown.getDistanceKm())
+                        .setScale(2, RoundingMode.HALF_UP)
+                        .doubleValue()
+        );
 
+        // ─────────────────────────────────────────────
+        // 3. METADATA
+        // ─────────────────────────────────────────────
         d.setStatus(DeliveryStatus.REQUESTED);
-        d.setTrackingCode("TRK-"+System.currentTimeMillis());
+        d.setTrackingCode("TRK-" + System.currentTimeMillis());
 
         deliveryRepo.save(d);
+
+        // ─────────────────────────────────────────────
+        // 4. PAYMENT PROVIDER SELECTION
+        // ─────────────────────────────────────────────
+        PaymentProvider provider =
+                dto.getPaymentProvider() != null
+                        ? dto.getPaymentProvider()
+                        : PaymentProvider.MOCK;
+
+        // Wallet safety check BEFORE payment init
+        if (provider == PaymentProvider.WALLET) {
+            walletService.ensureSufficientBalance(
+                    client.getId(),
+                    breakdown.getTotalFare()
+            );
+        }
+
+        // ─────────────────────────────────────────────
+        // 5. INITIALIZE PAYMENT (MOCK / WALLET / STRIPE)
+        // ─────────────────────────────────────────────
+        paymentService.initializePayment(
+                d.getId(),
+                breakdown.getTotalFare(),
+                provider,
+                client.getId()
+        );
 
         logHistory(d, "Delivery created", client.getUsername());
 
         return respond(d);
     }
+
 
     @Override
     @Transactional
@@ -149,6 +205,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     @Transactional
     public DeliveryResponseDTO assign(Long id, AppUser agent) {
         Delivery d = load(id);
+
 
         if (d.getStatus() != DeliveryStatus.REQUESTED)
             throw new BadRequestException("Delivery is not open for assignment");
@@ -180,6 +237,56 @@ public class DeliveryServiceImpl implements DeliveryService {
 
         return respond(d);
     }
+    @Transactional
+    public void settleDeliveryEarnings(Delivery d) {
+
+        Payment payment = paymentRepo.findByDeliveryId(d.getId())
+                .orElseThrow(() -> new BadRequestException("Payment not found"));
+
+        if (payment.getStatus() != PaymentStatus.COMPLETED) {
+            throw new BadRequestException("Payment not completed");
+        }
+
+        if (Boolean.TRUE.equals(payment.getEscrowReleased())) {
+            return; // already settled (idempotent)
+        }
+
+        BigDecimal total = payment.getAmount();
+
+        BigDecimal driverCut = total
+                .multiply(new BigDecimal("0.80"))
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal platformCut = total.subtract(driverCut);
+
+        // 💰 Pay driver
+        walletService.deposit(
+                d.getAgent().getId(),
+                driverCut,
+                "DELIVERY_EARNINGS_" + d.getTrackingCode()
+        );
+
+        // 📊 Record earnings
+        DriverEarnings earnings = new DriverEarnings();
+        earnings.setDelivery(d);
+        earnings.setAgentId(d.getAgent().getId());
+        earnings.setDriverEarnings(driverCut);
+        earnings.setTip(BigDecimal.ZERO);
+        earningsRepo.save(earnings);
+
+        // ✅ Finalize
+        payment.setEscrowReleased(true);
+        payment.setDriverAmount(driverCut);
+        payment.setPlatformFee(platformCut);
+        paymentRepo.save(payment);
+
+        logHistory(
+                d,
+                "Delivery completed. Driver earned " + driverCut,
+                "SYSTEM"
+        );
+    }
+
 
     @Override
     @Transactional
@@ -191,7 +298,8 @@ public class DeliveryServiceImpl implements DeliveryService {
             case PICKED_UP -> d.setActualPickupTime(LocalDateTime.now());
             case DELIVERED -> {
                 d.setActualDeliveryTime(LocalDateTime.now());
-                processDeliveryPayment(d);
+//                processDeliveryPayment(d);
+                settleDeliveryEarnings(d);
             }
 
             case CANCELLED -> d.setCancelledAt(LocalDateTime.now());
@@ -203,58 +311,6 @@ public class DeliveryServiceImpl implements DeliveryService {
         logHistory(d, "Status changed to " + status, "SYSTEM");
 
         return respond(d);
-    }
-
-    private void processDeliveryPayment(Delivery d) {
-        DeliveryPayment payment = paymentRepo.findByDeliveryId(d.getId())
-                .orElseThrow(() -> new BadRequestException("Delivery payment not initialized"));
-
-        if (payment.getPaymentStatus() == PaymentStatus.COMPLETED) {
-            return;
-        }
-
-        payment.setPaymentStatus(PaymentStatus.PROCESSING);
-        paymentRepo.save(payment);
-
-        BigDecimal totalAmount = payment.getFinalAmount();
-        try {
-            BigDecimal driverCut = totalAmount
-                    .multiply(new BigDecimal("0.80"))
-                    .setScale(2,RoundingMode.HALF_UP);
-            BigDecimal platformCut = totalAmount.subtract(driverCut);
-
-            //Pay Driver
-            walletService.deposit(
-                    d.getAgent().getId(),
-                    driverCut,
-                    "DELIVERY_EARNINGS_"+d.getTrackingCode()
-            );
-            // -------- RECORD EARNINGS --------
-            DriverEarnings earnings = new DriverEarnings();
-            earnings.setDelivery(d);
-            earnings.setAgentId(d.getAgent().getId());
-            earnings.setDriverEarnings(driverCut);
-            earnings.setTip(BigDecimal.ZERO);
-            earningsRepo.save(earnings);
-
-            // -------- FINALIZE PAYMENT --------
-            payment.setPaymentStatus(PaymentStatus.COMPLETED);
-            payment.setPaidAt(LocalDateTime.now());
-            paymentRepo.save(payment);
-
-            logHistory(
-                    d,
-                    "Delivery completed. Driver earned " + driverCut +
-                            ", platform earned " + platformCut,
-                    "SYSTEM"
-            );
-        } catch (Exception e) {
-            payment.setPaymentStatus(PaymentStatus.FAILED);
-            paymentRepo.save(payment);
-            log.error("Settlement failed for delivery {}: {}", d.getId(), e.getMessage());
-            throw new BadRequestException("Settlement failed: " + e.getMessage());
-        }
-
     }
 
 

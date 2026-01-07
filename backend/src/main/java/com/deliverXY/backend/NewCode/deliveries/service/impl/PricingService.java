@@ -61,20 +61,31 @@ public class PricingService {
 
         // Base Calculation: (Base + Distance + Time) * Surge
         BigDecimal preSurgeTotal = baseFare.add(distanceFare).add(timeFare);
-        BigDecimal total = preSurgeTotal.multiply(surgeMultiplier).setScale(SCALE, RoundingMode.HALF_UP);
+        BigDecimal afterSurge = preSurgeTotal
+                .multiply(surgeMultiplier)
+                .setScale(SCALE, RoundingMode.HALF_UP);
 
-        // Apply Zone Charges (City Center Multiplier and Airport Surcharge)
+        boolean inCityCenter = isPickupOrDropoffInCityCenter(pickupLat, pickupLon, dropoffLat, dropoffLon);
         BigDecimal cityCenterMultiplier = getCityCenterMultiplier(config, pickupLat, pickupLon, dropoffLat, dropoffLon);
-        BigDecimal airportSurcharge = getAirportSurcharge(config, pickupLat, pickupLon, dropoffLat, dropoffLon);
 
-        // Apply City Center multiplier *after* surge/base calculation
-        total = total.multiply(cityCenterMultiplier).setScale(SCALE, RoundingMode.HALF_UP);
+        BigDecimal cityCenterCharge = BigDecimal.ZERO;
+        if (inCityCenter && cityCenterMultiplier.compareTo(BigDecimal.ONE) > 0) {
+            cityCenterCharge = afterSurge
+                    .multiply(cityCenterMultiplier.subtract(BigDecimal.ONE))
+                    .setScale(SCALE, RoundingMode.HALF_UP);
+        }
 
-        // Add Airport Surcharge
-        total = total.add(airportSurcharge);
+        BigDecimal airportSurcharge = getAirportSurcharge(config, pickupLat, pickupLon, dropoffLat, dropoffLon)
+                .setScale(SCALE, RoundingMode.HALF_UP);
 
-        // Apply Minimum Fare
-        total = total.max(minimumFare);
+        // Total = afterSurge + cityCenterCharge + airportSurcharge
+        BigDecimal total = afterSurge
+                .add(cityCenterCharge)
+                .add(airportSurcharge)
+                .setScale(SCALE, RoundingMode.HALF_UP);
+
+        // Minimum fare
+        total = total.max(minimumFare).setScale(SCALE, RoundingMode.HALF_UP);
 
         return new FareBreakdown(
                 total,
@@ -85,7 +96,7 @@ public class PricingService {
                 estimatedMinutes,
                 config.getCurrency(),
                 surgeMultiplier.doubleValue(),
-                isPickupOrDropoffInCityCenter(pickupLat, pickupLon, dropoffLat, dropoffLon) ? cityCenterMultiplier.subtract(BigDecimal.ONE).multiply(total).setScale(SCALE, RoundingMode.HALF_UP) : BigDecimal.ZERO,
+                cityCenterCharge,
                 airportSurcharge
         );
     }
@@ -95,7 +106,10 @@ public class PricingService {
      */
     public BigDecimal applyPromoCode(BigDecimal totalFare, String promoCode, AppUser user) {
         // Implementation depends on PromoCodeService, assuming a BigDecimal return
-        return promoCodeService.applyPromoCode(totalFare, promoCode, user);
+        if (totalFare == null) throw new IllegalArgumentException("totalFare is required");
+        if (promoCode == null || promoCode.isBlank()) return totalFare;
+        return promoCodeService.applyPromoCode(totalFare, promoCode, user)
+                .setScale(SCALE, RoundingMode.HALF_UP);
     }
 
     // -------------------------------------------------------------

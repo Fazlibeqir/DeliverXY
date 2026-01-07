@@ -14,7 +14,7 @@ import com.deliverXY.backend.NewCode.payments.service.PaymentGatewayProvider;
 import com.deliverXY.backend.NewCode.payments.service.PaymentService;
 import com.deliverXY.backend.NewCode.user.domain.AppUser;
 import com.deliverXY.backend.NewCode.user.service.AppUserService;
-import com.stripe.exception.StripeException;
+import com.deliverXY.backend.NewCode.wallet.service.WalletService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,18 +32,18 @@ public class PaymentServiceImpl implements PaymentService {
     private final Map<PaymentProvider, PaymentGatewayProvider> providers;
     private final PaymentRepository paymentRepo;
     private final DeliveryRepository deliveryRepo;
-    private final DeliveryService deliveryService;
     private final AppUserService userService;
+    private final WalletService walletService;
 
     public PaymentServiceImpl(List<PaymentGatewayProvider> providerList,
                               PaymentRepository paymentRepo,
                               DeliveryRepository deliveryRepo,
-                              DeliveryService deliveryService,
-                              AppUserService userService) {
+                              AppUserService userService,
+                              WalletService walletService) {
         this.paymentRepo = paymentRepo;
         this.deliveryRepo = deliveryRepo;
-        this.deliveryService = deliveryService;
         this.userService = userService;
+        this.walletService=walletService;
         this.providers = providerList.stream()
                 .collect(Collectors.toMap(PaymentGatewayProvider::getProviderType, Function.identity()));
     }
@@ -58,14 +58,14 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional
-    public PaymentResultDTO initializePayment(Long deliveryId, PaymentProvider provider, Long userId)
-            throws StripeException {
+    public PaymentResultDTO initializePayment(Long deliveryId, BigDecimal amount, PaymentProvider provider, Long userId)
+    {
 
         var delivery = deliveryRepo.findById(deliveryId)
                 .orElseThrow(() -> new NotFoundException("Delivery not found"));
 
-        FareResponseDTO fare = deliveryService.getFareForDelivery(deliveryId);
-        BigDecimal finalAmount = BigDecimal.valueOf(fare.getTotalFare());
+//        FareResponseDTO fare = deliveryService.getFareForDelivery(deliveryId);
+        BigDecimal finalAmount = amount;
 
         if (delivery.getDeliveryPayment() != null
                 && delivery.getDeliveryPayment().getPaymentStatus() != PaymentStatus.PENDING) {
@@ -79,8 +79,38 @@ public class PaymentServiceImpl implements PaymentService {
                 .provider(provider)
                 .status(PaymentStatus.PENDING)
                 .initiatedAt(LocalDateTime.now())
+                .tip(BigDecimal.ZERO)
+                .platformFee(BigDecimal.ZERO)
+                .driverAmount(BigDecimal.ZERO)
+                .refundedAmount(BigDecimal.ZERO)
+                .escrowReleased(false)
                 .build();
+
         paymentRepo.save(payment);
+        if (provider == PaymentProvider.WALLET) {
+
+            // 🔥 deduct funds immediately
+            walletService.withdraw(
+                    userId,
+                    finalAmount,
+                    "DELIVERY_PAYMENT_" + delivery.getTrackingCode()
+            );
+
+            // 🔥 mark payment completed
+            payment.setStatus(PaymentStatus.COMPLETED);
+            payment.setCompletedAt(LocalDateTime.now());
+
+            paymentRepo.save(payment);
+
+            // 🔥 return immediately (NO gateway)
+            return PaymentResultDTO.builder()
+                    .paymentId(payment.getId())
+                    .deliveryId(delivery.getId())
+                    .provider(provider)
+                    .amountPaid(payment.getAmount())
+                    .status(PaymentStatus.COMPLETED)
+                    .build();
+        }
 
         PaymentGatewayProvider gateway = getGatewayProvider(provider);
 
@@ -148,29 +178,10 @@ public class PaymentServiceImpl implements PaymentService {
         gateway.refundTransaction(payment, amount, reason);
     }
 
-    @Override
-    public PaymentResultDTO payWithWallet(Long deliveryId, Long userId) {
-        // FIX: Delegation should go through the generic map, assuming WalletPaymentProvider exists.
-        // 1. Fetch user (required for wallet access)
-       userService.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found"));
-
-        // 2. Delegate to the main initializePayment, forcing the provider to WALLET
-        try {
-            return initializePayment(deliveryId, PaymentProvider.WALLET, userId);
-        } catch (StripeException e) {
-            // Wallet payment shouldn't throw StripeException, but we catch it for compatibility
-            throw new BadRequestException("Wallet payment initialization failed: " + e.getMessage());
-        }
-    }
 
     @Override
     public List<Payment> getPaymentsByUser(Long userId) {
         return paymentRepo.findByPayerId(userId);
     }
 
-    @Override
-    public List<Payment> getPaymentsByDelivery(Long deliveryId) {
-        return paymentRepo.findByDeliveryId(deliveryId);
-    }
 }

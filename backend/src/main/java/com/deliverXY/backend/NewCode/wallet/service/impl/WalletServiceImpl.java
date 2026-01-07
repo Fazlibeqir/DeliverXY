@@ -169,6 +169,19 @@ public class WalletServiceImpl implements WalletService {
     }
 
     @Override
+    public void ensureSufficientBalance(Long userId, BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Amount must be positive");
+        }
+
+        Wallet wallet = getWallet(userId);
+
+        if (!wallet.canWithdraw(amount)) {
+            throw new IllegalStateException("Insufficient wallet balance");
+        }
+    }
+
+    @Override
     @Transactional
     public boolean withdraw(Long userId, BigDecimal amount, String reference) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0)

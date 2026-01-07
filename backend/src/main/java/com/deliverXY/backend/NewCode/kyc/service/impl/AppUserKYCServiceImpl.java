@@ -27,6 +27,10 @@ public class AppUserKYCServiceImpl implements AppUserKYCService {
         AppUserKYC existing = findKYC(userId).orElse(new AppUserKYC());
         existing.setUser(user);
 
+        if (existing.getKycStatus() == KYCStatus.APPROVED) {
+            return existing;
+        }
+
         existing.setIdFrontUrl(kyc.getIdFrontUrl());
         existing.setIdBackUrl(kyc.getIdBackUrl());
         existing.setSelfieUrl(kyc.getSelfieUrl());

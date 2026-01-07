@@ -1,5 +1,6 @@
 package com.deliverXY.backend.NewCode.deliveries.dto;
 
+import com.deliverXY.backend.NewCode.common.enums.PaymentProvider;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -32,6 +33,8 @@ public class DeliveryDTO {
     private String dropoffContactName;
     private String dropoffContactPhone;
     private String dropoffInstructions;
+
+    private PaymentProvider paymentProvider;
     
     // Timing
     private LocalDateTime requestedPickupTime;

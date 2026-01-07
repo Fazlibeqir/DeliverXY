@@ -52,7 +52,7 @@ public class Payment {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private PaymentStatus status = PaymentStatus.PENDING;
+    private PaymentStatus status;
 
     /** --------------------------------------------------
      *  AMOUNTS
@@ -60,13 +60,13 @@ public class Payment {
     @Column(nullable = false)
     private BigDecimal amount; // delivery finalAmount
 
-    private BigDecimal tip = BigDecimal.ZERO;
+    private BigDecimal tip;
 
-    private BigDecimal platformFee = BigDecimal.ZERO; // system earns this
+    private BigDecimal platformFee; // system earns this
 
-    private BigDecimal driverAmount = BigDecimal.ZERO; // goes to DriverEarnings
+    private BigDecimal driverAmount; // goes to DriverEarnings
 
-    private BigDecimal refundedAmount = BigDecimal.ZERO;
+    private BigDecimal refundedAmount;
 
     /** --------------------------------------------------
      *  PROVIDER REFERENCES
@@ -84,7 +84,7 @@ public class Payment {
     /** --------------------------------------------------
      *  TIMESTAMPS
      *  -------------------------------------------------- */
-    private LocalDateTime initiatedAt = LocalDateTime.now();
+    private LocalDateTime initiatedAt;
     private LocalDateTime completedAt;
     private LocalDateTime refundedAt;
 
@@ -93,4 +93,15 @@ public class Payment {
 
     @Column(name = "escrow_released_at")
     private LocalDateTime escrowReleasedAt;
+
+    @PrePersist
+    public void prePersist() {
+        if (status == null) status = PaymentStatus.PENDING;
+        if (tip == null) tip = BigDecimal.ZERO;
+        if (platformFee == null) platformFee = BigDecimal.ZERO;
+        if (driverAmount == null) driverAmount = BigDecimal.ZERO;
+        if (refundedAmount == null) refundedAmount = BigDecimal.ZERO;
+        if (escrowReleased == null) escrowReleased = false;
+        if (initiatedAt == null) initiatedAt = LocalDateTime.now();
+    }
 }

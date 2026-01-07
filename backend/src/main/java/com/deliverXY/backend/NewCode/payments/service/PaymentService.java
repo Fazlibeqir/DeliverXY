@@ -10,16 +10,13 @@ import java.util.List;
 
 public interface PaymentService {
 
-    PaymentResultDTO initializePayment(Long deliveryId, PaymentProvider provider, Long userId)
-            throws StripeException;
+    PaymentResultDTO initializePayment(Long deliveryId, BigDecimal amount, PaymentProvider provider, Long userId);
 
     PaymentResultDTO confirmPayment(String providerReference);
 
     void refund(Long paymentId, BigDecimal amount, String reason);
 
-    PaymentResultDTO payWithWallet(Long deliveryId, Long userId);
 
     List<Payment> getPaymentsByUser(Long userId);
 
-    List<Payment> getPaymentsByDelivery(Long deliveryId);
 }

@@ -15,7 +15,7 @@ public interface WalletService {
     TopUpInitResponseDTO initiateTopUp(Long userId, BigDecimal amount, PaymentProvider provider);
     void finalizeTopUp(Long topUpId, boolean success, String referenceId);
     void deposit(Long userId, BigDecimal amount, String reference);
-
+    void ensureSufficientBalance(Long userId, BigDecimal amount);
     boolean withdraw(Long userId, BigDecimal amount, String reference);
 
     void addTransaction(Long userId, BigDecimal amount, String type, String reference);
