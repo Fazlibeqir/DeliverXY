@@ -2,7 +2,7 @@
   <Page>
     <ActionBar title="DeliverXY" />
 
-    <TabView androidTabsPosition="bottom">
+    <TabView androidTabsPosition="bottom" @selectedIndexChanged="onTabChanged" v-model:selectedIndex="tabIndex">
 
       <TabViewItem title="Home" iconSource="res://ic_home">
         <ClientHome />
@@ -29,4 +29,30 @@ import ClientHome from "../screens/client/ClientHome.vue";
 import ClientDeliveries from "../screens/client/ClientDeliveries.vue";
 import Wallet from "../screens/wallet/Wallet.vue";
 import Profile from "../screens/Profile.vue";
+
+import { ref } from "vue";
+import { useClientDeliveriesStore } from "../stores/useDeliveryStore";
+
+const tabIndex = ref(0);
+const deliveriesStore = useClientDeliveriesStore();
+
+function onTabChanged(e: any) {
+  switch (e.newIndex) {
+    case 0:
+      (globalThis as any).__homeTabActivated?.();
+      break;
+
+    case 1:
+      (globalThis as any).__clientDeliveriesTabActivated?.();
+      break;
+
+    case 2:
+      (globalThis as any).__walletTabActivated?.();
+      break;
+
+    case 3:
+      (globalThis as any).__profileTabActivated?.();
+      break;
+  }
+}
 </script>

@@ -9,7 +9,17 @@
       </TabViewItem>
 
       <TabViewItem title="Deliveries" iconSource="res://ic_box">
-        <MyDeliveries />
+        <GridLayout rows="*" columns="*">
+
+          <!-- Actual deliveries -->
+          <MyDeliveries row="0" col="0" v-show="kycStore.status === 'APPROVED'" />
+
+          <!-- Blocker message -->
+          <StackLayout row="0" col="0" v-show="kycStore.status !== 'APPROVED'" class="p-4">
+            <Label text="You must complete KYC to accept deliveries." class="text-gray-500 text-center" />
+          </StackLayout>
+
+        </GridLayout>
       </TabViewItem>
 
       <TabViewItem title="Wallet" iconSource="res://ic_wallet">
@@ -29,32 +39,33 @@ import HomeScreen from "../screens/HomeScreen.vue";
 import MyDeliveries from "../screens/MyDeliveries.vue";
 import Wallet from "../screens/wallet/Wallet.vue";
 import Profile from "../screens/Profile.vue";
-import { useDeliveriesStore  } from "../stores/useDeliveryStore";
+import { ref, onMounted } from "vue";
+import { useKYCStore } from "../stores/kyc.store";
+const kycStore = useKYCStore();
 
-const deliveriesStore = useDeliveriesStore();
-import { ref } from "vue";
 const tabIndex = ref(0);
+onMounted(() => {
+  kycStore.load();
+});
 
 function onTabChanged(e: any) {
-  //HomeTab
-  if (e.newIndex === 0) {
-    (globalThis as any).__homeTabActivated?.();
+  switch (e.newIndex) {
+    case 0:
+      (globalThis as any).__homeTabActivated?.();
+      break;
+
+    case 1:
+      (globalThis as any).__agentDeliveriesTabActivated?.();
+      break;
+
+    case 2:
+      (globalThis as any).__refreshWallet?.();
+      break;
+
+    case 3:
+      (globalThis as any).__profileTabActivated?.();
+      break;
   }
-    // Deliveries tab index = 1
-  if (e.newIndex === 1) {
-    deliveriesStore.loadAssigned();
-  }
-  // 👇 ADD THIS
-  if (e.newIndex === 2) {
-    (globalThis as any).__refreshWallet?.();
-  }
-  if (e.newIndex === 3) {
-    (globalThis as any).__profileTabActivated?.();
-  }
-}
-function goToDeliveries() {
-  tabIndex.value = 1;
-  deliveriesStore.loadAssigned();
 }
 
 </script>

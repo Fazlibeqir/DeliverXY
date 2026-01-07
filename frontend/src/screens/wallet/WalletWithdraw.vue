@@ -46,7 +46,6 @@
   
       alert("Withdrawal successful");
       
-      Frame.topmost().goBack();
     } catch (e: any) {
       alert(e.message || "Withdrawal failed");
     } finally {

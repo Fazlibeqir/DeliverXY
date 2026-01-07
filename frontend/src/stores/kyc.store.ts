@@ -19,6 +19,7 @@ export const useKYCStore = defineStore("kyc", {
       this.loading = true;
       try {
         const kyc = await KYCService.getMyKYC();
+        console.log(kyc);
         if (!kyc) return;
 
         this.status = kyc.status;
@@ -35,13 +36,14 @@ export const useKYCStore = defineStore("kyc", {
     async submit() {
       this.loading = true;
       try {
-        const res = await KYCService.submitKYC({
+        await KYCService.submitKYC({
           idFrontUrl: this.idFrontUrl,
           idBackUrl: this.idBackUrl,
           selfieUrl: this.selfieUrl,
           proofOfAddressUrl: this.proofOfAddressUrl,
         });
-        this.status = res.status;
+    
+        await this.load();
       } finally {
         this.loading = false;
       }

@@ -111,7 +111,7 @@
   window.setDeliveries = function (items) {
     const alive = new Set(items.map(d => d.id));
 
-   
+
     for (const [id, marker] of deliveries.entries()) {
       if (!alive.has(id)) {
         map.removeLayer(marker);
@@ -212,18 +212,12 @@
   };
 
   document.getElementById("accept").onclick = async () => {
-    alert(
-    "DEBUG userMarker=" + !!userMarker +
-    " selectedDelivery=" + JSON.stringify(selectedDelivery)
-  );
-
-    if (!userMarker || !selectedDelivery) return;
+    if (!selectedDelivery) return;
     if (assigning) return;
 
     assigning = true;
-    alert("ACCEPT CLICKED"+JSON.stringify(selectedDelivery.id));
 
-
+    if (userMarker) {
     const from = userMarker.getLatLng();
     await drawRoute(
       from.lat,
@@ -231,7 +225,7 @@
       selectedDelivery.lat,
       selectedDelivery.lng
     );
-
+    }
     if (window.nsEmit) {
       window.nsEmit({
         type: "accepted",

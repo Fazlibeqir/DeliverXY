@@ -1,6 +1,11 @@
 <template>
   <GridLayout rows="*,auto">
-    <WebView ref="wv" row="0" src="~/assets/map.html" @loadFinished="onLoaded" @consoleMessage="onConsoleMessage" />
+    <WebView 
+      ref="wv" 
+      row="0" 
+      src="~/assets/map.html" 
+      @loadFinished="onLoaded" 
+      @consoleMessage="onConsoleMessage" />
 
 
 
@@ -29,6 +34,11 @@ const wv = ref<any>(null);
 const webReady = ref(false);
 const deliveries = ref<any[]>([]);
 const activeDelivery = ref<any | null>(null);
+
+const hasLocation = ref(false);
+const lastLoc = ref<{ lat: number; lng: number } | null>(null);
+const assigning = ref(false);
+const assignedIds = new Set<number>();
 
 
 
@@ -94,20 +104,19 @@ async function refreshNearby(lat: number, lng: number) {
 function onLoaded() {
   webReady.value = true;
 
-  // 🔥 disable Android WebView zoom UI (bottom bar)
   const webview = wv.value?.nativeView;
   if (isAndroid && webview?.android) {
-    const WebChromeClientClass  = android.webkit.WebChromeClient.extend({
-    onConsoleMessage(consoleMessage: any) {
-      const message = consoleMessage.message();
-      console.log("WEBVIEW:", message);
+    const WebChromeClientClass = android.webkit.WebChromeClient.extend({
+      onConsoleMessage(consoleMessage: any) {
+        const message = consoleMessage.message();
+        console.log("WEBVIEW:", message);
 
-      // forward to Vue handler
-      onConsoleMessage({ android: { message } });
+        // forward to Vue handler
+        onConsoleMessage({ android: { message } });
 
-      return true;
-    }
-  });
+        return true;
+      }
+    });
     webview.android.setWebChromeClient(
       new (WebChromeClientClass as any)());
 
@@ -123,6 +132,12 @@ function onLoaded() {
   setTimeout(() => {
     injectBridge();
     safeRunJS(`window.setDeliveries(${js(deliveries.value)});`);
+    if (lastLoc.value) {
+      safeRunJS(`window.setUserLocation(${lastLoc.value.lat}, ${lastLoc.value.lng});`);
+    }
+    if (activeDelivery.value) {
+      safeRunJS(`window.clearDeliveries();`);
+    }
   }, 300);
 }
 
@@ -149,19 +164,23 @@ async function loadActiveDelivery() {
   return true;
 }
 (globalThis as any).__homeTabActivated = async () => {
-  if (!activeDelivery.value) {
-    const loc = await getCurrentLocation({ timeout: 10000 });
-    await refreshNearby(loc.latitude, loc.longitude);
-  }
-};
+  const hasActive = await loadActiveDelivery();
+  if (hasActive) return;
+  if (!lastLoc.value) return;
+
+  await refreshNearby(lastLoc.value.lat, lastLoc.value.lng);
+  };
 
 
 (globalThis as any).__deliveryStatusChanged = (d: any) => {
   if (d.status === "CANCELLED" || d.status === "DELIVERED") {
-  activeDelivery.value = null;
-  safeRunJS(`window.clearRoute();`);
-  return;
-}
+    activeDelivery.value = null;
+    safeRunJS(`window.clearRoute();`);
+    if (lastLoc.value) {
+      refreshNearby(lastLoc.value.lat, lastLoc.value.lng);
+    }
+    return;
+  }
 
   activeDelivery.value = d;
 
@@ -192,6 +211,10 @@ async function onConsoleMessage(e: any) {
     if (parsed.__nsEvent && parsed.payload?.type === "accepted") {
       const deliveryId = parsed.payload.data.id;
 
+      if (assigning.value || assignedIds.has(deliveryId)) return;
+      assigning.value = true;
+      assignedIds.add(deliveryId);
+
       try {
         const assigned = await DeliveryService.assignDelivery(deliveryId);
 
@@ -205,21 +228,37 @@ async function onConsoleMessage(e: any) {
         safeRunJS(`window.clearDeliveries();`);
 
         // draw route immediately
-        safeRunJS(`
-         window.drawRoute(
-         ${parsed.payload.data.lat},
-         ${parsed.payload.data.lng},
-         ${assigned.dropoffLatitude},
-         ${assigned.dropoffLongitude}
-         );
-      `);
+        if (lastLoc.value) {
+          safeRunJS(`
+             window.drawRoute(
+              ${parsed.payload.data.lat},
+              ${parsed.payload.data.lng},
+              ${assigned.dropoffLatitude},
+              ${assigned.dropoffLongitude}
+             );  
+          `); 
+        }else {
+          safeRunJS(`
+            window.drawRoute(
+              ${assigned.pickupLatitude},
+              ${assigned.pickupLongitude},
+              ${assigned.dropoffLatitude},
+              ${assigned.dropoffLongitude}
+            );
+          `);
+        }
 
-        store.loadAssigned();
-      } catch (e) {
-        console.log("This delivery was already taken by another agent.");
+
+        store.loadAssigned(true);
+      } catch (err) {
+        console.log("Assign failed", err);
+        await alert(String((err as any)?.message || "Assign failed"));
+        assignedIds.delete(deliveryId);
+      } finally {
+        assigning.value = false;
       }
     }
-  } catch(err) { 
+  } catch (err) {
     console.log("Console parse error", err);
   }
 }
@@ -234,30 +273,44 @@ async function pushLocation(lat: number, lng: number) {
 
 onMounted(async () => {
   const enabled = await isEnabled();
-  if (!enabled){
+  if (!enabled) {
     try {
-      await enableLocationRequest(true,true);
+      await enableLocationRequest(true, true);
     } catch (e) {
       alert("Location permission is required to use this app.");
-      return;
+      hasLocation.value = false;
     }
   }
-  
 
-  const loc = await getCurrentLocation({ timeout: 20000 });
+  await loadActiveDelivery();
 
-  safeRunJS(`window.setUserLocation(${loc.latitude}, ${loc.longitude});`);
-  await pushLocation(loc.latitude, loc.longitude);
-  const hasActive = await loadActiveDelivery();
-  if (!hasActive) {
-    await refreshNearby(loc.latitude, loc.longitude);
+  if (await isEnabled()) {
+    try {
+      const loc = await getCurrentLocation({ timeout: 20000 });
+
+      hasLocation.value = true;
+      lastLoc.value = { lat: loc.latitude, lng: loc.longitude };
+
+      safeRunJS(`window.setUserLocation(${loc.latitude}, ${loc.longitude});`);
+      pushLocation(loc.latitude, loc.longitude);
+      if (!activeDelivery.value) {
+        await refreshNearby(loc.latitude, loc.longitude);
+      }
+    } catch (e) {
+      console.log("getCurrentLocation failed", e);
+      hasLocation.value = false;
+    }
   }
 
-  
+
   let lastNearbyFetch = 0;
 
+  if (await isEnabled()) {
   watchLocation(
     (l) => {
+      hasLocation.value = true;
+      lastLoc.value = { lat: l.latitude, lng: l.longitude };
+
       safeRunJS(`window.setUserLocation(${l.latitude}, ${l.longitude});`);
       pushLocation(l.latitude, l.longitude);
       // 🚨 IMPORTANT LOGIC
@@ -292,5 +345,6 @@ onMounted(async () => {
     (e) => console.log("watch error", e),
     { minimumUpdateTime: 2000, desiredAccuracy: 3 }
   );
+  }
 });
 </script>

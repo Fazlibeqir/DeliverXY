@@ -78,6 +78,7 @@ export function createDelivery(payload: {
 
     requestedPickupTime?: string;
     city?: string;
+    paymentProvider: "WALLET";
 }) {
     return apiRequest("POST", "/api/deliveries", payload);
 }

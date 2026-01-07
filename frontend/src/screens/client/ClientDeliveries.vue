@@ -1,46 +1,46 @@
 <template>
+  <ScrollView>
+    <StackLayout class="p-4">
 
-    <ScrollView @navigatedTo="load">
-        <StackLayout class="p-4">
+      <StackLayout
+        v-for="d in store.list"
+        :key="d.id"
+        class="card mb-3"
+      >
+        <Label :text="d.title" class="font-bold text-lg" />
+        <Label :text="d.dropoffAddress" class="text-gray-500 mb-1" />
+        <Label :text="`Status: ${d.status}`" />
 
-            <StackLayout v-for="d in deliveries" :key="d.id" class="card mb-3">
-                <Label :text="d.title" class="font-bold text-lg" />
-                <Label :text="d.dropoffAddress" class="text-gray-500 mb-1" />
-                <Label :text="`Status: ${d.status}`" />
+        <Label
+          v-if="d.agentUsername"
+          :text="`Agent: ${d.agentUsername}`"
+          class="mt-1"
+        />
+      </StackLayout>
 
-                <Label v-if="d.agentUsername" :text="`Agent: ${d.agentUsername}`" class="mt-1" />
-            </StackLayout>
+      <Label
+        v-if="!store.loading && store.list.length === 0"
+        text="No deliveries yet."
+        class="text-gray-500 text-center mt-6"
+      />
 
-            <Label v-if="deliveries.length === 0" text="No deliveries yet." class="text-gray-500 text-center mt-6" />
-
-        </StackLayout>
-    </ScrollView>
+    </StackLayout>
+  </ScrollView>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
-import * as DeliveryService from "../../services/deliveries.service";
-import { authStore  } from "../../stores/auth.store";
+import { onMounted, onUnmounted } from "vue";
+import { useClientDeliveriesStore } from "../../stores/useDeliveryStore";
 
-const deliveries = ref<any[]>([]);
-const loading = ref(false);
+const store = useClientDeliveriesStore();
 
-async function load() {
-  if (!authStore.user) return;
+onMounted(() => {
+  (globalThis as any).__clientDeliveriesTabActivated = () => {
+    store.loadMine(true);
+  };
+});
 
-  loading.value = true;
-  try {
-    deliveries.value = await DeliveryService.getMyDeliveries();
-  } finally {
-    loading.value = false;
-  }
-}
-
-watch(
-  () => authStore.user,
-  (user) => {
-    if (user) load();
-  },
-  { immediate: true }
-);
-</script>>
+onUnmounted(() => {
+  delete (globalThis as any).__clientDeliveriesTabActivated;
+});
+</script>

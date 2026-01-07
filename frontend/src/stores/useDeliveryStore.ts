@@ -44,3 +44,23 @@ export const useDeliveriesStore = defineStore("deliveries", {
     },
   },
 });
+
+export const useClientDeliveriesStore = defineStore("clientDeliveries", {
+  state: () => ({
+    list: [] as any[],
+    loading: false,
+  }),
+
+  actions: {
+    async loadMine(force = false) {
+      if (this.loading && !force) return;
+
+      this.loading = true;
+      try {
+        this.list = await DeliveryService.getMyDeliveries();
+      } finally {
+        this.loading = false;
+      }
+    },
+  },
+});
