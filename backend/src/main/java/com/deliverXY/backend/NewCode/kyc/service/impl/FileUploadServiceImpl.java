@@ -18,7 +18,7 @@ public class FileUploadServiceImpl implements FileUploadService {
     @Value("${app.uploads.dir}")
     private String uploadPath;
 
-    @Value("${file.upload.max-size:10485760}") // 10MB default
+    @Value("${file.upload.max-size:10485760}")
     private long maxFileSize;
 
     private static final String[] ALLOWED_IMAGE_TYPES = {
@@ -28,10 +28,6 @@ public class FileUploadServiceImpl implements FileUploadService {
     private static final String[] ALLOWED_DOCUMENT_TYPES = {
             "image/jpeg", "image/jpg", "image/png", "application/pdf"
     };
-
-    // --------------------------------------------------------------
-    // PUBLIC METHODS
-    // --------------------------------------------------------------
 
     @Override
     public String uploadKYCFile(MultipartFile file, String documentType, Long userId) throws IOException {
@@ -105,10 +101,6 @@ public class FileUploadServiceImpl implements FileUploadService {
     public boolean isValidImageFile(MultipartFile file) {
         return isOfTypes(file, ALLOWED_IMAGE_TYPES);
     }
-
-    // --------------------------------------------------------------
-    // PRIVATE HELPERS
-    // --------------------------------------------------------------
 
     private void validateFile(MultipartFile file, String[] allowedTypes) {
         if (file == null || file.isEmpty())

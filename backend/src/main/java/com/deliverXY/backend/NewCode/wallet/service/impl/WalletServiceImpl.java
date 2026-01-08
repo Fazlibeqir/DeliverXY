@@ -10,7 +10,6 @@ import com.deliverXY.backend.NewCode.wallet.domain.TopUpRequest;
 import com.deliverXY.backend.NewCode.wallet.domain.Wallet;
 import com.deliverXY.backend.NewCode.wallet.domain.WalletTransaction;
 import com.deliverXY.backend.NewCode.wallet.dto.TopUpInitResponseDTO;
-import com.deliverXY.backend.NewCode.wallet.dto.WalletDTO;
 import com.deliverXY.backend.NewCode.wallet.dto.WalletTransactionDTO;
 import com.deliverXY.backend.NewCode.wallet.repository.TopUpRepository;
 import com.deliverXY.backend.NewCode.wallet.repository.WalletRepository;
@@ -98,7 +97,7 @@ public class WalletServiceImpl implements WalletService {
 
         req.setReferenceId(UUID.randomUUID().toString());
 
-        TopUpRequest savedReq = topUpRepository.save(req);
+        topUpRepository.save(req);
         if (provider == PaymentProvider.MOCK){
 //            Thread.sleep(500);
             finalizeTopUp(req.getId(), true, "MOCK-" + req.getId());

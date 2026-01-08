@@ -36,3 +36,6 @@ build/
 *.env
 application-env.properties
 application-prod.properties
+
+# User uploads
+backend/uploads/

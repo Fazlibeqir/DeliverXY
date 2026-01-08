@@ -1,7 +1,6 @@
 package com.deliverXY.backend.NewCode.auth.dto;
 
 import com.deliverXY.backend.NewCode.user.dto.UserResponseDTO;
-import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 

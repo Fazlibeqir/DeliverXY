@@ -39,11 +39,8 @@ public class DeliveryServiceImpl implements DeliveryService {
 
     private final DeliveryRepository deliveryRepo;
     private final DeliveryHistoryRepository historyRepo;
-    private final DeliveryTrackingRepository trackingRepo;
     private final WalletService walletService;
-    private final DeliveryRatingRepository ratingRepo;
     private final DriverEarningsRepository earningsRepo;
-    private final LocationService locationService;
     private final PaymentRepository paymentRepo;
     private final GeocodingService geocodingService;
     private final PaymentService paymentService;
@@ -53,7 +50,7 @@ public class DeliveryServiceImpl implements DeliveryService {
 
 
     private final PricingService pricingService;
-    //HELPERS
+
     private Delivery load(Long id) {
         return deliveryRepo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Delivery not found: " + id ));
@@ -69,7 +66,7 @@ public class DeliveryServiceImpl implements DeliveryService {
         h.setNote(note);
         historyRepo.save(h);
     }
-    //GETTERS
+
     @Override
     public Page<DeliveryResponseDTO> getAllDeliveries(Pageable pageable) {
         return deliveryRepo.findAll(pageable).map(mapper::toResponse);
@@ -111,9 +108,6 @@ public class DeliveryServiceImpl implements DeliveryService {
         d.setClient(client);
         mapper.updateEntityFromDTO(d, dto);
 
-        // ─────────────────────────────────────────────
-        // 1. GEOCODE DROPOFF (if needed)
-        // ─────────────────────────────────────────────
         if (d.getDropoffLatitude() == null || d.getDropoffLongitude() == null) {
 
             if (dto.getDropoffLatitude() != null && dto.getDropoffLongitude() != null) {
@@ -132,9 +126,6 @@ public class DeliveryServiceImpl implements DeliveryService {
             }
         }
 
-        // ─────────────────────────────────────────────
-        // 2. FARE BREAKDOWN (SINGLE SOURCE OF TRUTH)
-        // ─────────────────────────────────────────────
         FareBreakdown breakdown = pricingService.getFareBreakdown(
                 d.getPickupLatitude(),
                 d.getPickupLongitude(),
@@ -142,30 +133,22 @@ public class DeliveryServiceImpl implements DeliveryService {
                 d.getDropoffLongitude()
         );
 
-        // distance is derived from pricing engine (NOT recalculated elsewhere)
         d.setDistanceKm(
                 BigDecimal.valueOf(breakdown.getDistanceKm())
                         .setScale(2, RoundingMode.HALF_UP)
                         .doubleValue()
         );
 
-        // ─────────────────────────────────────────────
-        // 3. METADATA
-        // ─────────────────────────────────────────────
         d.setStatus(DeliveryStatus.REQUESTED);
         d.setTrackingCode("TRK-" + System.currentTimeMillis());
 
         deliveryRepo.save(d);
 
-        // ─────────────────────────────────────────────
-        // 4. PAYMENT PROVIDER SELECTION
-        // ─────────────────────────────────────────────
         PaymentProvider provider =
                 dto.getPaymentProvider() != null
                         ? dto.getPaymentProvider()
                         : PaymentProvider.MOCK;
 
-        // Wallet safety check BEFORE payment init
         if (provider == PaymentProvider.WALLET) {
             walletService.ensureSufficientBalance(
                     client.getId(),
@@ -173,9 +156,6 @@ public class DeliveryServiceImpl implements DeliveryService {
             );
         }
 
-        // ─────────────────────────────────────────────
-        // 5. INITIALIZE PAYMENT (MOCK / WALLET / STRIPE)
-        // ─────────────────────────────────────────────
         paymentService.initializePayment(
                 d.getId(),
                 breakdown.getTotalFare(),
@@ -259,14 +239,12 @@ public class DeliveryServiceImpl implements DeliveryService {
 
         BigDecimal platformCut = total.subtract(driverCut);
 
-        // 💰 Pay driver
         walletService.deposit(
                 d.getAgent().getId(),
                 driverCut,
                 "DELIVERY_EARNINGS_" + d.getTrackingCode()
         );
 
-        // 📊 Record earnings
         DriverEarnings earnings = new DriverEarnings();
         earnings.setDelivery(d);
         earnings.setAgentId(d.getAgent().getId());
@@ -274,7 +252,6 @@ public class DeliveryServiceImpl implements DeliveryService {
         earnings.setTip(BigDecimal.ZERO);
         earningsRepo.save(earnings);
 
-        // ✅ Finalize
         payment.setEscrowReleased(true);
         payment.setDriverAmount(driverCut);
         payment.setPlatformFee(platformCut);
@@ -298,12 +275,11 @@ public class DeliveryServiceImpl implements DeliveryService {
             case PICKED_UP -> d.setActualPickupTime(LocalDateTime.now());
             case DELIVERED -> {
                 d.setActualDeliveryTime(LocalDateTime.now());
-//                processDeliveryPayment(d);
                 settleDeliveryEarnings(d);
             }
 
             case CANCELLED -> d.setCancelledAt(LocalDateTime.now());
-            default -> { /*NOOP no idea*/}
+            default -> {}
         }
         d.setStatus(newStatus);
         deliveryRepo.save(d);
@@ -354,8 +330,6 @@ public class DeliveryServiceImpl implements DeliveryService {
             promoApplied = discount.compareTo(BigDecimal.ZERO) > 0 ? dto.getPromoCode() : null;
         }
 
-        // Note: The FareResponseDTO fields (totalFare, discount, etc.) must now be BigDecimal or Double
-        // derived from the final BigDecimal total. Assuming they are doubles for DTO compatibility:
         return new FareResponseDTO(
                 total.doubleValue(), // Final total
                 breakdown.getCurrency(),

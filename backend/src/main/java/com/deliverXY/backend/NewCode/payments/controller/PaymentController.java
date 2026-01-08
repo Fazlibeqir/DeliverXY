@@ -1,12 +1,10 @@
 package com.deliverXY.backend.NewCode.payments.controller;
 
 import com.deliverXY.backend.NewCode.common.response.ApiResponse;
-import com.deliverXY.backend.NewCode.payments.domain.Payment;
 import com.deliverXY.backend.NewCode.payments.dto.PaymentInitRequest;
 import com.deliverXY.backend.NewCode.payments.dto.PaymentResultDTO;
 import com.deliverXY.backend.NewCode.payments.service.PaymentService;
 import com.deliverXY.backend.NewCode.security.UserPrincipal;
-import com.stripe.exception.StripeException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;

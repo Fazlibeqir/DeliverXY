@@ -5,17 +5,11 @@ import com.deliverXY.backend.NewCode.kyc.dto.KYCBase64DTO;
 import com.deliverXY.backend.NewCode.kyc.service.FileUploadService;
 import com.deliverXY.backend.NewCode.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Base64;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/upload")

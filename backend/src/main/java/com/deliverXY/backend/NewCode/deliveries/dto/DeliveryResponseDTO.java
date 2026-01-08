@@ -4,7 +4,6 @@ import com.deliverXY.backend.NewCode.common.enums.DeliveryStatus;
 import com.deliverXY.backend.NewCode.common.enums.PaymentMethod;
 import com.deliverXY.backend.NewCode.common.enums.PaymentStatus;
 import lombok.Data;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data

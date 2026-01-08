@@ -2,11 +2,8 @@ package com.deliverXY.backend.NewCode.payments.service.Provider;
 
 import com.deliverXY.backend.NewCode.common.enums.PaymentProvider;
 import com.deliverXY.backend.NewCode.common.enums.PaymentStatus;
-import com.deliverXY.backend.NewCode.deliveries.domain.Delivery;
-import com.deliverXY.backend.NewCode.deliveries.repository.DeliveryRepository;
 import com.deliverXY.backend.NewCode.payments.domain.Payment;
 import com.deliverXY.backend.NewCode.payments.dto.PaymentResultDTO;
-import com.deliverXY.backend.NewCode.payments.repository.PaymentRepository;
 import com.deliverXY.backend.NewCode.payments.service.PaymentGatewayProvider;
 import com.deliverXY.backend.NewCode.wallet.service.WalletService;
 import lombok.RequiredArgsConstructor;

@@ -30,10 +30,10 @@ public class SecurityConfig {
     private static final String[] PUBLIC_ENDPOINTS = {
             "/uploads/**",
             "/api/auth/**",
-            "/ws/**",                   // if you have websockets
-            "/actuator/health",         // optional
-            "/v3/api-docs/**",          // swagger
-            "/swagger-ui/**"            // swagger
+            "/ws/**",
+            "/actuator/health",
+            "/v3/api-docs/**",
+            "/swagger-ui/**"
     };
 
 

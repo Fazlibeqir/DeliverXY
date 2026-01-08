@@ -27,7 +27,7 @@ public class FareResponseDTO {
     private Double airportAmount;
     private String promoCode;
 
-    private String surgeReason; // "Peak Hour", "Night Time", "Weekend", etc.
+    private String surgeReason;
     private Double discount;
     private String promoCodeApplied;
 }

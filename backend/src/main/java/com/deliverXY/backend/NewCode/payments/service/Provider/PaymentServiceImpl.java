@@ -2,9 +2,7 @@ package com.deliverXY.backend.NewCode.payments.service.Provider;
 
 import com.deliverXY.backend.NewCode.common.enums.PaymentProvider;
 import com.deliverXY.backend.NewCode.common.enums.PaymentStatus;
-import com.deliverXY.backend.NewCode.deliveries.dto.FareResponseDTO;
 import com.deliverXY.backend.NewCode.deliveries.repository.DeliveryRepository;
-import com.deliverXY.backend.NewCode.deliveries.service.DeliveryService;
 import com.deliverXY.backend.NewCode.exceptions.BadRequestException;
 import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
 import com.deliverXY.backend.NewCode.payments.domain.Payment;
@@ -12,10 +10,7 @@ import com.deliverXY.backend.NewCode.payments.dto.PaymentResultDTO;
 import com.deliverXY.backend.NewCode.payments.repository.PaymentRepository;
 import com.deliverXY.backend.NewCode.payments.service.PaymentGatewayProvider;
 import com.deliverXY.backend.NewCode.payments.service.PaymentService;
-import com.deliverXY.backend.NewCode.user.domain.AppUser;
-import com.deliverXY.backend.NewCode.user.service.AppUserService;
 import com.deliverXY.backend.NewCode.wallet.service.WalletService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,17 +27,14 @@ public class PaymentServiceImpl implements PaymentService {
     private final Map<PaymentProvider, PaymentGatewayProvider> providers;
     private final PaymentRepository paymentRepo;
     private final DeliveryRepository deliveryRepo;
-    private final AppUserService userService;
     private final WalletService walletService;
 
     public PaymentServiceImpl(List<PaymentGatewayProvider> providerList,
                               PaymentRepository paymentRepo,
                               DeliveryRepository deliveryRepo,
-                              AppUserService userService,
                               WalletService walletService) {
         this.paymentRepo = paymentRepo;
         this.deliveryRepo = deliveryRepo;
-        this.userService = userService;
         this.walletService=walletService;
         this.providers = providerList.stream()
                 .collect(Collectors.toMap(PaymentGatewayProvider::getProviderType, Function.identity()));

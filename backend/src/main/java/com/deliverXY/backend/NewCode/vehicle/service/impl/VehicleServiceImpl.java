@@ -25,11 +25,9 @@ public class VehicleServiceImpl implements VehicleService {
 
     private void checkUniqueLicensePlate(Long currentVehicleId, String newPlate){
         if (repo.existsByLicensePlate(newPlate)) {
-            // Fetch potential vehicle with the same plate
             Vehicle existing = repo.findByLicensePlate(newPlate)
                     .orElse(null);
 
-            // If found, check if it's a *different* vehicle
             if (existing != null && !Objects.equals(existing.getId(), currentVehicleId)) {
                 throw new BadRequestException("License plate already registered for another vehicle");
             }
@@ -101,9 +99,6 @@ public class VehicleServiceImpl implements VehicleService {
                 .toList();
     }
 
-    // ------------------------------
-    // HELPERS
-    // ------------------------------
     private void map(Vehicle v, VehicleRequestDTO dto) {
         v.setVehicleType(dto.getVehicleType());
         v.setMake(dto.getMake());
