@@ -1,20 +1,33 @@
 <template>
   <Page>
     <GridLayout rows="*,auto,*" class="bg-gray-100">
+      <StackLayout row="1" class="card-elevated mx-6">
+        <StackLayout class="mb-6">
+          <Label text="DeliverXY" class="text-3xl font-bold text-center mb-2 text-primary" />
+          <Label text="Welcome back!" class="text-lg text-center mb-1 text-secondary" />
+          <Label text="Sign in to continue" class="text-sm text-center text-secondary" />
+        </StackLayout>
 
-      <!-- Center card -->
-      <StackLayout row="1" class="bg-white p-6 mx-6 rounded-lg">
-        <Label text="DeliverXY" class="text-2xl font-bold text-center mb-2" />
-        <Label text="Sign in to continue" class="text-gray-500 text-center mb-4" />
+        <StackLayout class="mb-4">
+          <Label text="Email or Username" class="section-subheader mb-1" />
+          <TextField v-model="identifier" hint="Enter your email or username" class="input" />
+        </StackLayout>
 
-        <TextField v-model="identifier" hint="Email or Username" class="input mb-3" />
+        <StackLayout class="mb-4">
+          <Label text="Password" class="section-subheader mb-1" />
+          <TextField v-model="password" hint="Enter your password" secure class="input" />
+        </StackLayout>
 
-        <TextField v-model="password" hint="Password" secure class="input mb-3" />
+        <Label v-if="error" :text="error" class="text-danger text-center mb-3 p-2" />
 
-        <Label v-if="error" :text="error" class="text-red-500 text-center mb-2" />
-
-        <Button :text="loading ? 'Logging in…' : 'Login'" :isEnabled="!loading" class="btn-primary" @tap="submit" />
-        <Button text="Create an account" class="text-blue-500 text-center mt-3" @tap="goToRegister" />
+        <Button :text="loading ? 'Logging in…' : 'SIGN IN'" :isEnabled="!loading" class="btn-primary mb-4" @tap="submit" />
+        
+        <StackLayout class="divider" />
+        
+        <StackLayout class="text-center mt-4 mb-2">
+          <Label text="Don't have an account?" class="text-secondary mb-3" />
+          <Button text="CREATE ACCOUNT" class="btn-secondary-action" @tap="goToRegister" />
+        </StackLayout>
 
       </StackLayout>
 
@@ -26,7 +39,6 @@
 import { getCurrentInstance, ref } from "vue";
 import { authStore } from "../../stores/auth.store";
 import Register from "./Register.vue";
-
 
 const identifier = ref("");
 const password = ref("");

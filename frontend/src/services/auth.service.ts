@@ -31,9 +31,7 @@ export async function refresh() {
   }
 }
 
-
 async function persistTokens(res: any) {
-  // res = backend data object
   const { accessToken, refreshToken, expiresIn } = res;
 
   if (!accessToken || !refreshToken) {

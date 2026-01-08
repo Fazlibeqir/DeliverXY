@@ -1,15 +1,13 @@
 import { apiRequest } from "./api";
 
-
 export async function getWallet(){
     return await apiRequest("GET", "/api/wallet");
 }
 export async function getWalletTransactions() {
     return apiRequest("GET", "/api/wallet/transactions");
-  }
-  
+}
 
-  export async function initiateTopUp(
+export async function initiateTopUp(
     amount: number,
     provider: "STRIPE" | "MOCK" = "STRIPE"
   ) {
@@ -17,8 +15,9 @@ export async function getWalletTransactions() {
       amount,
       provider,
     });
-  }
-  export async function finishTopUp(
+}
+
+export async function finishTopUp(
     topUpId: number,
     success: boolean,
     referenceId?: string
@@ -27,9 +26,9 @@ export async function getWalletTransactions() {
       "POST",
       `/api/wallet/topup/callback?topUpId=${topUpId}&success=${success}&referenceId=${referenceId ?? ""}`
     );
-  }
-  
-  export async function withdrawFromWallet(
+}
+
+export async function withdrawFromWallet(
     amount: number,
     reference?: string
   ) {

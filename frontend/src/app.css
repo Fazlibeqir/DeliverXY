@@ -1,39 +1,372 @@
 @import 'tailwindcss';
 
 ActionBar {
-  background-color: #65adf1;
+  background-color: #000000;
   color: white;
+  font-size: 18;
+  font-weight: 600;
 }
 
 Page {
-  background: white;
-  color: black;
+  background: #FFFFFF;
+  color: #000000;
+}
+
+TabView {
+  background-color: #FFFFFF;
+  tab-background-color: #FFFFFF;
+  tab-text-color: #666666;
+  selected-tab-text-color: #000000;
+}
+
+TabViewItem {
+  color: #666666;
+}
+
+TabViewItem:selected {
+  color: #000000;
+}
+
+.bg-gray-100 {
+  background-color: #F5F5F5;
+}
+
+.bg-white {
+  background-color: #FFFFFF;
+}
+
+Label {
+  color: #000000;
+}
+
+.text-primary {
+  color: #000000;
+}
+
+.text-secondary {
+  color: #666666;
+}
+
+.text-success {
+  color: #000000;
+}
+
+.text-warning {
+  color: #333333;
+}
+
+.text-danger {
+  color: #000000;
 }
 
 .input {
-  padding: 12;
-  border-width: 1;
-  border-color: #ddd;
-  border-radius: 6;
+  padding: 14 16;
+  border-width: 1.5;
+  border-color: #CCCCCC;
+  border-radius: 10;
+  background-color: white;
+  font-size: 16;
+  color: #000000;
+  margin-bottom: 12;
+}
+
+.input:focus {
+  border-color: #000000;
+  background-color: #F5F5F5;
+}
+
+TextField.input {
+  placeholder-color: #999999;
+}
+
+TextView.input {
+  min-height: 100;
+  padding: 14 16;
 }
 
 .card {
-  padding: 12;
-  border-radius: 8;
+  padding: 16;
+  border-radius: 12;
   background-color: white;
+  margin-bottom: 12;
+  border-width: 0;
+}
+
+.card-elevated {
+  padding: 16;
+  border-radius: 12;
+  background-color: white;
+  margin-bottom: 12;
+  border-width: 0;
+  elevation: 4;
 }
 
 .btn-primary {
-  background-color: #2563eb;
+  background-color: #000000;
   color: white;
-  padding: 12;
-  border-radius: 6;
+  padding: 16 28;
+  border-radius: 12;
+  font-size: 16;
+  font-weight: 700;
+  margin-bottom: 8;
+  border-width: 0;
+  letter-spacing: 0.5;
+  text-wrap: false;
+  min-width: 280;
+}
+
+.btn-primary:highlighted {
+  background-color: #1a1a1a;
+  opacity: 0.95;
+}
+
+.btn-primary:disabled {
+  background-color: #CCCCCC;
+  color: #666666;
+  opacity: 0.6;
+}
+
+.btn-secondary {
+  background-color: #666666;
+  color: white;
+  padding: 14 24;
+  border-radius: 10;
+  font-size: 16;
+  font-weight: 600;
+  margin-bottom: 8;
+  border-width: 0;
+}
+
+.btn-secondary:highlighted {
+  background-color: #333333;
+  opacity: 0.9;
+}
+
+.btn-primary-compact {
+  background-color: #000000;
+  color: white;
+  padding: 12 20;
+  border-radius: 10;
+  font-size: 15;
+  font-weight: 600;
+  margin-bottom: 8;
+  border-width: 0;
+  letter-spacing: 0.3;
+  text-wrap: false;
+}
+
+.btn-primary-compact:highlighted {
+  background-color: #1a1a1a;
+  opacity: 0.95;
+}
+
+.btn-primary-compact:disabled {
+  background-color: #CCCCCC;
+  color: #666666;
+  opacity: 0.6;
+}
+
+.btn-outline {
+  background-color: #FFFFFF;
+  color: #000000;
+  padding: 14 24;
+  border-radius: 10;
+  font-size: 16;
+  font-weight: 600;
+  border-width: 1.5;
+  border-color: #000000;
+  margin-bottom: 8;
+}
+
+.btn-outline:highlighted {
+  background-color: #F5F5F5;
+  border-color: #000000;
+  opacity: 1;
+}
+
+.btn-link {
+  background-color: transparent;
+  color: #000000;
+  padding: 12 20;
+  border-radius: 8;
+  font-size: 16;
+  font-weight: 600;
+  border-width: 0;
+  margin-bottom: 8;
+  text-decoration: underline;
+  text-decoration-color: #000000;
+}
+
+.btn-link:highlighted {
+  background-color: #F5F5F5;
+  opacity: 0.8;
+  border-radius: 8;
+}
+
+.btn-secondary-action {
+  background-color: #FFFFFF;
+  color: #000000;
+  padding: 16 24;
+  border-radius: 12;
+  font-size: 15;
+  font-weight: 700;
+  border-width: 2;
+  border-color: #000000;
+  margin-bottom: 8;
+  min-width: 280;
+  letter-spacing: 0.3;
+  text-wrap: false;
+}
+
+.btn-secondary-action:highlighted {
+  background-color: #F5F5F5;
+  border-color: #000000;
+  opacity: 1;
+}
+
+.btn-secondary-action:disabled {
+  background-color: #F5F5F5;
+  color: #999999;
+  border-color: #CCCCCC;
+  opacity: 0.6;
 }
 
 .btn-danger {
-  background-color: #dc2626;
+  background-color: #000000;
   color: white;
-  padding: 12;
-  border-radius: 6;
+  padding: 14 24;
+  border-radius: 10;
+  font-size: 16;
+  font-weight: 600;
+  margin-bottom: 8;
+  border-width: 0;
 }
 
+.btn-danger:highlighted {
+  background-color: #333333;
+  opacity: 0.9;
+}
+
+.btn-success {
+  background-color: #000000;
+  color: white;
+  padding: 14 24;
+  border-radius: 10;
+  font-size: 16;
+  font-weight: 600;
+  margin-bottom: 8;
+  border-width: 0;
+}
+
+.btn-success:highlighted {
+  background-color: #333333;
+  opacity: 0.9;
+}
+
+.status-badge {
+  padding: 6 12;
+  border-radius: 20;
+  font-size: 12;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-pending {
+  background-color: #E5E5E5;
+  color: #000000;
+}
+
+.status-approved {
+  background-color: #000000;
+  color: #FFFFFF;
+}
+
+.status-rejected {
+  background-color: #333333;
+  color: #FFFFFF;
+}
+
+.status-assigned {
+  background-color: #CCCCCC;
+  color: #000000;
+}
+
+.status-picked-up {
+  background-color: #999999;
+  color: #FFFFFF;
+}
+
+.status-in-transit {
+  background-color: #666666;
+  color: #FFFFFF;
+}
+
+.status-delivered {
+  background-color: #000000;
+  color: #FFFFFF;
+}
+
+.status-cancelled {
+  background-color: #E5E5E5;
+  color: #666666;
+}
+
+.empty-state {
+  padding: 40 20;
+  text-align: center;
+}
+
+.empty-state-icon {
+  font-size: 64;
+  color: #CCCCCC;
+  margin-bottom: 16;
+}
+
+.empty-state-text {
+  color: #666666;
+  font-size: 16;
+  margin-top: 8;
+}
+
+.loading-container {
+  padding: 40;
+  text-align: center;
+}
+
+.loading-text {
+  color: #666666;
+  margin-top: 12;
+}
+
+.section-header {
+  font-size: 18;
+  font-weight: 700;
+  color: #000000;
+  margin-bottom: 12;
+  margin-top: 8;
+}
+
+.section-subheader {
+  font-size: 14;
+  font-weight: 500;
+  color: #666666;
+  margin-bottom: 8;
+}
+
+.divider {
+  height: 1;
+  background-color: #CCCCCC;
+  margin: 16 0;
+}
+
+.spacing-xs { margin: 4; }
+.spacing-sm { margin: 8; }
+.spacing-md { margin: 16; }
+.spacing-lg { margin: 24; }
+.spacing-xl { margin: 32; }
+
+.padding-xs { padding: 4; }
+.padding-sm { padding: 8; }
+.padding-md { padding: 16; }
+.padding-lg { padding: 24; }
+.padding-xl { padding: 32; }

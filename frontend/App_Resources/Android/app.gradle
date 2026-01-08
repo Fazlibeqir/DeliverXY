@@ -1,6 +1,6 @@
 // You can add your native dependencies here
 dependencies {
-//  implementation 'androidx.multidex:multidex:2.0.1'
+  implementation 'androidx.multidex:multidex:2.0.1'
 }
 
 android {
@@ -17,6 +17,16 @@ android {
     versionName "1.0.0"
     
     generatedDensities = []
+    
+    // Enable multidex to avoid 64K method limit
+    multiDexEnabled true
+  }
+  
+  // Note: dexOptions is deprecated, but still works for older Gradle versions
+  // For newer versions, D8 handles this automatically
+  packagingOptions {
+    pickFirst '**/libc++_shared.so'
+    pickFirst '**/libjsc.so'
   }
 
   aaptOptions {

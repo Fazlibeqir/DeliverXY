@@ -24,14 +24,12 @@
     </Page>
   </template>
   
-  <script setup lang="ts">
-  import { ref } from "vue";
-  import { alert } from "@nativescript/core";
-  import { withdrawFromWallet } from "@/services/wallet.service";
-  import { Frame } from "@nativescript/core";
+<script setup lang="ts">
+import { ref } from "vue";
+import { alert, Frame } from "@nativescript/core";
+import { withdrawFromWallet } from "@/services/wallet.service";
 
-
-  const amount = ref("");
+const amount = ref("");
   const loading = ref(false);
   
   async function withdraw() {
@@ -43,14 +41,13 @@
     try {
       loading.value = true;
       await withdrawFromWallet(Number(amount.value));
-  
       alert("Withdrawal successful");
-      
+      (globalThis as any).__refreshWallet?.();
+      Frame.topmost().goBack();
     } catch (e: any) {
       alert(e.message || "Withdrawal failed");
     } finally {
       loading.value = false;
     }
   }
-  </script>
-  
+</script>

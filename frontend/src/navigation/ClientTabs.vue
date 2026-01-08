@@ -31,10 +31,8 @@ import Wallet from "../screens/wallet/Wallet.vue";
 import Profile from "../screens/Profile.vue";
 
 import { ref } from "vue";
-import { useClientDeliveriesStore } from "../stores/useDeliveryStore";
 
 const tabIndex = ref(0);
-const deliveriesStore = useClientDeliveriesStore();
 
 function onTabChanged(e: any) {
   switch (e.newIndex) {

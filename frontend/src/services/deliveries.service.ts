@@ -13,8 +13,6 @@ export type DeliveryStatus =
     | "DELIVERED"
     | "CANCELLED";
 
-
-//AGENT – MAP & FLOW
 export function getNearbyDeliveries(
     latitude: number,
     longitude: number,
@@ -44,7 +42,6 @@ export function updateDeliveryStatus(id: number, status: DeliveryStatus) {
         `/api/deliveries/${id}/status?status=${status}`
     );
 }
-//CLIENT – CREATE & VIEW
 
 export function estimateFare(payload: {
     pickupLatitude: number;
@@ -53,6 +50,7 @@ export function estimateFare(payload: {
     dropoffLongitude: number;
     packageType: DeliveryType;
     packageWeight: number;
+    promoCode?: string;
 }) {
     return apiRequest("POST", "/api/deliveries/estimate-fare", payload);
 }
@@ -79,6 +77,7 @@ export function createDelivery(payload: {
     requestedPickupTime?: string;
     city?: string;
     paymentProvider: "WALLET";
+    promoCode?: string;
 }) {
     return apiRequest("POST", "/api/deliveries", payload);
 }
@@ -86,8 +85,6 @@ export function createDelivery(payload: {
 export function getMyDeliveries() {
     return apiRequest("GET", "/api/deliveries/mine");
 }
-
-//SHARED / FUTURE
 
 export function getDeliveryById(id: number) {
     return apiRequest("GET", `/api/deliveries/${id}`);

@@ -1,52 +1,96 @@
 <template>
+    <GridLayout rows="*">
+        <ScrollView row="0">
+            <StackLayout class="p-4">
+            <Label text="Create New Delivery" class="section-header mb-4" />
 
-    <ScrollView>
-        <StackLayout class="p-4">
+            <StackLayout class="mb-3">
+                <Label text="Title" class="section-subheader mb-1" />
+                <TextField v-model="title" hint="e.g., Package to downtown" class="input" />
+            </StackLayout>
 
-            <Label text="Delivery info" class="text-lg font-bold mb-3" />
+            <StackLayout class="mb-3">
+                <Label text="Description" class="section-subheader mb-1" />
+                <TextField v-model="description" hint="Additional details (optional)" class="input" />
+            </StackLayout>
 
-            <TextField v-model="title" hint="Title" class="input mb-2" />
-            <TextField v-model="description" hint="Description" class="input mb-2" />
+            <StackLayout class="mb-3">
+                <Label text="Delivery Address" class="section-subheader mb-1" />
+                <TextField v-model="dropoffQuery" hint="Type address, place name, or landmark" class="input" @textChange="onAddressInput" />
+                <Label text="💡 Tip: Type a place name, mall, cafe, street or landmark" class="text-xs text-secondary mt-1" />
+            </StackLayout>
 
-            <TextField v-model="dropoffQuery" hint="Dropoff address" class="input mb-1" @textChange="onAddressInput" />
-
-            <Label text="Tip: type a place name, mall, cafe, street or landmark" class="text-xs text-gray-500 mb-2" />
-
-            <StackLayout v-if="addressResults.length" class="card mb-2">
-                <Label v-for="a in addressResults" :key="a.label" :text="a.label" class="p-2 border-b"
+            <StackLayout v-if="addressResults.length" class="card-elevated mb-3">
+                <Label v-for="a in addressResults" :key="a.label" :text="a.label" class="p-3 border-b border-gray-200"
                     @tap="selectAddress(a)" />
             </StackLayout>
 
-            <TextField v-model="dropoffContactName" hint="Dropoff contact name" class="input mb-2" />
-
-            <TextField v-model="dropoffContactPhone" hint="Dropoff contact phone" keyboardType="phone"
-                class="input mb-4" />
-
-            <Label text="Delivery type" class="font-bold mb-1" />
-
-            <ListPicker :items="deliveryTypeLabels" :selectedIndex="deliveryTypeIndex"
-                @selectedIndexChange="onDeliveryTypeChange" class="mb-4" />
-
-            <TextField v-show="selectedDeliveryType !== 'PASSENGER'" v-model="packageWeight" hint="Weight (kg)"
-                keyboardType="number" class="input mb-4" />
-            <TextField v-model="pickupContactName" hint="Pickup contact name" class="input mb-2" />
-
-            <TextField v-model="pickupContactPhone" hint="Pickup contact phone" keyboardType="phone"
-                class="input mb-4" />
-            <Button text="Estimate fare" class="btn-outline mb-3" :isEnabled="addressSelected && !loading"
-                @tap="estimate" />
-
-            <StackLayout v-if="fare">
-                <Label :text="`Estimated price: ${Number(fare.totalFare).toFixed(2)} ден`" class="font-bold mb-1" />
-                <Label :text="`Distance: ${Number(fare.distanceKm).toFixed(2)} km`" />
-                <Label :text="`ETA: ${fare.estimatedMinutes} min`" class="mb-3" />
+            <StackLayout class="mb-3">
+                <Label text="Recipient Name" class="section-subheader mb-1" />
+                <TextField v-model="dropoffContactName" hint="Enter recipient's name" class="input" />
             </StackLayout>
 
-            <Button text="Create delivery" class="btn-primary" :isEnabled="!!fare && !loading" @tap="create" />
-            <Button text="Reset form" class="btn-secondary" @tap="resetForm" />
+            <StackLayout class="mb-4">
+                <Label text="Recipient Phone" class="section-subheader mb-1" />
+                <TextField v-model="dropoffContactPhone" hint="Enter recipient's phone number" keyboardType="phone"
+                    class="input" />
+            </StackLayout>
+
+            <StackLayout class="mb-4">
+                <Label text="Delivery Type" class="section-subheader mb-2" />
+                <ListPicker :items="deliveryTypeLabels" :selectedIndex="deliveryTypeIndex"
+                    @selectedIndexChange="onDeliveryTypeChange" class="mb-2" />
+            </StackLayout>
+
+            <StackLayout v-show="selectedDeliveryType !== 'PASSENGER'" class="mb-4">
+                <Label text="Package Weight (kg)" class="section-subheader mb-1" />
+                <TextField v-model="packageWeight" hint="Enter weight in kilograms"
+                    keyboardType="number" class="input" />
+            </StackLayout>
+
+            <StackLayout class="mb-3">
+                <Label text="Your Name (Pickup)" class="section-subheader mb-1" />
+                <TextField v-model="pickupContactName" hint="Your name" class="input" />
+            </StackLayout>
+
+            <StackLayout class="mb-4">
+                <Label text="Your Phone (Pickup)" class="section-subheader mb-1" />
+                <TextField v-model="pickupContactPhone" hint="Your phone number" keyboardType="phone"
+                    class="input" />
+            </StackLayout>
+
+            <StackLayout class="mb-4">
+                <Label text="Promo Code (Optional)" class="section-subheader mb-1" />
+                <TextField v-model="promoCode" hint="Enter promo code" class="input" autocapitalizationType="allcharacters" />
+            </StackLayout>
+            <Button text="💰 Estimate Fare" class="btn-outline mb-4" :isEnabled="addressSelected && !loading"
+                @tap="estimate" />
+
+            <StackLayout v-if="fare" class="card-elevated p-4 mb-4">
+                <Label text="Fare Estimate" class="section-subheader mb-3" />
+                <StackLayout class="mb-2">
+                    <Label :text="`${Number(fare.totalFare).toFixed(2)} ден`" class="text-3xl font-bold text-primary mb-1" />
+                    <Label text="Total Price" class="text-xs text-secondary" />
+                </StackLayout>
+                <StackLayout class="divider" />
+                <StackLayout class="mt-2">
+                    <Label :text="`Distance: ${Number(fare.distanceKm).toFixed(2)} km`" class="text-sm mb-1" />
+                    <Label :text="`Estimated Time: ${fare.estimatedMinutes} minutes`" class="text-sm mb-2" />
+                    <Label v-if="fare.discount && Number(fare.discount) > 0" 
+                        :text="`Discount: -${Number(fare.discount).toFixed(2)} ден`" 
+                        class="text-success text-sm mb-1" />
+                    <Label v-if="fare.promoCodeApplied" 
+                        :text="`Promo: ${fare.promoCodeApplied}`" 
+                        class="text-secondary text-xs" />
+                </StackLayout>
+            </StackLayout>
+
+            <Button text="✓ Create Delivery" class="btn-primary mb-2" :isEnabled="!!fare && !loading" @tap="create" />
+            <Button text="Reset Form" class="btn-secondary" @tap="resetForm" />
 
         </StackLayout>
-    </ScrollView>
+        </ScrollView>
+    </GridLayout>
 </template>
 
 <script setup lang="ts">
@@ -59,9 +103,9 @@ import type { DeliveryType } from "../../services/deliveries.service";
 import { searchAddress } from "@/services/geocoding.service";
 import { $showModal } from "nativescript-vue";
 import WalletPaymentModal from "@/components/payments/WalletPaymentModal.vue";
-//User
+
 const auth = computed(() => authStore.user);
-//Form fields
+
 const title = ref("");
 const description = ref("");
 
@@ -88,8 +132,8 @@ const pickupLng = ref<number | null>(null);
 
 const fare = ref<any>(null);
 const loading = ref(false);
+const promoCode = ref("");
 
-//Delivery types
 const deliveryTypes: { value: DeliveryType; label: string }[] = [
     { value: "PACKAGE", label: "Package delivery" },
     { value: "DOCUMENTS", label: "Documents" },
@@ -179,11 +223,9 @@ async function ensureLocationPermission(): Promise<boolean> {
     if (enabled) return true;
 
     try {
-        // First attempt (will show dialog ONLY if allowed by OS)
         await enableLocationRequest(true, true);
         return true;
     } catch {
-        // Permission was previously denied
         await alert({
             title: "Location Required",
             message:
@@ -267,6 +309,7 @@ async function estimate() {
             selectedDeliveryType.value === "PASSENGER"
                 ? 0
                 : Number(packageWeight.value),
+        promoCode: promoCode.value?.trim() || undefined,
     });
 }
 
@@ -317,10 +360,10 @@ async function create() {
             requestedPickupTime: new Date().toISOString(),
             city: "Skopje",
             paymentProvider: "WALLET",
+            promoCode: promoCode.value?.trim() || undefined,
 
         });
 
-        // reset everything
         fare.value = null;
         title.value = description.value = "";
         dropoffQuery.value = "";

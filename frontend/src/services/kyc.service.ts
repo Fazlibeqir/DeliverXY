@@ -10,9 +10,6 @@ async function authHeaders() {
     return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-/**
- * Upload single KYC file
- */
 export async function uploadKYCFile(
     filePath: string,
     documentType: "ID_FRONT" | "ID_BACK" | "SELFIE" | "PROOF_OF_ADDRESS"
@@ -38,13 +35,10 @@ export async function uploadKYCFile(
 
     const json = res.content?.toJSON();
     if (!json?.success) throw new Error(json?.message || "Upload failed");
-   
-    return json.data; // file URL
+
+    return json.data;
 }
 
-/**
- * Get my KYC info
- */
 export async function getMyKYC() {
     const headers = { ... (await authHeaders()), "Content-Type": "application/json" };
 
@@ -60,9 +54,6 @@ export async function getMyKYC() {
     return json.data;
 }
 
-/**
- * Submit KYC (metadata only)
- */
 export async function submitKYC(payload: {
     idFrontUrl?: string;
     idBackUrl?: string;

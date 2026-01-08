@@ -1,35 +1,33 @@
 <template>
-    <StackLayout class="p-4 bg-white">
-      <Label text="Confirm payment" class="text-xl font-bold mb-2" />
+    <StackLayout class="p-6 bg-white">
+      <Label text="Confirm Payment" class="section-header mb-4" />
   
-      <Label
-        :text="`Price: ${props.amount.toFixed(2)} ден`"
-        class="text-lg font-bold mb-1"
-      />
-  
-      <Label
-        :text="`Distance: ${props.distanceKm.toFixed(2)} km`"
-        class="text-gray-600 mb-1"
-      />
-  
-      <Label
-        :text="`ETA: ${props.etaMinutes} min`"
-        class="text-gray-600 mb-3"
-      />
-  
-      <Label
-        :text="`Wallet balance: ${wallet?.balance ?? 0} ден`"
-        class="mb-4"
-      />
+      <StackLayout class="card-elevated p-4 mb-4">
+        <StackLayout class="mb-3">
+          <Label :text="`${props.amount.toFixed(2)} ден`" class="text-3xl font-bold text-primary mb-1" />
+          <Label text="Total Amount" class="text-xs text-secondary" />
+        </StackLayout>
+        <StackLayout class="divider" />
+        <StackLayout class="mt-3">
+          <Label :text="`Distance: ${props.distanceKm.toFixed(2)} km`" class="text-sm mb-1" />
+          <Label :text="`Estimated Time: ${props.etaMinutes} minutes`" class="text-sm" />
+        </StackLayout>
+      </StackLayout>
+
+      <StackLayout class="card p-3 mb-4">
+        <Label text="Wallet Balance" class="text-xs text-secondary mb-1" />
+        <Label :text="`${wallet?.balance ?? 0} ${wallet?.currency || 'ден'}`" class="text-lg font-bold" />
+      </StackLayout>
   
       <Label
         v-if="!hasEnough"
-        text="Insufficient wallet balance"
-        class="text-red-600 mb-3"
+        text="⚠ Insufficient wallet balance. Please top up your wallet."
+        class="text-danger text-sm mb-4 p-3"
+        textWrap="true"
       />
   
       <Button
-        text="Pay with wallet"
+        text="✓ Pay with Wallet"
         class="btn-primary mb-2"
         :isEnabled="hasEnough && !loading"
         @tap="confirm"
@@ -41,8 +39,7 @@
         @tap="$closeModal(false)"
       />
     </StackLayout>
-  </template>
-  
+</template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";

@@ -1,35 +1,35 @@
 <template>
-  <!-- ONE stable root -->
-  <StackLayout>
-
-    <!-- Loading state -->
-    <Label
-      v-if="loading"
-      text="Loading wallet..."
-      class="text-gray-400 p-4"
-    />
-
-    <!-- Content -->
-    <StackLayout v-else class="p-4">
-      <Label text="Wallet" class="text-2xl font-bold mb-4" />
-
-      <StackLayout class="card p-4 mb-4">
-        <Label text="Balance" class="text-gray-500 text-sm" />
-        <Label :text="formattedBalance" class="text-3xl font-bold mt-1" />
-      </StackLayout>
-
-      <Button text="➕ Top up" class="btn-primary mb-2" @tap="goToTopUp" />
-      <Button text="➖ Withdraw" class="btn-secondary mb-2" @tap="goToWithdraw" />
-      <Button text="📜 Transactions" class="btn-outline" @tap="goToTransactions" />
+  <GridLayout rows="*">
+    <StackLayout v-if="loading" row="0" class="loading-container">
+      <ActivityIndicator busy="true" />
+      <Label text="Loading wallet..." class="loading-text" />
     </StackLayout>
 
-  </StackLayout>
-</template>
+    <ScrollView v-else row="0">
+      <StackLayout class="p-4">
+        <Label text="Wallet" class="section-header mb-4" />
 
+        <StackLayout class="card-elevated p-6 mb-4" style="background-color: #000000;">
+          <Label text="Available Balance" class="text-white text-sm mb-2" opacity="0.9" />
+          <Label :text="formattedBalance" class="text-white text-4xl font-bold mb-1" />
+          <Label :text="wallet?.currency || 'MKD'" class="text-white text-sm" opacity="0.8" />
+        </StackLayout>
+
+        <Label text="Quick Actions" class="section-subheader mb-3" />
+        <GridLayout columns="*,*" class="mb-4">
+          <Button col="0" text="➕ Top Up" class="btn-primary mr-2" @tap="goToTopUp" />
+          <Button col="1" text="➖ Withdraw" class="btn-secondary ml-2" @tap="goToWithdraw" />
+        </GridLayout>
+
+        <Button text="📜 View Transactions" class="btn-outline" @tap="goToTransactions" />
+      </StackLayout>
+    </ScrollView>
+  </GridLayout>
+</template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { alert } from "@nativescript/core";
+import { alert, ActivityIndicator } from "@nativescript/core";
 import { $navigateTo } from "nativescript-vue";
 
 import { getWallet } from "@/services/wallet.service";
@@ -42,8 +42,7 @@ const loading = ref(true);
 
 async function loadWallet() {
   try {
-      
-      loading.value = true;
+    loading.value = true;
       wallet.value = await getWallet();
   } catch {
       alert("Failed to load wallet");
@@ -69,6 +68,6 @@ function goToTransactions() {
 }
 
 function goToWithdraw() {
-$navigateTo(WalletWithdraw);
+  $navigateTo(WalletWithdraw);
 }
 </script>

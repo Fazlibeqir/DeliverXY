@@ -1,7 +1,9 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android" android:gravity="fill">
+    <!-- Black background color -->
     <item>
-        <bitmap android:gravity="fill" android:src="@drawable/background" />
+        <color android:color="#000000" />
     </item>
+    <!-- Your logo centered -->
     <item>
         <bitmap android:gravity="center" android:src="@drawable/logo" />
     </item>

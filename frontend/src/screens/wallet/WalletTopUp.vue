@@ -2,57 +2,58 @@
   <Page>
     <ActionBar title="Top up wallet" />
 
-    <ScrollView>
-      <StackLayout class="p-4">
+    <GridLayout rows="*">
+      <ScrollView row="0">
+        <StackLayout class="p-4">
 
-        <!-- Amount -->
-        <Label text="Amount" class="text-gray-600 mb-1" />
-        <TextField v-model="amount" keyboardType="number" hint="Enter amount" class="input mb-4" />
+        <Label text="Top Up Wallet" class="section-header mb-4" />
 
-        <!-- Card Number -->
-        <Label text="Card number" class="text-gray-600 mb-1" />
-        <TextField v-model="cardNumber" hint="4242 4242 4242 4242" keyboardType="number" class="input mb-1"
-          @textChange="onCardNumberInput" />
-        <Label v-if="cardError" :text="cardError" class="text-red-500 text-xs mb-3" />
+        <StackLayout class="mb-4">
+          <Label text="Amount" class="section-subheader mb-1" />
+          <TextField v-model="amount" keyboardType="number" hint="Enter amount in ден" class="input" />
+        </StackLayout>
 
-        <!-- Expiry + CVV -->
+        <StackLayout class="mb-3">
+          <Label text="Card Number" class="section-subheader mb-1" />
+          <TextField v-model="cardNumber" hint="4242 4242 4242 4242" keyboardType="number" class="input"
+            @textChange="onCardNumberInput" />
+          <Label v-if="cardError" :text="cardError" class="text-danger text-xs mt-1" />
+        </StackLayout>
+
         <GridLayout columns="*,*" class="mb-3">
-
-          <!-- Expiry -->
           <StackLayout col="0" class="mr-2">
-            <Label text="Expiry (MM/YY)" class="text-gray-600 mb-1" />
+            <Label text="Expiry (MM/YY)" class="section-subheader mb-1" />
             <TextField :text="formattedExpiry" 
             hint="MM/YY" 
             keyboardType="number" 
-            class="input mb-1"
+            class="input"
             autocorrect="false"
             autocapitalizationType="none"
               @textChange="onExpiryInput" />
-            <Label v-if="expiryError" :text="expiryError" class="text-red-500 text-xs" />
+            <Label v-if="expiryError" :text="expiryError" class="text-danger text-xs mt-1" />
           </StackLayout>
 
-          <!-- CVV -->
           <StackLayout col="1" class="ml-2">
-            <Label text="CVV" class="text-gray-600 mb-1" />
-            <TextField v-model="cvv" hint="123" keyboardType="number" secure="true" class="input mb-1"
+            <Label text="CVV" class="section-subheader mb-1" />
+            <TextField v-model="cvv" hint="123" keyboardType="number" secure="true" class="input"
               @textChange="onCvvInput" />
-            <Label v-if="cvvError" :text="cvvError" class="text-red-500 text-xs" />
+            <Label v-if="cvvError" :text="cvvError" class="text-danger text-xs mt-1" />
           </StackLayout>
 
         </GridLayout>
 
-        <!-- Pay -->
-        <Button text="Pay (Mock)" class="btn-primary" :isEnabled="formValid && !loading" @tap="topUp" />
+        <Button text="💳 Pay Now" class="btn-primary mb-2" :isEnabled="formValid && !loading" @tap="topUp" />
 
-        <ActivityIndicator v-if="loading" busy="true" class="mt-4" />
+        <StackLayout v-if="loading" class="loading-container">
+          <ActivityIndicator busy="true" />
+          <Label text="Processing payment..." class="loading-text" />
+        </StackLayout>
 
       </StackLayout>
-    </ScrollView>
+      </ScrollView>
+    </GridLayout>
   </Page>
 </template>
-
-
-
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
@@ -65,7 +66,6 @@ const expiryDigits  = ref("");
 const cvv = ref("");
 const loading = ref(false);
 
-/* ---------------- CARD NUMBER ---------------- */
 function onCardNumberInput(e: any) {
   let digits = e.value.replace(/\D/g, "").slice(0, 16);
   cardNumber.value = digits.replace(/(.{4})/g, "$1 ").trim();
@@ -78,11 +78,9 @@ const cardError = computed(() => {
   return null;
 });
 
-/* ---------------- EXPIRY ---------------- */
 function onExpiryInput(e: any) {
   let digits = e.value.replace(/\D/g, "");
 
-  // Force first digit to be month-related
   if (digits.length > 4) {
     digits = digits.slice(0, 4);
   }
@@ -91,7 +89,6 @@ function onExpiryInput(e: any) {
     digits = "0" + digits;
   }
 
-  // Validate month once we have MM
   if (digits.length >= 2) {
     let mm = Number(digits.slice(0, 2));
     if (mm === 0) mm = 1;
@@ -101,7 +98,6 @@ function onExpiryInput(e: any) {
 
   expiryDigits.value = digits;
 }
-
 
 const formattedExpiry = computed(() => {
   if (expiryDigits.value.length <= 2) return expiryDigits.value;
@@ -127,8 +123,6 @@ const expiryError = computed(() => {
   return null;
 });
 
-
-/* ---------------- CVV ---------------- */
 function onCvvInput(e: any) {
   cvv.value = e.value.replace(/\D/g, "").slice(0, 3);
 }
@@ -139,7 +133,6 @@ const cvvError = computed(() => {
   return null;
 });
 
-/* ---------------- FORM VALID ---------------- */
 const formValid = computed(() => 
   Number(amount.value) > 0 &&
   expiryDigits.value.length === 4 &&
@@ -150,9 +143,7 @@ const formValid = computed(() =>
   !cardError.value
 );
 
-/* ---------------- SUBMIT (MOCK) ---------------- */
 async function topUp() {
-  console.log("Top up initiated");
   try {
     loading.value = true;
     await initiateTopUp(Number(amount.value), "MOCK");

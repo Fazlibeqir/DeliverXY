@@ -2,8 +2,9 @@
   <Page>
     <ActionBar title="Transactions" />
 
-    <ScrollView>
-      <StackLayout class="p-4">
+    <GridLayout rows="*">
+      <ScrollView row="0">
+        <StackLayout class="p-4">
         <Label v-if="transactions.length === 0" text="No transactions yet" class="text-gray-500" />
 
         <StackLayout v-for="tx in transactions" :key="tx.id" class="card p-3 mb-2">
@@ -16,7 +17,8 @@
           <Label :text="formatDate(tx.createdAt)" class="text-gray-400 text-xs" />
         </StackLayout>
       </StackLayout>
-    </ScrollView>
+      </ScrollView>
+    </GridLayout>
   </Page>
 </template>
 

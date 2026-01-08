@@ -30,8 +30,6 @@ export const useDeliveriesStore = defineStore("deliveries", {
     async updateStatus(id: number, status: DeliveryStatus) {
       const updated = await DeliveryService.updateDeliveryStatus(id, status);
       await this.loadAssigned();
-
-      // notify map (simple approach)
       (globalThis as any).__deliveryStatusChanged?.(updated);
     },
 

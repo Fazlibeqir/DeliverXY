@@ -41,7 +41,7 @@ export const authStore = reactive({
         }
         const normalizedRole = String(user.role).toUpperCase();
         this.user = user;
-        this.role = normalizedRole as "CLIENT" | "AGENT";;
+        this.role = normalizedRole as "CLIENT" | "AGENT";
     },
 
     clear() {

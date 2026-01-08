@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- theme to use FOR launch screen-->
+    <!-- theme to use FOR launch screen - Black theme -->
     <style name="LaunchScreenThemeBase" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="toolbarStyle">@style/NativeScriptToolbarStyle</item>
 
@@ -10,6 +10,9 @@
         <item name="colorAccent">@color/ns_accent</item>
 
         <item name="android:windowBackground">@drawable/splash_screen</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
 
         <item name="android:windowActionBarOverlay">true</item>
         <item name="android:windowTranslucentStatus">true</item>
@@ -38,5 +41,12 @@
     </style>
 
     <style name="NativeScriptToolbarStyle" parent="NativeScriptToolbarStyleBase">
+    </style>
+
+    <!-- Tab bar styling - BottomNavigationView -->
+    <style name="TabViewStyle" parent="Widget.Design.BottomNavigationView">
+        <item name="android:background">@color/tab_background</item>
+        <item name="itemTextColor">@color/tab_text_color</item>
+        <item name="itemIconTint">@color/tab_icon_tint</item>
     </style>
 </resources>

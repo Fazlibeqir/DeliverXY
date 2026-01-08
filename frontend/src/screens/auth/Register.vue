@@ -1,37 +1,67 @@
 <template>
     <Page>
-        <GridLayout rows="*,auto,*" class="bg-gray-100">
+        <ActionBar title="Create Account" />
+        <GridLayout rows="*" class="bg-gray-100">
+            <ScrollView row="0">
+                <StackLayout class="card-elevated mx-4 my-4">
 
-            <!-- Center card -->
-            <ScrollView row="1">
-                <StackLayout class="bg-white p-6 mx-6 rounded-lg">
+                    <StackLayout class="mb-6">
+                        <Label text="Join DeliverXY" class="text-2xl font-bold text-center mb-2 text-primary" />
+                        <Label text="Create your account to get started" class="text-sm text-center text-secondary" />
+                    </StackLayout>
 
-                    <Label text="Create Account" class="text-2xl font-bold text-center mb-2" />
-                    <Label text="Join DeliverXY" class="text-gray-500 text-center mb-4" />
+                    <StackLayout class="mb-3">
+                        <Label text="First Name" class="section-subheader mb-1" />
+                        <TextField v-model="firstName" hint="Enter your first name" class="input" />
+                    </StackLayout>
 
-                    <TextField v-model="firstName" hint="First name" class="input mb-3" />
-                    <TextField v-model="lastName" hint="Last name" class="input mb-3" />
-                    <TextField v-model="username" hint="Username" class="input mb-3" />
-                    <TextField v-model="email" hint="Email" keyboardType="email" class="input mb-3" />
-                    <TextField v-model="phoneNumber" hint="Phone number" keyboardType="phone" class="input mb-3" />
-                    <Label text="Account type" class="text-gray-600 mb-2" />
+                    <StackLayout class="mb-3">
+                        <Label text="Last Name" class="section-subheader mb-1" />
+                        <TextField v-model="lastName" hint="Enter your last name" class="input" />
+                    </StackLayout>
 
-                    <GridLayout columns="*,*" class="mb-4">
-                        <Button col="0" text="Client" :class="role === 'CLIENT' ? 'btn-primary' : 'btn-outline'"
-                            @tap="role = 'CLIENT'" />
-                        <Button col="1" text="Agent" :class="role === 'AGENT' ? 'btn-primary' : 'btn-outline'"
-                            @tap="role = 'AGENT'" />
-                    </GridLayout>
+                    <StackLayout class="mb-3">
+                        <Label text="Username" class="section-subheader mb-1" />
+                        <TextField v-model="username" hint="Choose a username" class="input" />
+                    </StackLayout>
 
-                    <TextField v-model="password" hint="Password" secure class="input mb-3" />
+                    <StackLayout class="mb-3">
+                        <Label text="Email" class="section-subheader mb-1" />
+                        <TextField v-model="email" hint="Enter your email" keyboardType="email" class="input" />
+                    </StackLayout>
 
-                    <Label v-if="error" :text="error" class="text-red-500 text-center mb-2" />
+                    <StackLayout class="mb-3">
+                        <Label text="Phone Number" class="section-subheader mb-1" />
+                        <TextField v-model="phoneNumber" hint="Enter your phone number" keyboardType="phone" class="input" />
+                    </StackLayout>
 
-                    <Button :text="loading ? 'Creating account…' : 'Register'" :isEnabled="!loading" class="btn-primary"
+                    <StackLayout class="mb-4">
+                        <Label text="Account Type" class="section-subheader mb-2" />
+                        <GridLayout columns="*,*" class="mb-2">
+                            <Button col="0" text="Client" :class="role === 'CLIENT' ? 'btn-primary' : 'btn-outline'"
+                                @tap="role = 'CLIENT'" />
+                            <Button col="1" text="Agent" :class="role === 'AGENT' ? 'btn-primary' : 'btn-outline'"
+                                @tap="role = 'AGENT'" />
+                        </GridLayout>
+                        <Label :text="role === 'CLIENT' ? 'Order deliveries' : 'Deliver packages'" class="text-xs text-secondary text-center" />
+                    </StackLayout>
+
+                    <StackLayout class="mb-4">
+                        <Label text="Password" class="section-subheader mb-1" />
+                        <TextField v-model="password" hint="Create a secure password" secure class="input" />
+                    </StackLayout>
+
+                    <Label v-if="error" :text="error" class="text-danger text-center mb-3 p-2" />
+
+                    <Button :text="loading ? 'Creating account…' : 'CREATE ACCOUNT'" :isEnabled="!loading" class="btn-primary mb-4"
                         @tap="submit" />
 
-                    <Button text="Already have an account? Login" class="text-blue-500 text-center mt-3"
-                        @tap="goToLogin" />
+                    <StackLayout class="divider" />
+
+                    <StackLayout class="text-center mt-4 mb-2">
+                        <Label text="Already have an account?" class="text-secondary mb-3" />
+                        <Button text="SIGN IN" class="btn-secondary-action" @tap="goToLogin" />
+                    </StackLayout>
 
                 </StackLayout>
             </ScrollView>
@@ -48,7 +78,6 @@ import Login from "./Login.vue";
 import ClientTabs from "~/navigation/ClientTabs.vue";
 import AgentTabs from "~/navigation/AgentTabs.vue";
 
-
 const firstName = ref("");
 const lastName = ref("");
 const username = ref("");
@@ -59,8 +88,6 @@ const role = ref<"CLIENT" | "AGENT">("CLIENT");
 
 const instance = getCurrentInstance();
 const navigateTo = instance!.proxy!.$navigateTo;
-
-
 
 const loading = ref(false);
 const error = ref("");

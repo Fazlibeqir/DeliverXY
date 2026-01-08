@@ -1,17 +1,23 @@
 <template>
   <Page>
     <ActionBar title="KYC Verification" />
-    <ScrollView>
-      <StackLayout class="p-4">
+    <GridLayout rows="*">
+      <ScrollView row="0">
+        <StackLayout class="p-4">
 
-        <Label text="KYC Verification" class="text-xl font-bold mb-3" />
-
-        <Label :text="`Status: ${store.status ?? 'NOT SUBMITTED'}`" class="font-bold mb-4" :class="{
-          'text-green-600': store.status === 'APPROVED',
-          'text-orange-500': store.status === 'PENDING',
-          'text-red-600': store.status === 'REJECTED'
-        }" />
-
+        <StackLayout class="card-elevated p-4 mb-4">
+          <Label text="Verification Status" class="section-subheader mb-2" />
+          <Label :text="getStatusLabel(store.status)" class="font-bold text-lg mb-2" :class="getStatusClass(store.status)" />
+          <Label v-if="store.status === 'PENDING'" 
+            text="Our team is reviewing your documents. This usually takes 24-48 hours."
+            class="text-secondary text-sm" />
+          <Label v-if="store.status === 'APPROVED'" 
+            text="✓ Your account is verified and ready to accept deliveries."
+            class="text-success text-sm" />
+          <Label v-if="store.status === 'REJECTED'" 
+            :text="`Reason: ${store.rejectionReason}`"
+            class="text-danger text-sm mt-2" />
+        </StackLayout>
 
         <StackLayout class="space-y-3">
 
@@ -30,15 +36,12 @@
 
         </StackLayout>
 
-        <Button v-if="store.status !== 'APPROVED'" text="Submit KYC for Review" class="btn-primary mt-4"
+        <Button v-if="store.status !== 'APPROVED'" text="Submit for Review" class="btn-primary-compact mt-4"
           :isEnabled="canSubmit && !uploading" :opacity="canSubmit ? 1 : 0.5" @tap="submit" />
 
-
-        <Label v-if="store.status === 'REJECTED'" :text="`Rejected: ${store.rejectionReason}`"
-          class="text-red-500 mt-3" />
-
       </StackLayout>
-    </ScrollView>
+      </ScrollView>
+    </GridLayout>
   </Page>
 </template>
 
@@ -60,12 +63,9 @@ const props = defineProps<{ onDone?: () => Promise<void> | void }>();
 const store = useKYCStore();
 const disabledUploads = computed(() => store.status === "PENDING" || store.status === "APPROVED");
 
-// ---- CAMERA (safe runtime load) ----
 let takePicture!: (options?: any) => Promise<any>;
 let requestPermissions!: () => Promise<void>;
-  try {
-  // IMPORTANT: you were missing this
-  // @ts-ignore
+try {
   const cam = require("@nativescript/camera");
   takePicture = cam.takePicture;
   requestPermissions = cam.requestPermissions;
@@ -108,16 +108,10 @@ async function ensureCameraPermission(): Promise<boolean> {
   }
 }
 
-
-
-
 onMounted(async () => {
   await store.load();
 });
 
-/**
- * Converts NativeScript ImageAsset to REAL file path
- */
 async function normalizeImagePath(imageAsset: any): Promise<string> {
   const imageSource = await ImageSource.fromAsset(imageAsset);
 
@@ -138,8 +132,6 @@ async function normalizeImagePath(imageAsset: any): Promise<string> {
   return filePath;
 }
 
-
-// ---- PICK & UPLOAD ----
 async function pick(
   type: "ID_FRONT" | "ID_BACK" | "SELFIE" | "PROOF_OF_ADDRESS"
 ) {
@@ -169,7 +161,6 @@ async function pick(
     if (type === "PROOF_OF_ADDRESS") store.proofOfAddressUrl = url;
 
   } catch (e) {
-    console.error(e);
     await alert(
       "Failed to capture or upload image."
     );
@@ -178,7 +169,6 @@ async function pick(
   }
 }
 
-// ---- SUBMIT ----
 const canSubmit = computed(() =>
   !!store.idFrontUrl &&
   !!store.idBackUrl &&
@@ -187,6 +177,26 @@ const canSubmit = computed(() =>
   store.status !== "APPROVED" &&
   store.status !== "PENDING"
 );
+
+function getStatusLabel(status: string | null): string {
+  if (!status) return "Not Submitted";
+  switch (status) {
+    case "APPROVED": return "✓ Approved";
+    case "PENDING": return "⏳ Under Review";
+    case "REJECTED": return "❌ Rejected";
+    default: return "Not Submitted";
+  }
+}
+
+function getStatusClass(status: string | null): string {
+  if (!status) return "text-secondary";
+  switch (status) {
+    case "APPROVED": return "text-success";
+    case "PENDING": return "text-warning";
+    case "REJECTED": return "text-danger";
+    default: return "text-secondary";
+  }
+}
 
 async function submit() {
   await store.submit();

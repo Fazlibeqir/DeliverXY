@@ -23,13 +23,10 @@ export async function searchAddress(query: string) {
 
     const raw = res.content?.toJSON();
 
-    // ✅ HARD GUARANTEE ARRAY
     const data: any[] = Array.isArray(raw) ? raw : [];
 
     return data
-      // 🚫 remove pure city / admin results
       .filter(r => r.type !== "administrative")
-      // ⭐ prioritize POIs
       .sort((a, b) => {
         const score = (r: any) =>
           ["mall", "shop", "amenity", "building", "commercial"].includes(r.class)
@@ -44,7 +41,6 @@ export async function searchAddress(query: string) {
       }));
 
   } catch (err) {
-    console.log("Geocoding error:", err);
     return [];
   }
 }

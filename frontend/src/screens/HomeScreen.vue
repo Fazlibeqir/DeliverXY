@@ -1,18 +1,13 @@
 <template>
-  <GridLayout rows="*,auto">
+  <GridLayout rows="*">
     <WebView 
       ref="wv" 
       row="0" 
       src="~/assets/map.html" 
       @loadFinished="onLoaded" 
       @consoleMessage="onConsoleMessage" />
-
-
-
   </GridLayout>
 </template>
-
-
 
 <script setup lang="ts">
 import { alert, isAndroid, isIOS } from "@nativescript/core";
@@ -35,13 +30,9 @@ const webReady = ref(false);
 const deliveries = ref<any[]>([]);
 const activeDelivery = ref<any | null>(null);
 
-const hasLocation = ref(false);
 const lastLoc = ref<{ lat: number; lng: number } | null>(null);
 const assigning = ref(false);
 const assignedIds = new Set<number>();
-
-
-
 
 function js(obj: any) {
   return JSON.stringify(obj)
@@ -77,7 +68,7 @@ function injectBridge() {
           payload: payload
         }));
       } catch (e) {
-        console.log("NS_BRIDGE_ERROR");
+        console.error("NS_BRIDGE_ERROR");
       }
     };
   `);
@@ -106,14 +97,10 @@ function onLoaded() {
 
   const webview = wv.value?.nativeView;
   if (isAndroid && webview?.android) {
-    const WebChromeClientClass = android.webkit.WebChromeClient.extend({
+    const WebChromeClientClass = (android.webkit.WebChromeClient as any).extend({
       onConsoleMessage(consoleMessage: any) {
         const message = consoleMessage.message();
-        console.log("WEBVIEW:", message);
-
-        // forward to Vue handler
         onConsoleMessage({ android: { message } });
-
         return true;
       }
     });
@@ -121,12 +108,16 @@ function onLoaded() {
       new (WebChromeClientClass as any)());
 
     const s = webview.android.getSettings();
-    s.setBuiltInZoomControls(false);   // removes bottom zoom bar
-    s.setDisplayZoomControls(false);   // extra safety
-    s.setSupportZoom(false);           // optional: disables zoom gestures too
-
+    s.setBuiltInZoomControls(false);
+    s.setDisplayZoomControls(false);
+    s.setSupportZoom(true);
     s.setUseWideViewPort(false);
     s.setLoadWithOverviewMode(true);
+    webview.android.setOnTouchListener(new android.view.View.OnTouchListener({
+      onTouch: function(view, event) {
+        return false;
+      }
+    }));
   }
 
   setTimeout(() => {
@@ -201,6 +192,10 @@ async function onConsoleMessage(e: any) {
   let msg = e?.android?.message ?? e?.message;
   if (!msg) return;
 
+  if (!msg.trim().startsWith('{') && !msg.trim().startsWith('"')) {
+    return;
+  }
+
   if (msg.startsWith('"') && msg.endsWith('"')) {
     msg = msg.slice(1, -1);
   }
@@ -222,12 +217,9 @@ async function onConsoleMessage(e: any) {
 
         alert("Delivery assigned. Navigate to pickup.");
 
-
-        // remove all nearby markers
         deliveries.value = [];
         safeRunJS(`window.clearDeliveries();`);
 
-        // draw route immediately
         if (lastLoc.value) {
           safeRunJS(`
              window.drawRoute(
@@ -248,27 +240,21 @@ async function onConsoleMessage(e: any) {
           `);
         }
 
-
         store.loadAssigned(true);
       } catch (err) {
-        console.log("Assign failed", err);
         await alert(String((err as any)?.message || "Assign failed"));
         assignedIds.delete(deliveryId);
       } finally {
         assigning.value = false;
       }
     }
-  } catch (err) {
-    console.log("Console parse error", err);
-  }
+  } catch (err) {}
 }
 
 async function pushLocation(lat: number, lng: number) {
   try {
     await LocationService.updateDriverLocation(lat, lng);
-  } catch (e) {
-    console.log("Location update failed", e);
-  }
+  } catch (e) {}
 }
 
 onMounted(async () => {
@@ -278,7 +264,6 @@ onMounted(async () => {
       await enableLocationRequest(true, true);
     } catch (e) {
       alert("Location permission is required to use this app.");
-      hasLocation.value = false;
     }
   }
 
@@ -287,8 +272,6 @@ onMounted(async () => {
   if (await isEnabled()) {
     try {
       const loc = await getCurrentLocation({ timeout: 20000 });
-
-      hasLocation.value = true;
       lastLoc.value = { lat: loc.latitude, lng: loc.longitude };
 
       safeRunJS(`window.setUserLocation(${loc.latitude}, ${loc.longitude});`);
@@ -296,24 +279,18 @@ onMounted(async () => {
       if (!activeDelivery.value) {
         await refreshNearby(loc.latitude, loc.longitude);
       }
-    } catch (e) {
-      console.log("getCurrentLocation failed", e);
-      hasLocation.value = false;
-    }
+    } catch (e) {}
   }
-
 
   let lastNearbyFetch = 0;
 
   if (await isEnabled()) {
   watchLocation(
     (l) => {
-      hasLocation.value = true;
       lastLoc.value = { lat: l.latitude, lng: l.longitude };
 
       safeRunJS(`window.setUserLocation(${l.latitude}, ${l.longitude});`);
       pushLocation(l.latitude, l.longitude);
-      // 🚨 IMPORTANT LOGIC
       if (activeDelivery.value) {
         const target =
           activeDelivery.value.status === "ASSIGNED"
@@ -325,7 +302,6 @@ onMounted(async () => {
               lat: activeDelivery.value.dropoffLatitude,
               lng: activeDelivery.value.dropoffLongitude,
             };
-        // live navigation
         safeRunJS(`
         window.drawRoute(
           ${l.latitude},
@@ -342,7 +318,7 @@ onMounted(async () => {
         }
       }
     },
-    (e) => console.log("watch error", e),
+    () => {},
     { minimumUpdateTime: 2000, desiredAccuracy: 3 }
   );
   }
