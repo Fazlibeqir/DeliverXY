@@ -56,4 +56,6 @@ public class VehicleRequestDTO {
     @FutureOrPresent(message = "Registration expiry date must be present or in the future")
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private LocalDateTime registrationExpiryDate;
+
+    private String imageUrl;
 }

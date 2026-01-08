@@ -15,7 +15,7 @@ import java.util.UUID;
 @Service
 public class FileUploadServiceImpl implements FileUploadService {
 
-    @Value("${file.upload.path:uploads}")
+    @Value("${app.uploads.dir}")
     private String uploadPath;
 
     @Value("${file.upload.max-size:10485760}") // 10MB default

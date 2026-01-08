@@ -28,6 +28,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthFilter;
 
     private static final String[] PUBLIC_ENDPOINTS = {
+            "/uploads/**",
             "/api/auth/**",
             "/ws/**",                   // if you have websockets
             "/actuator/health",         // optional

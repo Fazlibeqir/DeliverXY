@@ -369,39 +369,10 @@ public class DeliveryServiceImpl implements DeliveryService {
                 breakdown.getCityCenterCharge().doubleValue(),
                 breakdown.getAirportCharge().doubleValue() > 0,
                 breakdown.getAirportCharge().doubleValue(),
+                dto.getPromoCode(),
                 surgeReason(breakdown.getSurgeMultiplier()),
                 discount.doubleValue(), // Final discount
                 promoApplied
-        );
-    }
-
-    @Override
-    public FareResponseDTO getFareForDelivery(Long deliveryId) {
-        Delivery d = load(deliveryId);
-
-        FareBreakdown breakdown = pricingService.getFareBreakdown(
-                d.getPickupLatitude(),
-                d.getPickupLongitude(),
-                d.getDropoffLatitude(),
-                d.getDropoffLongitude()
-        );
-        return new FareResponseDTO(
-                breakdown.getTotalFare().doubleValue(),
-                breakdown.getCurrency(),
-                breakdown.getDistanceKm(),
-                breakdown.getEstimatedMinutes(),
-                breakdown.getBaseFare().doubleValue(),
-                breakdown.getDistanceFare().doubleValue(),
-                breakdown.getTimeFare().doubleValue(),
-                breakdown.getSurgeMultiplier(),
-                breakdown.getCityCenterCharge().compareTo(BigDecimal.ZERO) > 0,
-                breakdown.getCityCenterCharge().doubleValue(),
-                breakdown.getAirportCharge().compareTo(BigDecimal.ZERO) > 0,
-                breakdown.getAirportCharge().doubleValue(),
-                surgeReason(breakdown.getSurgeMultiplier()),
-                0.0, // Discount
-                null // Promo Code
-
         );
     }
 

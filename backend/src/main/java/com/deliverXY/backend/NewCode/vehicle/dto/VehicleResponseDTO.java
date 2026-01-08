@@ -35,4 +35,5 @@ public class VehicleResponseDTO {
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String imageUrl;
 }

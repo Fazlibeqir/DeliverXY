@@ -119,6 +119,7 @@ public class VehicleServiceImpl implements VehicleService {
         v.setInsurancePolicyNumber(dto.getInsurancePolicyNumber());
         v.setInsuranceExpiryDate(dto.getInsuranceExpiryDate());
         v.setRegistrationExpiryDate(dto.getRegistrationExpiryDate());
+        v.setImageUrl(dto.getImageUrl());
     }
 
     private VehicleResponseDTO toDTO(Vehicle v) {
@@ -141,6 +142,8 @@ public class VehicleServiceImpl implements VehicleService {
         dto.setRegistrationExpiryDate(v.getRegistrationExpiryDate());
         dto.setCreatedAt(v.getCreatedAt());
         dto.setUpdatedAt(v.getUpdatedAt());
+        dto.setImageUrl(v.getImageUrl());
+
         return dto;
     }
 }

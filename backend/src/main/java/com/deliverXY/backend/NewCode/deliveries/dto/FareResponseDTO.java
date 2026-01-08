@@ -25,6 +25,7 @@ public class FareResponseDTO {
 
     private Boolean airportSurcharge;
     private Double airportAmount;
+    private String promoCode;
 
     private String surgeReason; // "Peak Hour", "Night Time", "Weekend", etc.
     private Double discount;

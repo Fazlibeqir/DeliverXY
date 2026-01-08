@@ -73,6 +73,8 @@ public class Vehicle {
     
     @Column(name = "updated_at")
     private LocalDateTime updatedAt = LocalDateTime.now();
+    @Column(name = "image_url")
+    private String imageUrl;
     
     // Enums
     public enum VehicleType {

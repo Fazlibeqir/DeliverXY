@@ -35,7 +35,7 @@ public class DeliveryDTO {
     private String dropoffInstructions;
 
     private PaymentProvider paymentProvider;
-    
+    private String promoCode;
     // Timing
     private LocalDateTime requestedPickupTime;
     private LocalDateTime requestedDeliveryTime;
