@@ -764,9 +764,6 @@ async function replaceCompletedDelivery(deliveryId) {
       // Use a fresh object reference to ensure Vue reactivity
       selectedDelivery.value = { ...actualDelivery }
       
-      // Debug log
-      console.log('Selected delivery:', selectedDelivery.value?.id, selectedDelivery.value)
-      
       // Update clicked marker to show selection
       updateAgentMarkerIcon(agentMarker, actualDelivery, true)
     })

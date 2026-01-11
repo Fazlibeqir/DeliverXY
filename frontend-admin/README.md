@@ -14,6 +14,47 @@ VITE_API_URL=http://localhost:8080
 
 This app uses these backend endpoints:
 
-- Auth: `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`
-- Current user: `/api/users/me`
-- Admin: `/api/admin/dashboard`, `/api/admin/users`, `/api/admin/users/{id}/block`, `/api/admin/users/{id}/unblock`, `/api/admin/deliveries`, `/api/admin/deliveries/{deliveryId}/assign`
+- **Auth**: `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`
+- **Current user**: `/api/users/me`
+- **Admin Dashboard**: `/api/admin/dashboard`
+- **Users**: `/api/admin/users`, `/api/admin/users/{id}/block`, `/api/admin/users/{id}/unblock`
+- **Deliveries**: `/api/admin/deliveries`, `/api/admin/deliveries/{deliveryId}/assign`
+- **Tracking**: `/api/tracking/{deliveryId}`
+- **Earnings**: `/api/admin/earnings`
+- **Payouts**: `/api/admin/payouts`
+- **Promo Codes**: `/api/promo-codes/all`, `/api/promo-codes`, `/api/promo-codes/{id}/deactivate`
+
+## Features
+
+- Admin authentication with token refresh
+- User management (view, block/unblock)
+- Delivery management and tracking
+- Interactive delivery map with real-time simulation
+- Earnings and payouts overview
+- Promo code management
+- Dashboard with statistics and charts
+
+## Development
+
+```bash
+# Install dependencies
+npm install
+
+# Start dev server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+## Map Simulation
+
+The delivery map includes a simulation mode that:
+- Generates 7 concurrent simulated deliveries across North Macedonia
+- Uses real road routing via OSRM
+- Animates agents moving along routes
+- Automatically replaces completed deliveries
+- Shows pickup, dropoff, and agent locations
