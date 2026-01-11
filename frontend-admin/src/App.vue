@@ -39,6 +39,13 @@ async function handleLogout() {
                   Deliveries
                 </RouterLink>
                 <RouterLink 
+                  to="/map" 
+                  class="text-sm text-neutral-400 hover:text-white"
+                  :class="{ 'text-white': $route.path === '/map' }"
+                >
+                  Map
+                </RouterLink>
+                <RouterLink 
                   to="/users" 
                   class="text-sm text-neutral-400 hover:text-white"
                   :class="{ 'text-white': $route.path === '/users' }"
