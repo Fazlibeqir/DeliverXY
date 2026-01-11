@@ -33,9 +33,7 @@
     </style>
 
     <!-- Tab bar styling for Android 5.0+ - BottomNavigationView -->
-    <style name="TabViewStyle" parent="Widget.Design.BottomNavigationView">
+    <style name="TabViewStyle">
         <item name="android:background">@color/tab_background</item>
-        <item name="itemTextColor">@color/tab_text_color</item>
-        <item name="itemIconTint">@color/tab_icon_tint</item>
     </style>
 </resources>
