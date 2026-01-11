@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deliverxy-backend
+  namespace: deliverxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: deliverxy-backend
+  template:
+    metadata:
+      labels:
+        app: deliverxy-backend
+    spec:
+      containers:
+      - name: backend
+        image: redbfs/deliverxy-backend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        env:
+          # ConfigMap values
+          - name: SPRING_DATASOURCE_URL
+            valueFrom:
+              configMapKeyRef:
+                name: deliverxy-config
+                key: SPRING_DATASOURCE_URL
+          - name: SPRING_DATASOURCE_USERNAME
+            valueFrom:
+              configMapKeyRef:
+                name: deliverxy-config
+                key: SPRING_DATASOURCE_USERNAME
+          - name: POSTGRES_DB
+            valueFrom:
+              configMapKeyRef:
+                name: deliverxy-config
+                key: POSTGRES_DB
+          - name: POSTGRES_USER
+            valueFrom:
+              configMapKeyRef:
+                name: deliverxy-config
+                key: POSTGRES_USER
+          - name: BACKEND_PORT
+            valueFrom:
+              configMapKeyRef:
+                name: deliverxy-config
+                key: BACKEND_PORT
+          - name: FRONTEND_PORT
+            valueFrom:
+              configMapKeyRef:
+                name: deliverxy-config
+                key: FRONTEND_PORT
+          - name: POSTGRES_PORT
+            valueFrom:
+              configMapKeyRef:
+                name: deliverxy-config
+                key: POSTGRES_PORT
+
+          # Secret values
+          - name: SPRING_DATASOURCE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: postgres-secret
+                key: SPRING_DATASOURCE_PASSWORD
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: postgres-secret
+                key: POSTGRES_PASSWORD
+
+          # Set Spring active profile here:
+          - name: SPRING_PROFILES_ACTIVE
+            value: dev  # or "prod" for production environment

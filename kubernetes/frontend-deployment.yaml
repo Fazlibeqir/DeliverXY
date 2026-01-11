@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deliverxy-frontend-admin
+  namespace: deliverxy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: deliverxy-frontend-admin
+  template:
+    metadata:
+      labels:
+        app: deliverxy-frontend-admin
+    spec:
+      containers:
+        - name: frontend-admin
+          image: redbfs/deliverxy-frontend-admin:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
