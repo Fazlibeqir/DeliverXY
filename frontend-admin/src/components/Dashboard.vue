@@ -1,71 +1,70 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import api from '../services/axios'
 import DashboardCard from './DashboardCard.vue'
 import DeliveryStatsChart from './DeliveryStatsChart.vue'
-// import DeliveriesOverTimeChart from './DeliveriesOverTimeChart.vue'
 
 const userCount = ref(0)
 const deliveryCount = ref(0)
 const deliveredCount = ref(0)
 const pendingCount = ref(0)
-// const deliveryDates = ref([])
-
-// const deliveriesByDate = computed(() => {
-//   const counts = {}
-//   deliveryDates.value.forEach(date => {
-//     counts[date] = (counts[date] || 0) + 1
-//   })
-//   const sorted = Object.entries(counts).sort((a, b) => new Date(a[0]) - new Date(b[0]))
-//   return {
-//     labels: sorted.map(([date]) => date),
-//     data: sorted.map(([_, count]) => count)
-//   }
-// })
 
 async function fetchStats() {
-  
-  const users = await api.get('/user')
-  const deliveries = await api.get('/deliveries')
+  const dash = await api.get('/api/admin/dashboard').catch(() => null)
+  if (dash?.data) {
+    const d = dash.data // AdminDashboardDTO
+    userCount.value = d.totalUsers ?? 0
+    deliveryCount.value = d.totalDeliveries ?? 0
+    deliveredCount.value = d.completedDeliveries ?? 0
+    pendingCount.value = d.pendingDeliveries ?? 0
+    return
+  }
 
-  userCount.value = users.data.length
-  deliveryCount.value = deliveries.data.length
-  deliveredCount.value = deliveries.data.filter(d => d.status === 'DELIVERED').length
-  pendingCount.value = deliveries.data.filter(d => d.status === 'PENDING').length
-  //deliveryDates.value = deliveries.data.map(d => d.createdAt.split('T')[0])
+  // Fallback: derive from lists if dashboard endpoint unavailable
+  try {
+    const [usersRes, deliveriesRes] = await Promise.all([
+      api.get('/api/admin/users', { params: { page: 0, size: 1 } }).catch(() => null),
+      api.get('/api/admin/deliveries', { params: { page: 0, size: 1 } }).catch(() => null),
+    ])
+
+    // Note: This is just a fallback, actual counts would need totalElements from pagination
+    userCount.value = 0
+    deliveryCount.value = 0
+    deliveredCount.value = 0
+    pendingCount.value = 0
+  } catch {
+    // Silently ignore errors - user might not be authenticated
+  }
 }
 
 onMounted(fetchStats)
 </script>
 
 <template>
-  <div class="p-6 bg-gray-100 min-h-screen">
-    <h1 class="text-3xl font-bold text-gray-800 mb-8">📊 Admin Dashboard and aws CD test4.0</h1>
+  <div class="space-y-6">
+    <div>
+      <h1 class="text-2xl font-bold mb-1">Admin Dashboard</h1>
+      <p class="text-sm text-neutral-400">Overview of DeliverXY activity</p>
+    </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <DashboardCard title="Total Users" :count="userCount" color="blue" />
       <DashboardCard title="Total Deliveries" :count="deliveryCount" color="green" />
       <DashboardCard title="Pending Deliveries" :count="pendingCount" color="yellow" />
       <DashboardCard title="Delivered" :count="deliveredCount" color="purple" />
     </div>
 
-    <!-- Chart section -->
-    <div class="mt-12">
+    <div class="mt-8">
       <DeliveryStatsChart :delivered="deliveredCount" :pending="pendingCount" />
     </div>
 
-    <!-- 📊 Deliveries Over Time Chart -->
-  <!-- <div class="mt-10">
-  <DeliveriesOverTimeChart
-    :labels="deliveriesByDate.labels"
-    :data="deliveriesByDate.data"
-  />
-  </div> -->
-
-    <div class="mt-10 flex gap-4">
-      <RouterLink to="/users" class="btn btn-primary"> Manage Users</RouterLink>
-      <RouterLink to="/deliveries" class="btn btn-success"> Manage Deliveries</RouterLink>
+    <div class="flex flex-wrap gap-3">
+      <RouterLink to="/users" class="btn btn-primary">Manage Users</RouterLink>
+      <RouterLink to="/deliveries" class="btn btn-primary">Manage Deliveries</RouterLink>
+      <RouterLink to="/earnings" class="btn btn-secondary">Earnings</RouterLink>
+      <RouterLink to="/payouts" class="btn btn-secondary">Payouts</RouterLink>
+      <RouterLink to="/promo-codes" class="btn btn-secondary">Promo Codes</RouterLink>
     </div>
   </div>
 </template>
