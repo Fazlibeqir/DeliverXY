@@ -22,16 +22,20 @@ async function fetchStats() {
   }
 
   // Fallback: derive from lists if dashboard endpoint unavailable
-  const [usersRes, deliveriesRes] = await Promise.all([
-    api.get('/api/admin/users', { params: { page: 0, size: 1 } }),
-    api.get('/api/admin/deliveries', { params: { page: 0, size: 1 } }),
-  ])
+  try {
+    const [usersRes, deliveriesRes] = await Promise.all([
+      api.get('/api/admin/users', { params: { page: 0, size: 1 } }).catch(() => null),
+      api.get('/api/admin/deliveries', { params: { page: 0, size: 1 } }).catch(() => null),
+    ])
 
-  // Note: This is just a fallback, actual counts would need totalElements from pagination
-  userCount.value = 0
-  deliveryCount.value = 0
-  deliveredCount.value = 0
-  pendingCount.value = 0
+    // Note: This is just a fallback, actual counts would need totalElements from pagination
+    userCount.value = 0
+    deliveryCount.value = 0
+    deliveredCount.value = 0
+    pendingCount.value = 0
+  } catch {
+    // Silently ignore errors - user might not be authenticated
+  }
 }
 
 onMounted(fetchStats)

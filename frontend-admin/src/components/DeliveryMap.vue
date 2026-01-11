@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import api from '../services/axios'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -300,9 +300,15 @@ async function loadSimulatedDeliveries() {
   routeLoadingProgress.value = 0
   
   try {
+    // Ensure map is ready before generating deliveries
+    const isReady = await ensureMapReady()
+    if (!isReady) {
+      throw new Error('Map not ready. Please wait for the map to load.')
+    }
+    
     simulatedDeliveries.value = await generateSimulatedDeliveries(7)
     routeLoadingProgress.value = 100
-    updateMapWithRoutes()
+    await updateMapWithRoutes()
     startAnimations()
   } catch (e) {
     error.value = e?.message || 'Failed to load simulated deliveries'
@@ -342,7 +348,14 @@ async function fetchDeliveries() {
     // Fetch tracking data for each delivery to get coordinates
     await loadDeliveryLocations()
   } catch (e) {
-    error.value = e?.response?.data?.message || e?.message || 'Failed to load deliveries'
+    // Don't show error for 403/401 - these are handled by auth interceptor
+    const status = e?.response?.status
+    if (status === 403 || status === 401) {
+      // Auth error - will be handled by router guard
+      error.value = null
+    } else {
+      error.value = e?.response?.data?.message || e?.message || 'Failed to load deliveries'
+    }
     deliveries.value = []
     // Only auto-show simulation if we're already in simulation mode
     if (useSimulation.value) {
@@ -410,7 +423,7 @@ async function loadDeliveryLocations() {
     delivery.currentCoords = coords
   }
   
-  updateMapWithRoutes()
+  await updateMapWithRoutes()
 }
 
 function clearMap() {
@@ -492,10 +505,15 @@ async function generateSingleDelivery() {
   }
 }
 
-function updateMapWithRoutes() {
+async function updateMapWithRoutes() {
   clearMap()
   
-  if (!map.value) return
+  // Ensure map is ready before adding layers
+  const isReady = await ensureMapReady()
+  if (!isReady || !map.value) {
+    console.warn('Map not ready, skipping update')
+    return
+  }
   
   const isSimulated = showSimulation.value || useSimulation.value
   const deliveriesToShow = isSimulated ? simulatedDeliveries.value : deliveries.value
@@ -572,7 +590,6 @@ function updateMapWithRoutes() {
         selectedDelivery.value = { ...actualDelivery }
         
         // Debug log
-        console.log('Selected delivery:', selectedDelivery.value?.id, selectedDelivery.value)
         
         // Update clicked marker to show selection
         updateAgentMarkerIcon(agentMarker, actualDelivery, true)
@@ -851,6 +868,16 @@ function updateMapMarkers(deliveryLocations) {
 function initMap() {
   if (!mapContainer.value) return
   
+  // If map already exists, remove it first
+  if (map.value) {
+    try {
+      map.value.remove()
+    } catch (e) {
+      // Ignore errors when removing
+    }
+    map.value = null
+  }
+  
   // Initialize map with dark theme
   map.value = L.map(mapContainer.value, {
     center: MACEDONIA_CENTER,
@@ -900,8 +927,48 @@ function initMap() {
   }
 }
 
+// Ensure map is ready before adding layers
+function ensureMapReady() {
+  return new Promise((resolve) => {
+    if (!mapContainer.value) {
+      resolve(false)
+      return
+    }
+    
+    // If map doesn't exist, initialize it
+    if (!map.value) {
+      initMap()
+    }
+    
+    // Wait for map to be ready
+    if (map.value) {
+      // Check if map container is in DOM
+      if (!mapContainer.value || !mapContainer.value.parentElement) {
+        resolve(false)
+        return
+      }
+      
+      // Use whenReady to ensure map is fully initialized
+      map.value.whenReady(() => {
+        // Double-check map is still valid
+        if (map.value && map.value.getContainer() && map.value.getContainer().parentElement) {
+          resolve(true)
+        } else {
+          resolve(false)
+        }
+      })
+    } else {
+      resolve(false)
+    }
+  })
+}
+
 onMounted(async () => {
+  // Wait for next tick to ensure DOM is ready
+  await nextTick()
   initMap()
+  // Wait for map to be ready before fetching deliveries
+  await ensureMapReady()
   await fetchDeliveries()
   // Don't auto-load simulation on mount - let user click the button
 })
