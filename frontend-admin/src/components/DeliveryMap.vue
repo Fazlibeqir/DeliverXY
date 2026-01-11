@@ -331,8 +331,11 @@ async function fetchDeliveries() {
     const data = res.data
     const allDeliveries = Array.isArray(data) ? data : data?.content ?? data?.items ?? []
     
+    // Filter out DELIVERED deliveries - they should be cleared from the map
+    const activeDeliveries = allDeliveries.filter(d => d.status !== 'DELIVERED')
+    
     // Limit to 15 deliveries for simulation
-    deliveries.value = allDeliveries.slice(0, 15)
+    deliveries.value = activeDeliveries.slice(0, 15)
     
     // Only auto-show simulation if we're already in simulation mode
     if (deliveries.value.length === 0 && useSimulation.value) {
@@ -391,36 +394,58 @@ async function toggleSimulation() {
 async function loadDeliveryLocations() {
   stopAnimations()
   
-  // Try to get coordinates from tracking data for real deliveries
-  for (const delivery of deliveries.value) {
-    let coords = null
+  // Fetch all driver locations for agent markers
+  let driverLocations = []
+  try {
+    const driversRes = await api.get('/api/admin/drivers/locations')
+    driverLocations = Array.isArray(driversRes.data) ? driversRes.data : []
+  } catch (e) {
+    console.warn('Failed to fetch driver locations:', e)
+  }
+  
+  // Filter out DELIVERED deliveries - they should be cleared from the map
+  const activeDeliveries = deliveries.value.filter(d => d.status !== 'DELIVERED')
+  
+  // Process real deliveries with actual coordinates (only non-delivered ones)
+  for (const delivery of activeDeliveries) {
+    // Use pickup/dropoff coordinates from delivery data
+    if (delivery.pickupLatitude && delivery.pickupLongitude) {
+      delivery.pickupCoords = [delivery.pickupLatitude, delivery.pickupLongitude]
+    }
+    if (delivery.dropoffLatitude && delivery.dropoffLongitude) {
+      delivery.dropoffCoords = [delivery.dropoffLatitude, delivery.dropoffLongitude]
+    }
     
-    // Try to get coordinates from tracking data
-    try {
-      const trackingRes = await api.get(`/api/tracking/${delivery.id}`)
-      const tracking = trackingRes.data
-      
-      // Check various possible location fields
-      if (tracking?.currentLocation?.latitude && tracking?.currentLocation?.longitude) {
-        coords = [tracking.currentLocation.latitude, tracking.currentLocation.longitude]
-      } else if (tracking?.location?.lat && tracking?.location?.lng) {
-        coords = [tracking.location.lat, tracking.location.lng]
-      } else if (tracking?.lat && tracking?.lng) {
-        coords = [tracking.lat, tracking.lng]
-      } else if (tracking?.coordinates) {
-        coords = Array.isArray(tracking.coordinates) ? tracking.coordinates : [tracking.coordinates.lat, tracking.coordinates.lng]
+    // Get agent location if delivery has an agent
+    let agentCoords = null
+    if (delivery.agentId) {
+      const driverLoc = driverLocations.find(dl => dl.driverId === delivery.agentId || dl.driver?.id === delivery.agentId)
+      if (driverLoc && driverLoc.latitude && driverLoc.longitude) {
+        agentCoords = [driverLoc.latitude, driverLoc.longitude]
       }
-    } catch (e) {
-      // Tracking data not available, will use random location
     }
     
-    // If no coordinates found, generate simulated location
-    if (!coords) {
-      coords = getRandomCityLocation()
+    // Determine current position based on status
+    if (delivery.status === 'DELIVERED' && delivery.dropoffCoords) {
+      delivery.currentCoords = delivery.dropoffCoords
+    } else if (delivery.status === 'IN_TRANSIT' && agentCoords) {
+      delivery.currentCoords = agentCoords
+    } else if (delivery.pickupCoords) {
+      delivery.currentCoords = delivery.pickupCoords
+    } else {
+      // Fallback to random location if no coordinates available
+      delivery.currentCoords = getRandomCityLocation()
     }
     
-    // Store coordinates in delivery object
-    delivery.currentCoords = coords
+    // Fetch route if we have both pickup and dropoff
+    if (delivery.pickupCoords && delivery.dropoffCoords) {
+      try {
+        delivery.routePath = await fetchRoute(delivery.pickupCoords, delivery.dropoffCoords)
+      } catch (e) {
+        console.warn(`Failed to fetch route for delivery ${delivery.id}:`, e)
+        delivery.routePath = [delivery.pickupCoords, delivery.dropoffCoords]
+      }
+    }
   }
   
   await updateMapWithRoutes()
@@ -461,6 +486,47 @@ function clearMap() {
   pickupMarkers.value = []
   dropoffMarkers.value = []
   agentMarkers.value = []
+}
+
+// Clear a specific delivery from the map
+async function clearDeliveryFromMap(deliveryId) {
+  if (!map.value) return
+  
+  // Find and remove animation for this delivery
+  const animIndex = agentAnimations.value.findIndex(a => a.deliveryId === deliveryId)
+  if (animIndex !== -1) {
+    const anim = agentAnimations.value[animIndex]
+    
+    // Remove all markers and route directly using stored references
+    if (anim.marker) {
+      map.value.removeLayer(anim.marker)
+      const agentIndex = agentMarkers.value.indexOf(anim.marker)
+      if (agentIndex !== -1) agentMarkers.value.splice(agentIndex, 1)
+    }
+    
+    // Remove route polyline
+    if (anim.routePolyline) {
+      map.value.removeLayer(anim.routePolyline)
+      const routeIndex = routes.value.indexOf(anim.routePolyline)
+      if (routeIndex !== -1) routes.value.splice(routeIndex, 1)
+    }
+    
+    // Remove pickup marker
+    if (anim.pickupMarker) {
+      map.value.removeLayer(anim.pickupMarker)
+      const pickupIndex = pickupMarkers.value.indexOf(anim.pickupMarker)
+      if (pickupIndex !== -1) pickupMarkers.value.splice(pickupIndex, 1)
+    }
+    
+    // Remove dropoff marker
+    if (anim.dropoffMarker) {
+      map.value.removeLayer(anim.dropoffMarker)
+      const dropoffIndex = dropoffMarkers.value.indexOf(anim.dropoffMarker)
+      if (dropoffIndex !== -1) dropoffMarkers.value.splice(dropoffIndex, 1)
+    }
+    
+    agentAnimations.value.splice(animIndex, 1)
+  }
 }
 
 // Generate a single new delivery
@@ -516,7 +582,10 @@ async function updateMapWithRoutes() {
   }
   
   const isSimulated = showSimulation.value || useSimulation.value
-  const deliveriesToShow = isSimulated ? simulatedDeliveries.value : deliveries.value
+  let deliveriesToShow = isSimulated ? simulatedDeliveries.value : deliveries.value
+  
+  // Filter out DELIVERED deliveries - clear them from the map
+  deliveriesToShow = deliveriesToShow.filter(d => d.status !== 'DELIVERED')
   
   if (deliveriesToShow.length === 0) return
   
@@ -616,39 +685,90 @@ async function updateMapWithRoutes() {
         marker: agentMarker,
       })
     } else {
-      // Regular delivery (no route simulation)
-      const coords = delivery.currentCoords || delivery.coords || getRandomCityLocation()
-      const status = delivery.status || 'PENDING'
-      const statusColors = {
-        PENDING: '#ffffff',
-        ASSIGNED: '#cccccc',
-        IN_TRANSIT: '#999999',
-        DELIVERED: '#000000',
-        CANCELLED: '#666666',
+      // Real delivery with actual coordinates
+      const hasRoute = delivery.pickupCoords && delivery.dropoffCoords
+      
+      if (hasRoute) {
+        // Show route, pickup, dropoff, and agent location
+        const pickup = delivery.pickupCoords
+        const dropoff = delivery.dropoffCoords
+        const current = delivery.currentCoords || pickup
+        
+        // Create route polyline
+        const routeCoordinates = delivery.routePath || [pickup, dropoff]
+        const route = L.polyline(routeCoordinates, {
+          color: '#666666',
+          weight: 3,
+          opacity: 0.7,
+          dashArray: '8, 4',
+        }).addTo(map.value)
+        routes.value.push(route)
+        
+        // Pickup marker
+        const pickupMarker = L.marker(pickup, {
+          icon: createIcon('#00ff00', 20, 'P'),
+        }).addTo(map.value)
+        pickupMarker.bindPopup(`<div style="color: white;"><strong>Pickup</strong><br>${delivery.pickupAddress || 'Pickup location'}</div>`)
+        pickupMarkers.value.push(pickupMarker)
+        
+        // Dropoff marker
+        const dropoffMarker = L.marker(dropoff, {
+          icon: createIcon('#ff0000', 20, 'D'),
+        }).addTo(map.value)
+        dropoffMarker.bindPopup(`<div style="color: white;"><strong>Dropoff</strong><br>${delivery.dropoffAddress || 'Dropoff location'}</div>`)
+        dropoffMarkers.value.push(dropoffMarker)
+        
+        // Agent marker (if in transit and has agent)
+        if (delivery.status === 'IN_TRANSIT' && current) {
+          const isSelected = selectedDelivery.value?.id === delivery.id
+          const agentIcon = createIcon('#ffff00', 28, '🚚', isSelected)
+          const agentMarker = L.marker(current, {
+            icon: agentIcon,
+          }).addTo(map.value)
+          
+          agentMarker.on('click', () => {
+            selectedDelivery.value = delivery
+          })
+          agentMarkers.value.push(agentMarker)
+          allBounds.push(current)
+        }
+        
+        allBounds.push(pickup, dropoff)
+      } else {
+        // Simple marker for deliveries without full route data
+        const coords = delivery.currentCoords || getRandomCityLocation()
+        const status = delivery.status || 'PENDING'
+        const statusColors = {
+          PENDING: '#ffffff',
+          ASSIGNED: '#cccccc',
+          IN_TRANSIT: '#999999',
+          DELIVERED: '#000000',
+          CANCELLED: '#666666',
+        }
+        const color = statusColors[status] || '#ffffff'
+        
+        const marker = L.marker(coords, {
+          icon: createIcon(color),
+        })
+        
+        const popupContent = `
+          <div style="color: white; min-width: 200px;">
+            <div style="font-weight: bold; margin-bottom: 8px;">Delivery #${delivery.id}</div>
+            <div style="font-size: 12px; margin-bottom: 4px;"><strong>Status:</strong> ${status}</div>
+            <div style="font-size: 12px; margin-bottom: 4px;"><strong>Title:</strong> ${delivery.title || delivery.description || '—'}</div>
+            ${delivery.pickupAddress ? `<div style="font-size: 11px; color: #ccc; margin-top: 4px;">From: ${delivery.pickupAddress}</div>` : ''}
+            ${delivery.dropoffAddress ? `<div style="font-size: 11px; color: #ccc;">To: ${delivery.dropoffAddress}</div>` : ''}
+          </div>
+        `
+        
+        marker.bindPopup(popupContent)
+        marker.on('click', () => {
+          selectedDelivery.value = delivery
+        })
+        marker.addTo(map.value)
+        markers.value.push(marker)
+        allBounds.push(coords)
       }
-      const color = statusColors[status] || '#ffffff'
-      
-      const marker = L.marker(coords, {
-        icon: createIcon(color),
-      })
-      
-      const popupContent = `
-        <div style="color: white; min-width: 200px;">
-          <div style="font-weight: bold; margin-bottom: 8px;">Delivery #${delivery.id}</div>
-          <div style="font-size: 12px; margin-bottom: 4px;"><strong>Status:</strong> ${status}</div>
-          <div style="font-size: 12px; margin-bottom: 4px;"><strong>Title:</strong> ${delivery.title || delivery.description || '—'}</div>
-          ${delivery.pickupAddress ? `<div style="font-size: 11px; color: #ccc; margin-top: 4px;">From: ${delivery.pickupAddress}</div>` : ''}
-          ${delivery.dropoffAddress ? `<div style="font-size: 11px; color: #ccc;">To: ${delivery.dropoffAddress}</div>` : ''}
-        </div>
-      `
-      
-      marker.bindPopup(popupContent)
-      marker.on('click', () => {
-        selectedDelivery.value = delivery
-      })
-      marker.addTo(map.value)
-      markers.value.push(marker)
-      allBounds.push(coords)
     }
   })
   
@@ -795,18 +915,34 @@ function startAnimations() {
   if (animationInterval.value) return
   
   animationInterval.value = setInterval(async () => {
-    for (let i = 0; i < agentAnimations.value.length; i++) {
+    for (let i = agentAnimations.value.length - 1; i >= 0; i--) {
       const anim = agentAnimations.value[i]
       if (anim.deliveryId.toString().startsWith('SIM-')) {
         // Check if delivery is completed
         const delivery = simulatedDeliveries.value.find(d => d.id === anim.deliveryId)
+        if (delivery && delivery.status === 'DELIVERED') {
+          // Clear the map for this delivered delivery
+          await clearDeliveryFromMap(anim.deliveryId)
+          // Remove from simulated deliveries
+          const deliveryIndex = simulatedDeliveries.value.findIndex(d => d.id === anim.deliveryId)
+          if (deliveryIndex !== -1) {
+            simulatedDeliveries.value.splice(deliveryIndex, 1)
+          }
+          continue
+        }
+        
         if (delivery && anim.progress >= 1 && delivery.status === 'DELIVERED') {
           // Wait a bit before replacing (2 seconds)
           if (!anim.completedAt) {
             anim.completedAt = Date.now()
           } else if (Date.now() - anim.completedAt > 2000) {
-            // Replace with new delivery
-            await replaceCompletedDelivery(anim.deliveryId)
+            // Clear the map for this delivered delivery
+            await clearDeliveryFromMap(anim.deliveryId)
+            // Remove from simulated deliveries
+            const deliveryIndex = simulatedDeliveries.value.findIndex(d => d.id === anim.deliveryId)
+            if (deliveryIndex !== -1) {
+              simulatedDeliveries.value.splice(deliveryIndex, 1)
+            }
             continue
           }
         }

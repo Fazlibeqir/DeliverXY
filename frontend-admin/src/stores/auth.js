@@ -1,37 +1,81 @@
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import { rawApi } from '../services/http'
+import { extractTokens } from '../services/authTokens'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
-    token: localStorage.getItem('token') || null,
+    accessToken: null,
+    refreshToken: null,
   }),
+  getters: {
+    isAuthenticated: (s) => Boolean(s.accessToken),
+    isAdmin: (s) => {
+      const u = s.user
+      if (!u) return false
+      // UserResponseDTO has role as UserRole enum (string)
+      const role = u.role
+      if (typeof role === 'string') return role.toUpperCase() === 'ADMIN'
+      return false
+    },
+  },
   actions: {
     async login(email, password) {
-      try {
-        const res = await axios.post('http://localhost:8080/api/auth/login', { email, password })
-        this.token = res.data.token
-        localStorage.setItem('token', this.token)
-        await this.fetchUser()
-      } catch (error) {
-        throw error
+      const res = await rawApi.post('/api/auth/login', { identifier: email, password })
+      // Unwrap ApiResponse wrapper if present
+      const authData = res.data?.data ?? res.data
+      const { accessToken, refreshToken } = extractTokens(authData)
+
+      if (!accessToken) throw new Error('Login did not return an access token')
+
+      this.accessToken = accessToken
+      if (refreshToken) this.refreshToken = refreshToken
+
+      // AuthResponseDTO includes user, so use it if available, otherwise fetch
+      if (authData?.user) {
+        this.user = authData.user
+      } else {
+        await this.fetchMe()
+      }
+
+      // Admin panel: only allow ADMIN users
+      if (!this.isAdmin) {
+        this.clear()
+        throw new Error('Not authorized (admin only)')
       }
     },
-    async fetchUser() {
-      if (!this.token) return
+    async fetchMe() {
+      if (!this.accessToken) return
       try {
-        const res = await axios.get('http://localhost:8080/api/auth/user', {
-          headers: { Authorization: `Bearer ${this.token}` },
+        const res = await rawApi.get('/api/users/me', {
+          headers: { Authorization: `Bearer ${this.accessToken}` },
         })
         this.user = res.data
-      } catch {
-        this.logout()
+      } catch (e) {
+        this.clear()
+        throw e
       }
     },
-    logout() {
+    async logout() {
+      // Best-effort server logout; ignore failures.
+      try {
+        // Send Authorization header if we have a token
+        const headers = {}
+        if (this.accessToken) {
+          headers.Authorization = `Bearer ${this.accessToken}`
+        }
+        await rawApi.post('/api/auth/logout', {}, { headers })
+      } catch {
+        // ignore - user is logged out locally anyway
+      } finally {
+        this.clear()
+      }
+    },
+    clear() {
       this.user = null
-      this.token = null
-      localStorage.removeItem('token')
+      this.accessToken = null
+      this.refreshToken = null
     }
-  }
+  },
+  persist: true,
 })
