@@ -264,93 +264,116 @@ TextView.input {
 }
 
 .status-badge {
-  padding: 6 12;
+  padding: 6 14;
   border-radius: 20;
-  font-size: 12;
-  font-weight: 600;
+  font-size: 11;
+  font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 0.5;
 }
 
 .status-pending {
-  background-color: #E5E5E5;
-  color: #000000;
+  background-color: #FFF3CD;
+  color: #856404;
+  border-width: 1;
+  border-color: #FFC107;
 }
 
 .status-approved {
-  background-color: #000000;
-  color: #FFFFFF;
+  background-color: #D4EDDA;
+  color: #155724;
+  border-width: 1;
+  border-color: #28A745;
 }
 
 .status-rejected {
-  background-color: #333333;
-  color: #FFFFFF;
+  background-color: #F8D7DA;
+  color: #721C24;
+  border-width: 1;
+  border-color: #DC3545;
 }
 
 .status-assigned {
-  background-color: #CCCCCC;
-  color: #000000;
+  background-color: #D1ECF1;
+  color: #0C5460;
+  border-width: 1;
+  border-color: #17A2B8;
 }
 
 .status-picked-up {
-  background-color: #999999;
-  color: #FFFFFF;
+  background-color: #E2E3F5;
+  color: #383D41;
+  border-width: 1;
+  border-color: #6C757D;
 }
 
 .status-in-transit {
-  background-color: #666666;
-  color: #FFFFFF;
+  background-color: #CFF4FC;
+  color: #055160;
+  border-width: 1;
+  border-color: #0DCAF0;
 }
 
 .status-delivered {
-  background-color: #000000;
-  color: #FFFFFF;
+  background-color: #D1E7DD;
+  color: #0F5132;
+  border-width: 1;
+  border-color: #198754;
 }
 
 .status-cancelled {
-  background-color: #E5E5E5;
-  color: #666666;
+  background-color: #F8D7DA;
+  color: #842029;
+  border-width: 1;
+  border-color: #DC3545;
 }
 
 .empty-state {
-  padding: 40 20;
+  padding: 60 20;
   text-align: center;
 }
 
 .empty-state-icon {
-  font-size: 64;
+  font-size: 72;
   color: #CCCCCC;
-  margin-bottom: 16;
+  margin-bottom: 20;
 }
 
 .empty-state-text {
-  color: #666666;
-  font-size: 16;
-  margin-top: 8;
+  color: #333333;
+  font-size: 18;
+  font-weight: 600;
+  margin-top: 12;
+  margin-bottom: 8;
 }
 
 .loading-container {
-  padding: 40;
+  padding: 60 40;
   text-align: center;
 }
 
 .loading-text {
   color: #666666;
-  margin-top: 12;
+  font-size: 16;
+  margin-top: 16;
+  font-weight: 500;
 }
 
 .section-header {
-  font-size: 18;
+  font-size: 22;
   font-weight: 700;
   color: #000000;
   margin-bottom: 12;
   margin-top: 8;
+  letter-spacing: 0.3;
 }
 
 .section-subheader {
-  font-size: 14;
-  font-weight: 500;
-  color: #666666;
+  font-size: 15;
+  font-weight: 600;
+  color: #333333;
   margin-bottom: 8;
+  letter-spacing: 0.2;
 }
 
 .divider {

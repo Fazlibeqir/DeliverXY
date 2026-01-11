@@ -14,6 +14,4 @@ public interface PromoCodeUsageRepository extends JpaRepository<PromoCodeUsage, 
     Long countByPromoCodeAndUser(PromoCode promoCode, AppUser user);
     
     List<PromoCodeUsage> findByUserOrderByUsedAtDesc(AppUser user);
-    
-    List<PromoCodeUsage> findByPromoCodeOrderByUsedAtDesc(PromoCode promoCode);
 }

@@ -21,7 +21,13 @@ export const useDeliveriesStore = defineStore("deliveries", {
 
       this.loading = true;
       try {
-        this.assigned = await DeliveryService.getAssignedDeliveries();
+        const deliveries = await DeliveryService.getAssignedDeliveries();
+        // Sort by createdAt descending (newest first)
+        this.assigned = deliveries.sort((a: any, b: any) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return dateB - dateA; // Descending order
+        });
       } finally {
         this.loading = false;
       }
@@ -55,7 +61,13 @@ export const useClientDeliveriesStore = defineStore("clientDeliveries", {
 
       this.loading = true;
       try {
-        this.list = await DeliveryService.getMyDeliveries();
+        const deliveries = await DeliveryService.getMyDeliveries();
+        // Sort by createdAt descending (newest first)
+        this.list = deliveries.sort((a: any, b: any) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return dateB - dateA; // Descending order
+        });
       } finally {
         this.loading = false;
       }

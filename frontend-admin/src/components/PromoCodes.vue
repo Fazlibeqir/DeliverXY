@@ -28,9 +28,12 @@ async function fetchAll() {
   error.value = null
   try {
     const res = await api.get('/api/promo-codes/all')
-    promoCodes.value = Array.isArray(res.data) ? res.data : []
+    // Handle ApiResponse wrapper - data might be in res.data.data or res.data
+    const data = res.data?.data ?? res.data
+    promoCodes.value = Array.isArray(data) ? data : []
   } catch (e) {
     error.value = e?.response?.data?.message || e?.message || 'Failed to load promo codes'
+    promoCodes.value = []
   } finally {
     loading.value = false
   }
@@ -84,7 +87,10 @@ async function createPromo() {
       applicableForNewUsersOnly: Boolean(form.value.applicableForNewUsersOnly),
     }
 
-    await api.post('/api/promo-codes/create', payload)
+    const res = await api.post('/api/promo-codes/create', payload)
+    console.log('Created promo code:', res.data)
+    
+    // Refresh the list after creation
     await fetchAll()
 
     form.value.code = ''

@@ -85,12 +85,26 @@ public class DeliveryServiceImpl implements DeliveryService {
 
     @Override
     public List<DeliveryResponseDTO> getByClient(Long clientId) {
-        return deliveryRepo.findByClientId(clientId).stream().map(mapper::toResponse).toList();
+        return deliveryRepo.findByClientId(clientId).stream()
+                .sorted((a, b) -> {
+                    LocalDateTime dateA = a.getCreatedAt() != null ? a.getCreatedAt() : LocalDateTime.MIN;
+                    LocalDateTime dateB = b.getCreatedAt() != null ? b.getCreatedAt() : LocalDateTime.MIN;
+                    return dateB.compareTo(dateA); // Descending order (newest first)
+                })
+                .map(mapper::toResponse)
+                .toList();
     }
 
     @Override
     public List<DeliveryResponseDTO> getByAgent(Long agentId) {
-        return deliveryRepo.findByAgentId(agentId).stream().map(mapper::toResponse).toList();
+        return deliveryRepo.findByAgentId(agentId).stream()
+                .sorted((a, b) -> {
+                    LocalDateTime dateA = a.getCreatedAt() != null ? a.getCreatedAt() : LocalDateTime.MIN;
+                    LocalDateTime dateB = b.getCreatedAt() != null ? b.getCreatedAt() : LocalDateTime.MIN;
+                    return dateB.compareTo(dateA); // Descending order (newest first)
+                })
+                .map(mapper::toResponse)
+                .toList();
     }
 
     @Override

@@ -39,3 +39,8 @@ application-prod.properties
 
 # User uploads
 backend/uploads/
+
+# H2 Database files
+backend/data/
+*.mv.db
+*.trace.db

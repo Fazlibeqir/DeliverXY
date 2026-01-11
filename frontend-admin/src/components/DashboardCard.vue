@@ -8,7 +8,7 @@
 <script setup>
 defineProps({
   title: String,
-  count: Number,
+  count: [Number, String],
   color: String,
 })
 </script>

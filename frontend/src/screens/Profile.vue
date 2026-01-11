@@ -2,23 +2,38 @@
   <GridLayout rows="*">
     <ScrollView row="0">
       <StackLayout class="p-4">
-      <Label text="Profile" class="section-header mb-4" />
+      <!-- Header -->
+      <StackLayout class="mb-6">
+        <Label text="👤 Profile" class="section-header mb-1" />
+        <Label text="Manage your account settings" class="text-secondary text-sm" />
+      </StackLayout>
 
-      <StackLayout class="card-elevated mb-4">
+      <!-- Account Information -->
+      <StackLayout class="card-elevated mb-4 p-4">
+        <Label text="Account Information" class="section-subheader mb-3 font-bold" />
         <StackLayout class="mb-3">
-          <Label text="Account Information" class="section-subheader mb-2" />
-          <Label :text="userName" class="text-xl font-bold mb-1" />
-          <Label :text="authStore.user?.role === 'CLIENT' ? 'Client Account' : 'Delivery Agent'" class="text-secondary" />
+          <Label :text="userName" class="text-2xl font-bold mb-2" />
+          <Label 
+            :text="authStore.user?.role === 'CLIENT' ? '👤 Client Account' : '🚚 Delivery Agent'" 
+            class="text-secondary font-semibold" 
+          />
         </StackLayout>
-        <StackLayout class="divider" />
+        <StackLayout class="divider mb-3" />
         <StackLayout class="mt-2">
-          <Label :text="`Email: ${authStore.user?.email || 'N/A'}`" class="text-sm text-secondary mb-1" />
-          <Label :text="`Phone: ${authStore.user?.phoneNumber || 'N/A'}`" class="text-sm text-secondary" />
+          <StackLayout class="mb-2" orientation="horizontal">
+            <Label text="📧" class="mr-2" />
+            <Label :text="authStore.user?.email || 'N/A'" class="text-sm text-secondary" style="flex-grow: 1;" />
+          </StackLayout>
+          <StackLayout orientation="horizontal">
+            <Label text="📱" class="mr-2" />
+            <Label :text="authStore.user?.phoneNumber || 'N/A'" class="text-sm text-secondary" style="flex-grow: 1;" />
+          </StackLayout>
         </StackLayout>
       </StackLayout>
 
-      <StackLayout v-if="isAgent" class="card-elevated mb-4">
-        <Label text="Verification Status" class="section-subheader mb-3" />
+      <!-- KYC Verification (Agents Only) -->
+      <StackLayout v-if="isAgent" class="card-elevated mb-4 p-4">
+        <Label text="🔒 Verification Status" class="section-subheader mb-3 font-bold" />
         <StackLayout class="mb-3">
           <Label :text="kycLabel" :class="kycClass" class="font-bold text-lg mb-2" />
           <Label v-if="kycStore.status === 'PENDING'"
@@ -32,18 +47,20 @@
             class="text-danger text-sm mt-1" />
         </StackLayout>
 
-        <Button v-if="needsKYC" text="Complete KYC" class="btn-primary-compact" @tap="goToKYC" />
+        <Button v-if="needsKYC" text="Complete KYC Verification" class="btn-primary-compact" @tap="goToKYC" />
       </StackLayout>
 
-      <StackLayout class="mb-4">
-        <Label text="Account Actions" class="section-subheader mb-2" />
-        <Button text="Edit Profile" class="btn-outline mb-2" @tap="goToEditProfile" />
-        <Button v-if="isAgent" text="My Vehicles" class="btn-outline mb-2" @tap="goToVehicles" />
-        <Button v-if="isAgent" text="Earnings & Payouts" class="btn-outline mb-2" @tap="goToEarnings" />
-        <Button v-if="isAgent" text="My Ratings" class="btn-outline mb-2" @tap="goToMyRatings" />
+      <!-- Account Actions -->
+      <StackLayout class="card-elevated mb-4 p-4">
+        <Label text="⚙️ Account Actions" class="section-subheader mb-3 font-bold" />
+        <Button text="✏️ Edit Profile" class="btn-outline mb-2" @tap="goToEditProfile" />
+        <Button v-if="isAgent" text="🚗 My Vehicles" class="btn-outline mb-2" @tap="goToVehicles" />
+        <Button v-if="isAgent" text="💰 Earnings & Payouts" class="btn-outline mb-2" @tap="goToEarnings" />
+        <Button v-if="isAgent" text="⭐ My Ratings" class="btn-outline mb-2" @tap="goToMyRatings" />
       </StackLayout>
 
-      <Button text="Logout" class="btn-danger" @tap="logout" />
+      <!-- Logout -->
+      <Button text="🚪 Logout" class="btn-danger" @tap="logout" />
 
     </StackLayout>
     </ScrollView>

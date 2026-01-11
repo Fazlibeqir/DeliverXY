@@ -9,6 +9,7 @@ import com.deliverXY.backend.NewCode.earnings.dto.PayoutRequestDTO;
 import com.deliverXY.backend.NewCode.earnings.repository.DriverEarningsRepository;
 import com.deliverXY.backend.NewCode.earnings.repository.DriverPayoutRepository;
 import com.deliverXY.backend.NewCode.earnings.service.EarningsService;
+import com.deliverXY.backend.NewCode.exceptions.BadRequestException;
 import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
 import com.deliverXY.backend.NewCode.wallet.service.WalletService;
 import lombok.RequiredArgsConstructor;
@@ -136,10 +137,12 @@ public class EarningsServiceImpl implements EarningsService {
         var payout = payoutRepo.findById(payoutId)
                 .orElseThrow(() -> new NotFoundException("Payout not found with ID: " + payoutId));
 
-        if (payout.getStatus() != PayoutStatus.PAID) {
-            log.warn("Attempt to re-process paid payout: {}", payoutId);
-            return;
+        if (payout.getStatus() != PayoutStatus.PENDING) {
+            log.warn("Attempt to process non-pending payout: {} (status: {})", payoutId, payout.getStatus());
+            throw new BadRequestException("Payout is not in PENDING status");
         }
+        
+        // 1. Deposit to driver's wallet
         walletService.deposit(payout.getDriverId(),
                 payout.getAmountPaid(), "Manual payout processing. Ref: " + transactionRef);
 

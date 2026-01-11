@@ -2,91 +2,163 @@
     <GridLayout rows="*">
         <ScrollView row="0">
             <StackLayout class="p-4">
-            <Label text="Create New Delivery" class="section-header mb-4" />
-
-            <StackLayout class="mb-3">
-                <Label text="Title" class="section-subheader mb-1" />
-                <TextField v-model="title" hint="e.g., Package to downtown" class="input" />
+            <!-- Header Section -->
+            <StackLayout class="mb-6">
+                <Label text="📦 Create Delivery" class="section-header mb-2" />
+                <Label text="Fill in the details below to create a new delivery request" class="text-secondary text-sm" />
             </StackLayout>
 
-            <StackLayout class="mb-3">
-                <Label text="Description" class="section-subheader mb-1" />
-                <TextField v-model="description" hint="Additional details (optional)" class="input" />
+            <!-- Step 1: Basic Information -->
+            <StackLayout class="card-elevated mb-4 p-4">
+                <Label text="1️⃣ Basic Information" class="section-subheader mb-3 font-bold" />
+                
+                <StackLayout class="mb-3">
+                    <Label text="Title *" class="section-subheader mb-1" />
+                    <TextField v-model="title" hint="e.g., Package to downtown" class="input" />
+                    <Label v-if="!title && fare" text="⚠️ Title is required" class="text-danger text-xs mt-1" />
+                </StackLayout>
+
+                <StackLayout class="mb-3">
+                    <Label text="Description (Optional)" class="section-subheader mb-1" />
+                    <TextField v-model="description" hint="Additional details about your delivery" class="input" />
+                </StackLayout>
             </StackLayout>
 
-            <StackLayout class="mb-3">
-                <Label text="Delivery Address" class="section-subheader mb-1" />
-                <TextField v-model="dropoffQuery" hint="Type address, place name, or landmark" class="input" @textChange="onAddressInput" />
-                <Label text="💡 Tip: Type a place name, mall, cafe, street or landmark" class="text-xs text-secondary mt-1" />
-            </StackLayout>
-
-            <StackLayout v-if="addressResults.length" class="card-elevated mb-3">
-                <Label v-for="a in addressResults" :key="a.label" :text="a.label" class="p-3 border-b border-gray-200"
-                    @tap="selectAddress(a)" />
-            </StackLayout>
-
-            <StackLayout class="mb-3">
-                <Label text="Recipient Name" class="section-subheader mb-1" />
-                <TextField v-model="dropoffContactName" hint="Enter recipient's name" class="input" />
-            </StackLayout>
-
-            <StackLayout class="mb-4">
-                <Label text="Recipient Phone" class="section-subheader mb-1" />
-                <TextField v-model="dropoffContactPhone" hint="Enter recipient's phone number" keyboardType="phone"
-                    class="input" />
-            </StackLayout>
-
-            <StackLayout class="mb-4">
-                <Label text="Delivery Type" class="section-subheader mb-2" />
-                <ListPicker :items="deliveryTypeLabels" :selectedIndex="deliveryTypeIndex"
-                    @selectedIndexChange="onDeliveryTypeChange" class="mb-2" />
-            </StackLayout>
-
-            <StackLayout v-show="selectedDeliveryType !== 'PASSENGER'" class="mb-4">
-                <Label text="Package Weight (kg)" class="section-subheader mb-1" />
-                <TextField v-model="packageWeight" hint="Enter weight in kilograms"
-                    keyboardType="number" class="input" />
-            </StackLayout>
-
-            <StackLayout class="mb-3">
-                <Label text="Your Name (Pickup)" class="section-subheader mb-1" />
-                <TextField v-model="pickupContactName" hint="Your name" class="input" />
-            </StackLayout>
-
-            <StackLayout class="mb-4">
-                <Label text="Your Phone (Pickup)" class="section-subheader mb-1" />
-                <TextField v-model="pickupContactPhone" hint="Your phone number" keyboardType="phone"
-                    class="input" />
-            </StackLayout>
-
-            <StackLayout class="mb-4">
-                <Label text="Promo Code (Optional)" class="section-subheader mb-1" />
-                <TextField v-model="promoCode" hint="Enter promo code" class="input" autocapitalizationType="allcharacters" />
-            </StackLayout>
-            <Button text="💰 Estimate Fare" class="btn-outline mb-4" :isEnabled="addressSelected && !loading"
-                @tap="estimate" />
-
-            <StackLayout v-if="fare" class="card-elevated p-4 mb-4">
-                <Label text="Fare Estimate" class="section-subheader mb-3" />
+            <!-- Step 2: Delivery Address -->
+            <StackLayout class="card-elevated mb-4 p-4">
+                <Label text="2️⃣ Delivery Address *" class="section-subheader mb-3 font-bold" />
+                
                 <StackLayout class="mb-2">
-                    <Label :text="`${Number(fare.totalFare).toFixed(2)} ден`" class="text-3xl font-bold text-primary mb-1" />
-                    <Label text="Total Price" class="text-xs text-secondary" />
+                    <TextField v-model="dropoffQuery" hint="📍 Type address, place name, or landmark" class="input" @textChange="onAddressInput" />
+                    <Label v-if="!addressSelected && fare" text="⚠️ Please select an address from the list" class="text-danger text-xs mt-1" />
+                    <Label v-else-if="addressSelected" text="✓ Address selected" class="text-success text-xs mt-1" />
                 </StackLayout>
-                <StackLayout class="divider" />
-                <StackLayout class="mt-2">
-                    <Label :text="`Distance: ${Number(fare.distanceKm).toFixed(2)} km`" class="text-sm mb-1" />
-                    <Label :text="`Estimated Time: ${fare.estimatedMinutes} minutes`" class="text-sm mb-2" />
-                    <Label v-if="fare.discount && Number(fare.discount) > 0" 
-                        :text="`Discount: -${Number(fare.discount).toFixed(2)} ден`" 
-                        class="text-success text-sm mb-1" />
-                    <Label v-if="fare.promoCodeApplied" 
-                        :text="`Promo: ${fare.promoCodeApplied}`" 
-                        class="text-secondary text-xs" />
+                
+                <Label text="💡 Tip: Type a place name, mall, cafe, street or landmark" class="text-xs text-secondary mt-1 mb-2" />
+
+                <StackLayout v-if="addressResults.length" class="card mb-2" style="max-height: 200;">
+                    <ScrollView>
+                        <StackLayout>
+                            <Label 
+                                v-for="(a, index) in addressResults" 
+                                :key="a.label" 
+                                :text="a.label" 
+                                class="p-3"
+                                :class="index < addressResults.length - 1 ? 'border-b border-gray-200' : ''"
+                                @tap="selectAddress(a)" 
+                            />
+                        </StackLayout>
+                    </ScrollView>
                 </StackLayout>
             </StackLayout>
 
-            <Button text="✓ Create Delivery" class="btn-primary mb-2" :isEnabled="!!fare && !loading" @tap="create" />
-            <Button text="Reset Form" class="btn-secondary" @tap="resetForm" />
+            <!-- Step 3: Contact Information -->
+            <StackLayout class="card-elevated mb-4 p-4">
+                <Label text="3️⃣ Contact Information *" class="section-subheader mb-3 font-bold" />
+                
+                <StackLayout class="mb-3">
+                    <Label text="Recipient Name *" class="section-subheader mb-1" />
+                    <TextField v-model="dropoffContactName" hint="Enter recipient's name" class="input" />
+                    <Label v-if="!dropoffContactName && fare" text="⚠️ Required" class="text-danger text-xs mt-1" />
+                </StackLayout>
+
+                <StackLayout class="mb-3">
+                    <Label text="Recipient Phone *" class="section-subheader mb-1" />
+                    <TextField v-model="dropoffContactPhone" hint="Enter recipient's phone number" keyboardType="phone"
+                        class="input" />
+                    <Label v-if="!dropoffContactPhone && fare" text="⚠️ Required" class="text-danger text-xs mt-1" />
+                </StackLayout>
+
+                <StackLayout class="divider mb-3" />
+                
+                <StackLayout class="mb-3">
+                    <Label text="Your Name (Pickup) *" class="section-subheader mb-1" />
+                    <TextField v-model="pickupContactName" hint="Your name" class="input" />
+                    <Label v-if="!pickupContactName && fare" text="⚠️ Required" class="text-danger text-xs mt-1" />
+                </StackLayout>
+
+                <StackLayout class="mb-2">
+                    <Label text="Your Phone (Pickup) *" class="section-subheader mb-1" />
+                    <TextField v-model="pickupContactPhone" hint="Your phone number" keyboardType="phone"
+                        class="input" />
+                    <Label v-if="!pickupContactPhone && fare" text="⚠️ Required" class="text-danger text-xs mt-1" />
+                </StackLayout>
+            </StackLayout>
+
+            <!-- Step 4: Delivery Details -->
+            <StackLayout class="card-elevated mb-4 p-4">
+                <Label text="4️⃣ Delivery Details" class="section-subheader mb-3 font-bold" />
+                
+                <StackLayout class="mb-3">
+                    <Label text="Delivery Type *" class="section-subheader mb-2" />
+                    <ListPicker :items="deliveryTypeLabels" :selectedIndex="deliveryTypeIndex"
+                        @selectedIndexChange="onDeliveryTypeChange" class="mb-2" />
+                </StackLayout>
+
+                <StackLayout v-show="selectedDeliveryType !== 'PASSENGER'" class="mb-3">
+                    <Label text="Package Weight (kg) *" class="section-subheader mb-1" />
+                    <TextField v-model="packageWeight" hint="Enter weight in kilograms"
+                        keyboardType="number" class="input" />
+                    <Label v-if="(!packageWeight || Number(packageWeight) <= 0) && fare && selectedDeliveryType !== 'PASSENGER'" 
+                        text="⚠️ Please enter a valid weight" class="text-danger text-xs mt-1" />
+                </StackLayout>
+
+                <StackLayout class="mb-2">
+                    <Label text="Promo Code (Optional)" class="section-subheader mb-1" />
+                    <TextField v-model="promoCode" hint="Enter promo code to save money" class="input" autocapitalizationType="allcharacters" />
+                </StackLayout>
+            </StackLayout>
+
+            <!-- Estimate Fare Button -->
+            <Button 
+                :text="loading ? '⏳ Estimating...' : '💰 Estimate Fare'" 
+                class="btn-primary mb-4" 
+                :isEnabled="addressSelected && !loading"
+                @tap="estimate" 
+            />
+
+            <!-- Fare Estimate Card -->
+            <StackLayout v-if="fare" class="card-elevated p-5 mb-4" style="background-color: #F8F9FA;">
+                <StackLayout class="mb-3">
+                    <Label text="💵 Fare Estimate" class="section-subheader mb-3 font-bold" />
+                    <StackLayout class="mb-3">
+                        <Label :text="`${Number(fare.totalFare).toFixed(2)} ден`" class="text-4xl font-bold text-primary mb-1" />
+                        <Label text="Total Price" class="text-xs text-secondary" />
+                    </StackLayout>
+                </StackLayout>
+                <StackLayout class="divider mb-3" />
+                <StackLayout class="mt-2">
+                    <StackLayout class="mb-2">
+                        <Label text="📏 Distance" class="text-xs text-secondary mb-1" />
+                        <Label :text="`${Number(fare.distanceKm).toFixed(2)} km`" class="text-sm font-semibold" />
+                    </StackLayout>
+                    <StackLayout class="mb-2">
+                        <Label text="⏱️ Estimated Time" class="text-xs text-secondary mb-1" />
+                        <Label :text="`${fare.estimatedMinutes} minutes`" class="text-sm font-semibold" />
+                    </StackLayout>
+                    <StackLayout v-if="fare.discount && Number(fare.discount) > 0" class="mb-2">
+                        <Label text="🎉 Discount Applied" class="text-xs text-secondary mb-1" />
+                        <Label :text="`-${Number(fare.discount).toFixed(2)} ден`" 
+                            class="text-success text-sm font-semibold" />
+                    </StackLayout>
+                    <StackLayout v-if="fare.promoCodeApplied" class="mb-2">
+                        <Label text="🎟️ Promo Code" class="text-xs text-secondary mb-1" />
+                        <Label :text="fare.promoCodeApplied" 
+                            class="text-secondary text-sm font-semibold" />
+                    </StackLayout>
+                </StackLayout>
+            </StackLayout>
+
+            <!-- Action Buttons -->
+            <StackLayout v-if="fare">
+                <Button 
+                    :text="loading ? '⏳ Creating...' : '✓ Create Delivery'" 
+                    class="btn-primary mb-3" 
+                    :isEnabled="!!fare && !loading" 
+                    @tap="create" 
+                />
+                <Button text="🔄 Reset Form" class="btn-outline" @tap="resetForm" />
+            </StackLayout>
 
         </StackLayout>
         </ScrollView>

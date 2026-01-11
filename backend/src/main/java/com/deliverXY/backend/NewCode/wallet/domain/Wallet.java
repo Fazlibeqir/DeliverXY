@@ -57,9 +57,8 @@ public class Wallet {
     }
     
     public boolean canWithdraw(BigDecimal amount) {
-        return balance.compareTo(amount) >= 0 && 
-               dailySpent.add(amount).compareTo(dailyLimit) <= 0 &&
-               monthlySpent.add(amount).compareTo(monthlyLimit) <= 0;
+        // Only check balance - no daily/monthly limits
+        return balance.compareTo(amount) >= 0;
     }
     
     public void addFunds(BigDecimal amount) {

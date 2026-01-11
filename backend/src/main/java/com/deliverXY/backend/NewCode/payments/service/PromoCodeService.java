@@ -63,12 +63,26 @@ public class PromoCodeService {
 
         PromoCode promoCode = promoCodeOpt.get();
 
-        // Check if promo code is valid (Assuming isValid checks dates/activity)
-        // NOTE: If the original PromoCode domain object does not have isValid(), this line will fail compilation.
-        // Assuming `isValid()` was replaced by direct checks in the service, or the domain object has a simple internal check.
-        // For simplicity and to avoid circular dependency issues, we'll keep the checks explicit here.
-        if (promoCode.getEndDate() != null && LocalDateTime.now().isAfter(promoCode.getEndDate())) {
-            return new PromoCodeValidationResult(false, "Promo code is expired or inactive", BigDecimal.ZERO, null);
+        // Check if promo code is active
+        if (promoCode.getIsActive() == null || !promoCode.getIsActive()) {
+            return new PromoCodeValidationResult(false, "Promo code is not active", BigDecimal.ZERO, null);
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        // Check start date
+        if (promoCode.getStartDate() != null && now.isBefore(promoCode.getStartDate())) {
+            return new PromoCodeValidationResult(false, "Promo code has not started yet", BigDecimal.ZERO, null);
+        }
+
+        // Check end date
+        if (promoCode.getEndDate() != null && now.isAfter(promoCode.getEndDate())) {
+            return new PromoCodeValidationResult(false, "Promo code has expired", BigDecimal.ZERO, null);
+        }
+
+        // Check total usage limit
+        if (promoCode.getUsageLimit() != null && promoCode.getCurrentUsage() >= promoCode.getUsageLimit()) {
+            return new PromoCodeValidationResult(false, "Promo code usage limit has been reached", BigDecimal.ZERO, null);
         }
 
         // Check minimum order amount
@@ -95,8 +109,8 @@ public class PromoCodeService {
         }
 
         // Check usage per user limit
-        long userUsageCount = promoCodeUsageRepository.countByPromoCodeAndUser(promoCode, user);
-        if (promoCode.getUsagePerUser() != null && userUsageCount >= promoCode.getUsagePerUser()) {
+        Long userUsageCount = promoCodeUsageRepository.countByPromoCodeAndUser(promoCode, user);
+        if (promoCode.getUsagePerUser() != null && userUsageCount != null && userUsageCount >= promoCode.getUsagePerUser()) {
             return new PromoCodeValidationResult(false, "You have already used this promo code the maximum number of times", BigDecimal.ZERO, null);
         }
 
@@ -194,6 +208,13 @@ public class PromoCodeService {
     }
 
     /**
+     * Get all promo codes (for admin - includes inactive, expired, etc.)
+     */
+    public List<PromoCode> getAllPromoCodes() {
+        return promoCodeRepository.findAll();
+    }
+
+    /**
      * Get promo code by code
      */
     public Optional<PromoCode> getPromoCodeByCode(String code) {
@@ -212,6 +233,9 @@ public class PromoCodeService {
      */
     @Transactional
     public void deactivatePromoCode(Long promoCodeId) {
+        if (promoCodeId == null) {
+            throw new BadRequestException("Promo code ID cannot be null");
+        }
         promoCodeRepository.findById(promoCodeId).ifPresent(promoCode -> {
             promoCode.setIsActive(false);
             promoCodeRepository.save(promoCode);

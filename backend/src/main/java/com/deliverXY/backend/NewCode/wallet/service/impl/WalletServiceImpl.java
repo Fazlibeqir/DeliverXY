@@ -18,6 +18,7 @@ import com.deliverXY.backend.NewCode.wallet.service.WalletService;
 import com.stripe.model.PaymentIntent;
 import com.stripe.param.PaymentIntentCreateParams;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +30,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @Transactional
 public class WalletServiceImpl implements WalletService {
 
@@ -168,16 +170,35 @@ public class WalletServiceImpl implements WalletService {
     }
 
     @Override
+    @Transactional
     public void ensureSufficientBalance(Long userId, BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Amount must be positive");
         }
 
-        Wallet wallet = getWallet(userId);
+        Wallet wallet = getWalletEntity(userId);
+        
+        // Reload to ensure we have the latest balance (in case of concurrent updates)
+        wallet = walletRepository.findById(wallet.getId())
+                .orElseThrow(() -> new com.deliverXY.backend.NewCode.exceptions.NotFoundException("Wallet not found"));
 
-        if (!wallet.canWithdraw(amount)) {
-            throw new IllegalStateException("Insufficient wallet balance");
+        BigDecimal balance = wallet.getBalance() != null ? wallet.getBalance() : BigDecimal.ZERO;
+        
+        log.info("Checking wallet balance for user {}: Required={}, Available={}", userId, amount, balance);
+
+        // Only check balance - no daily/monthly limits
+        if (balance.compareTo(amount) < 0) {
+            String errorMsg = String.format("Insufficient wallet balance. Required: %.2f MKD, Available: %.2f MKD", 
+                amount, balance);
+            log.warn("Balance check failed for user {}: {}", userId, errorMsg);
+            throw new com.deliverXY.backend.NewCode.exceptions.BadRequestException(errorMsg);
         }
+        
+        log.info("Balance check passed for user {}: Available={} >= Required={}", userId, balance, amount);
+    }
+    
+    private BigDecimal safe(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 
     @Override

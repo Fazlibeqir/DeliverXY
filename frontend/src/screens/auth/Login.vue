@@ -1,32 +1,60 @@
 <template>
   <Page>
     <GridLayout rows="*,auto,*" class="bg-gray-100">
-      <StackLayout row="1" class="card-elevated mx-6">
-        <StackLayout class="mb-6">
-          <Label text="DeliverXY" class="text-3xl font-bold text-center mb-2 text-primary" />
-          <Label text="Welcome back!" class="text-lg text-center mb-1 text-secondary" />
+      <StackLayout row="1" class="card-elevated mx-6 p-6">
+        <!-- Header -->
+        <StackLayout class="mb-8">
+          <Label text="📦 DeliverXY" class="text-4xl font-bold text-center mb-3 text-primary" />
+          <Label text="Welcome back!" class="text-xl text-center mb-2 text-secondary font-semibold" />
           <Label text="Sign in to continue" class="text-sm text-center text-secondary" />
         </StackLayout>
 
+        <!-- Login Form -->
         <StackLayout class="mb-4">
-          <Label text="Email or Username" class="section-subheader mb-1" />
-          <TextField v-model="identifier" hint="Enter your email or username" class="input" />
+          <Label text="Email or Username *" class="section-subheader mb-2" />
+          <TextField 
+            v-model="identifier" 
+            hint="Enter your email or username" 
+            class="input" 
+            :isEnabled="!loading"
+          />
         </StackLayout>
 
-        <StackLayout class="mb-4">
-          <Label text="Password" class="section-subheader mb-1" />
-          <TextField v-model="password" hint="Enter your password" secure class="input" />
+        <StackLayout class="mb-5">
+          <Label text="Password *" class="section-subheader mb-2" />
+          <TextField 
+            v-model="password" 
+            hint="Enter your password" 
+            secure 
+            class="input" 
+            :isEnabled="!loading"
+          />
         </StackLayout>
 
-        <Label v-if="error" :text="error" class="text-danger text-center mb-3 p-2" />
+        <!-- Error Message -->
+        <StackLayout v-if="error" class="card mb-4 p-3" style="background-color: #FFEBEE;">
+          <Label :text="error" class="text-danger text-center text-sm" />
+        </StackLayout>
 
-        <Button :text="loading ? 'Logging in…' : 'SIGN IN'" :isEnabled="!loading" class="btn-primary mb-4" @tap="submit" />
+        <!-- Login Button -->
+        <Button 
+          :text="loading ? '⏳ Logging in…' : '✓ SIGN IN'" 
+          :isEnabled="isFormValid" 
+          class="btn-primary mb-4" 
+          @tap="submit" 
+        />
         
-        <StackLayout class="divider" />
+        <StackLayout class="divider mb-4" />
         
-        <StackLayout class="text-center mt-4 mb-2">
+        <!-- Register Link -->
+        <StackLayout class="text-center">
           <Label text="Don't have an account?" class="text-secondary mb-3" />
-          <Button text="CREATE ACCOUNT" class="btn-secondary-action" @tap="goToRegister" />
+          <Button 
+            text="CREATE ACCOUNT" 
+            class="btn-secondary-action" 
+            :isEnabled="!loading"
+            @tap="goToRegister" 
+          />
         </StackLayout>
 
       </StackLayout>
@@ -36,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-import { getCurrentInstance, ref } from "vue";
+import { getCurrentInstance, ref, computed } from "vue";
 import { authStore } from "../../stores/auth.store";
 import Register from "./Register.vue";
 
@@ -47,6 +75,12 @@ const error = ref("");
 
 const instance = getCurrentInstance();
 const navigateTo = instance!.proxy!.$navigateTo;
+
+// Computed property to check if form is valid
+const isFormValid = computed(() => {
+  return !loading.value && identifier.value.trim().length > 0 && password.value.trim().length > 0;
+});
+
 async function submit() {
   error.value = "";
   loading.value = true;

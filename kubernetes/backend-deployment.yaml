@@ -71,4 +71,29 @@ spec:
 
           # Set Spring active profile here:
           - name: SPRING_PROFILES_ACTIVE
-            value: dev  # or "prod" for production environment
+            value: prod  # Production environment
+          - name: APP_UPLOADS_DIR
+            value: "/app/uploads"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+          - name: uploads-volume
+            mountPath: /app/uploads
+      volumes:
+        - name: uploads-volume
+          persistentVolumeClaim:
+            claimName: uploads-pvc

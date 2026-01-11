@@ -16,10 +16,7 @@ public class JacksonConfig {
     public ObjectMapper objectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         
-        // Handle Hibernate lazy loading proxies
-        mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        
-        // Handle circular references gracefully
+        // Handle Hibernate lazy loading proxies and circular references gracefully
         mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         

@@ -141,12 +141,12 @@ public class PromoCodeController {
     }
 
     /**
-     * Get all promo codes (Admin only)
+     * Get all promo codes (Admin only) - returns all codes including inactive ones
      */
     @GetMapping("/all")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<List<PromoCode>> getAllPromoCodes() {
-        List<PromoCode> promoCodes = promoCodeService.getActivePromoCodes();
+        List<PromoCode> promoCodes = promoCodeService.getAllPromoCodes();
         return ApiResponse.ok(promoCodes);
     }
 
