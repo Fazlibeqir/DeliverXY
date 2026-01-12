@@ -15,7 +15,7 @@ const rejectionReason = ref('')
 const showRejectModal = ref(false)
 const processing = ref(false)
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+const baseURL = import.meta.env.VITE_API_URL || 'http://13.60.225.179:8080'
 const apiBaseURL = baseURL.replace(/\/$/, '') // Remove trailing slash
 
 async function fetchKYC() {

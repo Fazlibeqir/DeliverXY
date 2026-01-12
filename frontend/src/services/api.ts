@@ -1,7 +1,7 @@
 import { Http, ImageSource, knownFolders, path as nsPath, File } from "@nativescript/core";
 import { secureStorage, TOKEN_KEYS } from "./secure-storage";
 
-export const API_URL = "http://192.168.0.11:8080";
+export const API_URL = "http://13.60.225.179:8080";
 
 export function toAbsoluteUrl(path: string | null | undefined): string | undefined {
     if (!path) return undefined;
