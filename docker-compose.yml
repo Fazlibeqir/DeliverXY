@@ -45,6 +45,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/deliverxy
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      STRIPE_SECRET_KEY: sk_test_dummy_key_for_dev
       APP_UPLOADS_DIR: /app/uploads
     ports:
       - "8080:8080"
@@ -60,7 +61,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-
   admin:
     build:
       context: ./frontend-admin
