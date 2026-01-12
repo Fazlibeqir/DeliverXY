@@ -1,9 +1,7 @@
 import { Http } from "@nativescript/core";
 import { secureStorage, TOKEN_KEYS } from "./secure-storage";
 import { ImageSource } from "@nativescript/core";
-
-
-const API_URL = "http://13.60.225.179:8080";
+import { API_URL } from "../config";
 
 async function authHeaders() {
     const token = await secureStorage.get({ key: TOKEN_KEYS.access });

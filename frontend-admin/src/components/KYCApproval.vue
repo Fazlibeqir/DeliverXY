@@ -2,6 +2,7 @@
 import api from '../services/axios'
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { API_URL } from '../config'
 
 const route = useRoute()
 const router = useRouter()
@@ -15,7 +16,7 @@ const rejectionReason = ref('')
 const showRejectModal = ref(false)
 const processing = ref(false)
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://13.60.225.179:8080'
+const baseURL = API_URL
 const apiBaseURL = baseURL.replace(/\/$/, '') // Remove trailing slash
 
 async function fetchKYC() {

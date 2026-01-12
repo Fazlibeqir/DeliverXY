@@ -3,8 +3,9 @@ import { useAuthStore } from '../stores/auth'
 import { extractTokens } from './authTokens'
 import { rawApi } from './http'
 import { unwrapApiResponse } from './apiResponse'
+import { API_URL } from '../config'
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://13.60.225.179:8080'
+const baseURL = API_URL
 
 const api = axios.create({ baseURL })
 
