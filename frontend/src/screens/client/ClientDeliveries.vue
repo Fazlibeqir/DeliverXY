@@ -1,6 +1,39 @@
 <template>
-  <GridLayout rows="*">
-    <ScrollView row="0">
+  <GridLayout rows="auto, *">
+    <!-- Search and Filter Bar -->
+    <StackLayout row="0" class="p-4" style="background-color: #FFFFFF; border-bottom-width: 1; border-bottom-color: #e0e0e0;">
+      <!-- Search Input -->
+      <StackLayout class="mb-3">
+        <TextField 
+          v-model="searchQuery" 
+          hint="🔍 Search deliveries..." 
+          class="input"
+          @textChange="onSearchChange"
+        />
+      </StackLayout>
+      
+      <!-- Filter Chips -->
+      <ScrollView orientation="horizontal" scrollBarIndicatorVisible="false" class="mb-2">
+        <StackLayout orientation="horizontal">
+          <Button
+            :text="`All (${filteredDeliveries.length})`"
+            :class="selectedStatus === 'ALL' ? 'btn-primary-compact' : 'btn-outline-compact'"
+            style="margin-right: 8;"
+            @tap="setStatusFilter('ALL')"
+          />
+          <Button
+            v-for="status in statusFilters"
+            :key="status.value"
+            :text="`${status.label} (${getStatusCount(status.value)})`"
+            :class="selectedStatus === status.value ? 'btn-primary-compact' : 'btn-outline-compact'"
+            style="margin-right: 8;"
+            @tap="setStatusFilter(status.value)"
+          />
+        </StackLayout>
+      </ScrollView>
+    </StackLayout>
+
+    <ScrollView row="1">
       <StackLayout class="p-4">
       <!-- Header -->
       <StackLayout class="mb-4">
@@ -9,14 +42,11 @@
       </StackLayout>
 
       <!-- Loading State -->
-      <StackLayout v-if="store.loading" class="loading-container">
-        <ActivityIndicator busy="true" />
-        <Label text="Loading deliveries..." class="loading-text" />
-      </StackLayout>
+      <SkeletonLoader v-if="store.loading" type="list" :count="3" />
 
       <!-- Delivery Cards -->
       <StackLayout
-        v-for="d in store.list"
+        v-for="d in paginatedDeliveries"
         :key="d.id"
         class="card-elevated mb-4 p-4"
         :style="getCardStyle(d.status)"
@@ -73,12 +103,45 @@
 
       <!-- Empty State -->
       <StackLayout
-        v-if="!store.loading && store.list.length === 0"
+        v-if="!store.loading && filteredDeliveries.length === 0"
         class="empty-state"
       >
         <Label text="📦" class="empty-state-icon" />
-        <Label text="No deliveries yet" class="empty-state-text font-bold" />
-        <Label text="Create your first delivery from the home screen" class="text-secondary text-sm mt-2" />
+        <Label 
+          :text="searchQuery || selectedStatus !== 'ALL' ? 'No deliveries match your filters' : 'No deliveries yet'" 
+          class="empty-state-text font-bold" 
+        />
+        <Label 
+          :text="searchQuery || selectedStatus !== 'ALL' ? 'Try adjusting your search or filters' : 'Create your first delivery from the home screen'" 
+          class="text-secondary text-sm mt-2" 
+        />
+      </StackLayout>
+
+      <!-- Pagination Controls -->
+      <StackLayout 
+        v-if="!store.loading && filteredDeliveries.length > itemsPerPage"
+        class="mt-4"
+        orientation="horizontal"
+      >
+        <Button
+          text="← Previous"
+          :isEnabled="currentPage > 1"
+          class="btn-outline"
+          style="flex-grow: 1; margin-right: 8;"
+          @tap="prevPage"
+        />
+        <Label 
+          :text="`Page ${currentPage} of ${totalPages}`" 
+          class="text-center"
+          style="flex-grow: 1; padding: 12;"
+        />
+        <Button
+          text="Next →"
+          :isEnabled="currentPage < totalPages"
+          class="btn-outline"
+          style="flex-grow: 1; margin-left: 8;"
+          @tap="nextPage"
+        />
       </StackLayout>
 
     </StackLayout>
@@ -87,16 +150,100 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
-import { ActivityIndicator } from "@nativescript/core";
+import { onMounted, onUnmounted, ref, computed } from "vue";
 import { useClientDeliveriesStore } from "../../stores/useDeliveryStore";
+import SkeletonLoader from "../../components/SkeletonLoader.vue";
 import RateDelivery from "../ratings/RateDelivery.vue";
 import { $navigateTo } from "nativescript-vue";
 import * as RatingsService from "@/services/ratings.service";
 import { authStore } from "@/stores/auth.store";
+import { debounce } from "@/utils/debounce";
+import type { DeliveryStatus } from "@/services/deliveries.service";
 
 const store = useClientDeliveriesStore();
 const rated = ref<Record<number, boolean>>({});
+const searchQuery = ref("");
+const selectedStatus = ref<DeliveryStatus | "ALL">("ALL");
+
+// Pagination
+const itemsPerPage = ref(10);
+const currentPage = ref(1);
+
+const statusFilters = [
+  { value: "PENDING" as DeliveryStatus, label: "Pending" },
+  { value: "ASSIGNED" as DeliveryStatus, label: "Assigned" },
+  { value: "PICKED_UP" as DeliveryStatus, label: "Picked Up" },
+  { value: "IN_TRANSIT" as DeliveryStatus, label: "In Transit" },
+  { value: "DELIVERED" as DeliveryStatus, label: "Delivered" },
+  { value: "CANCELLED" as DeliveryStatus, label: "Cancelled" },
+];
+
+// Filtered deliveries based on search and status
+const filteredDeliveries = computed(() => {
+  let filtered = [...store.list];
+  
+  // Filter by status
+  if (selectedStatus.value !== "ALL") {
+    filtered = filtered.filter(d => d.status === selectedStatus.value);
+  }
+  
+  // Filter by search query
+  if (searchQuery.value.trim().length > 0) {
+    const query = searchQuery.value.toLowerCase().trim();
+    filtered = filtered.filter(d => {
+      const title = (d.title || "").toLowerCase();
+      const description = (d.description || "").toLowerCase();
+      const pickupAddress = (d.pickupAddress || "").toLowerCase();
+      const dropoffAddress = (d.dropoffAddress || "").toLowerCase();
+      const id = d.id?.toString() || "";
+      
+      return title.includes(query) ||
+             description.includes(query) ||
+             pickupAddress.includes(query) ||
+             dropoffAddress.includes(query) ||
+             id.includes(query);
+    });
+  }
+  
+  return filtered;
+});
+
+// Paginated deliveries
+const paginatedDeliveries = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return filteredDeliveries.value.slice(start, end);
+});
+
+const totalPages = computed(() => {
+  return Math.ceil(filteredDeliveries.value.length / itemsPerPage.value);
+});
+
+function setStatusFilter(status: DeliveryStatus | "ALL") {
+  selectedStatus.value = status;
+  currentPage.value = 1; // Reset to first page when filter changes
+}
+
+function onSearchChange() {
+  currentPage.value = 1; // Reset to first page when search changes
+}
+
+function nextPage() {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++;
+  }
+}
+
+function prevPage() {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+  }
+}
+
+function getStatusCount(status: DeliveryStatus | "ALL"): number {
+  if (status === "ALL") return store.list.length;
+  return store.list.filter(d => d.status === status).length;
+}
 
 onMounted(() => {
   (globalThis as any).__clientDeliveriesTabActivated = () => {

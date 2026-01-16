@@ -67,6 +67,7 @@
 import { getCurrentInstance, ref, computed } from "vue";
 import { authStore } from "../../stores/auth.store";
 import Register from "./Register.vue";
+import { logger } from "../../utils/logger";
 
 const identifier = ref("");
 const password = ref("");
@@ -87,8 +88,10 @@ async function submit() {
 
   try {
     await authStore.login(identifier.value, password.value);
+    // Login successful - App.vue will handle navigation based on authStore state
   } catch (e: any) {
-    error.value = "Invalid credentials";
+    logger.error("Login error:", e);
+    error.value = e?.message || "Invalid credentials. Please try again.";
   } finally {
     loading.value = false;
   }

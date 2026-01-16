@@ -46,6 +46,7 @@ import { alert, Frame } from "@nativescript/core";
 import * as VehiclesService from "@/services/vehicles.service";
 import * as KYCService from "@/services/kyc.service";
 import { getAuthenticatedImageUrl } from "@/services/api";
+import { logger } from "@/utils/logger";
 
 const props = defineProps<{ id?: number, onSaved?: () => void | Promise<void> }>();
 
@@ -94,7 +95,7 @@ onMounted(async () => {
           cachedImageUrl.value = cached;
         }
       } catch (e) {
-        console.error("Failed to load vehicle image:", e);
+        logger.error("Failed to load vehicle image:", e);
       } finally {
         loadingImage.value = false;
       }
@@ -161,11 +162,11 @@ async function uploadImage() {
         if (cached) {
           cachedImageUrl.value = cached;
         } else {
-          console.error("Failed to cache uploaded image, it won't be displayed");
+          logger.error("Failed to cache uploaded image, it won't be displayed");
           cachedImageUrl.value = "";
         }
       } catch (e) {
-        console.error("Error caching uploaded image:", e);
+        logger.error("Error caching uploaded image:", e);
         cachedImageUrl.value = "";
       }
     }

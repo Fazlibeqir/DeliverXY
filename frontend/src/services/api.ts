@@ -1,6 +1,8 @@
 import { Http, ImageSource, knownFolders, path as nsPath, File } from "@nativescript/core";
 import { secureStorage, TOKEN_KEYS } from "./secure-storage";
 import { API_URL } from "../config";
+import { logger } from "../utils/logger";
+import * as AuthService from "./auth.service";
 
 export { API_URL };
 
@@ -11,8 +13,46 @@ export function toAbsoluteUrl(path: string | null | undefined): string | undefin
     return path;
 }
 
-async function getAccessToken() {
-    return secureStorage.get({ key: TOKEN_KEYS.access });
+let tokenRefreshPromise: Promise<string | null> | null = null;
+
+async function getAccessToken(): Promise<string | null> {
+    const token = await secureStorage.get({ key: TOKEN_KEYS.access });
+    const expiresAt = await secureStorage.get({ key: TOKEN_KEYS.expiresAt });
+    
+    // Check if token is expired or will expire in the next 5 minutes
+    if (token && expiresAt) {
+        const expiresAtMs = parseInt(expiresAt, 10);
+        const now = Date.now();
+        const fiveMinutes = 5 * 60 * 1000;
+        
+        // If token expires in less than 5 minutes, refresh it
+        if (expiresAtMs - now < fiveMinutes) {
+            logger.debug("Token expiring soon, refreshing...");
+            
+            // Prevent multiple simultaneous refresh attempts
+            if (!tokenRefreshPromise) {
+                tokenRefreshPromise = refreshToken();
+            }
+            
+            const newToken = await tokenRefreshPromise;
+            tokenRefreshPromise = null;
+            return newToken;
+        }
+    }
+    
+    return token;
+}
+
+async function refreshToken(): Promise<string | null> {
+    try {
+        logger.debug("Refreshing access token...");
+        await AuthService.refresh();
+        return await secureStorage.get({ key: TOKEN_KEYS.access });
+    } catch (error) {
+        logger.error("Token refresh failed:", error);
+        tokenRefreshPromise = null;
+        return null;
+    }
 }
 
 const imageCache = new Map<string, string>();
@@ -46,13 +86,13 @@ export async function getAuthenticatedImageUrl(imageUrl: string | null | undefin
         });
         
         if (response.statusCode !== 200) {
-            console.error(`Failed to download image: ${response.statusCode}`);
+            logger.error(`Failed to download image: ${response.statusCode}`);
             return undefined;
         }
         
         const content = response.content;
         if (!content) {
-            console.error("No content in response");
+            logger.error("No content in response");
             return undefined;
         }
 
@@ -132,26 +172,26 @@ export async function getAuthenticatedImageUrl(imageUrl: string | null | undefin
                 }
                 
                 if (!imageSource) {
-                    console.error("All extraction methods failed - could not extract image data from HttpContent");
-                    console.error("Content type:", typeof content);
-                    console.error("Content has toBase64String:", !!(content as any).toBase64String);
-                    console.error("Content has raw:", !!(content as any).raw);
+                    logger.error("All extraction methods failed - could not extract image data from HttpContent");
+                    logger.debug("Content type:", typeof content);
+                    logger.debug("Content has toBase64String:", !!(content as any).toBase64String);
+                    logger.debug("Content has raw:", !!(content as any).raw);
                 }
             } catch (e) {
-                console.error("Failed to extract image from HttpContent:", e);
+                logger.error("Failed to extract image from HttpContent:", e);
             }
         }
         
         if (!imageSource) {
-            console.error("All methods failed - could not create ImageSource");
-            console.error("URL:", absoluteUrl);
-            console.error("Status:", response.statusCode);
+            logger.error("All methods failed - could not create ImageSource");
+            logger.debug("URL:", absoluteUrl);
+            logger.debug("Status:", response.statusCode);
             return undefined;
         }
 
         const saved = imageSource.saveToFile(filePath, "jpg");
         if (!saved) {
-            console.error("Failed to save image to cache");
+            logger.error("Failed to save image to cache");
             return undefined;
         }
 
@@ -160,7 +200,7 @@ export async function getAuthenticatedImageUrl(imageUrl: string | null | undefin
         const fileUrl = filePath.startsWith('file://') ? filePath : `file://${filePath}`;
         return fileUrl;
     } catch (error) {
-        console.error("Error downloading authenticated image:", error);
+        logger.error("Error downloading authenticated image:", error);
         return undefined;
     }
 }
@@ -183,6 +223,37 @@ export async function apiRequest(
     });
 
     if (response.statusCode === 401) {
+        // Try to refresh token once
+        try {
+            logger.debug("401 Unauthorized, attempting token refresh...");
+            const newToken = await refreshToken();
+            if (newToken) {
+                // Retry the request with new token
+                const retryResponse = await Http.request({
+                    url: API_URL + url,
+                    method,
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${newToken}`,
+                    },
+                    content: body ? JSON.stringify(body) : undefined,
+                });
+                
+                if (retryResponse.statusCode >= 400) {
+                    throw new Error("UNAUTHORIZED");
+                }
+                
+                const retryJson = retryResponse.content?.toJSON() ?? {};
+                if (!retryJson.success) {
+                    throw new Error(retryJson.message || "API Error");
+                }
+                
+                return retryJson.data;
+            }
+        } catch (refreshError) {
+            logger.error("Token refresh failed on 401:", refreshError);
+        }
+        
         throw new Error("UNAUTHORIZED");
     }
 
@@ -202,13 +273,14 @@ export async function apiRequest(
                 errorMessage = json;
             }
         } catch (e) {
-            console.error("Failed to parse error response:", e);
+            logger.error("Failed to parse error response:", e);
         }
         
         throw new Error(errorMessage);
     }
 
     const json = response.content?.toJSON() ?? {};
+    logger.debug("API response JSON:", JSON.stringify(json, null, 2));
 
     if (!json.success) {
         throw new Error(json.message || "API Error");

@@ -11,7 +11,7 @@ type Environment = 'local' | 'aws';
 const CURRENT_ENV: Environment = 'local';
 
 const URLS: Record<Environment, string> = {
-    local: 'http://10.0.2.2:8080',        // Android emulator → host localhost (works on any PC)
+    local: 'http://192.168.0.11:8080',    // Physical device → PC's local IP (change if your IP changes)
     aws: 'http://13.60.208.216:8080',     // AWS EC2 Public IP
 };
 

@@ -4,9 +4,14 @@ import type { DeliveryStatus } from "../services/deliveries.service";
 
 export type Delivery = {
   id: number;
-  title: string;
+  title?: string;
+  description?: string;
   pickupAddress: string;
+  dropoffAddress?: string;
   status: DeliveryStatus;
+  createdAt?: string;
+  agentUsername?: string;
+  [key: string]: any; // Allow additional fields
 };
 
 export const useDeliveriesStore = defineStore("deliveries", {

@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "@nativescript-community/ui-mapbox": "^7.0.12",
     "@nativescript/camera": "^7.0.0",
     "@nativescript/core": "~8.9.1",
     "@nativescript/geolocation": "^9.0.0",
@@ -18,6 +19,7 @@
     "@nativescript/types": "~8.9.1",
     "@nativescript/webpack": "~5.0.24",
     "@types/node": "~22.14.0",
+    "dotenv": "^17.2.3",
     "tailwindcss": "^4.1.3",
     "typescript": "^5.8.3"
   }

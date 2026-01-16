@@ -13,3 +13,116 @@ project.ext {
   // useKotlin = true
   // kotlinVersion = "1.6.0"
 }
+
+// Mapbox Maven repository configuration
+// Read token from gradle.properties
+// IMPORTANT: Plugin builds run in tempPlugin directories
+// We need to read from the parent platforms/android/gradle.properties file
+def mapboxToken = project.findProperty("MAPBOX_DOWNLOADS_TOKEN") ?: 
+                  System.getProperty("MAPBOX_DOWNLOADS_TOKEN") ?: 
+                  System.getenv("MAPBOX_DOWNLOADS_TOKEN") ?: ""
+
+// Try reading from current gradle.properties first (tempPlugin directory)
+if (!mapboxToken) {
+    def gradlePropsFile = file("gradle.properties")
+    if (gradlePropsFile.exists()) {
+        try {
+            gradlePropsFile.eachLine { line ->
+                def trimmed = line.trim()
+                if (trimmed.startsWith("MAPBOX_DOWNLOADS_TOKEN=") && !trimmed.startsWith("#")) {
+                    mapboxToken = trimmed.substring("MAPBOX_DOWNLOADS_TOKEN=".length()).trim()
+                    return true
+                }
+            }
+        } catch (Exception e) {
+            // Continue to try parent file
+        }
+    }
+}
+
+// If not found, try reading from parent platforms/android/gradle.properties
+// This is where the token should be for plugin builds
+if (!mapboxToken) {
+    // Try multiple paths to find platforms/android/gradle.properties
+    def possiblePaths = []
+    
+    // Path 1: From rootProject.projectDir (tempPlugin/core or tempPlugin/ui_mapbox)
+    def path1 = new File(rootProject.projectDir, "../../android/gradle.properties")
+    possiblePaths.add(path1)
+    
+    // Path 2: From projectDir
+    def path2 = new File(projectDir, "../../android/gradle.properties")
+    possiblePaths.add(path2)
+    
+    // Path 3: From rootDir
+    def path3 = new File(rootDir, "../../android/gradle.properties")
+    possiblePaths.add(path3)
+    
+    // Path 4: Absolute path - try to find platforms/android from current location
+    def currentDir = new File(rootProject.projectDir.getAbsolutePath())
+    def platformsDir = currentDir.getParentFile().getParentFile() // tempPlugin -> platforms
+    def path4 = new File(platformsDir, "android/gradle.properties")
+    possiblePaths.add(path4)
+    
+    // Try each path
+    for (gradleFile in possiblePaths) {
+        if (gradleFile.exists()) {
+            try {
+                gradleFile.eachLine { line ->
+                    def trimmed = line.trim()
+                    if (trimmed.startsWith("MAPBOX_DOWNLOADS_TOKEN=") && !trimmed.startsWith("#")) {
+                        mapboxToken = trimmed.substring("MAPBOX_DOWNLOADS_TOKEN=".length()).trim()
+                        return true
+                    }
+                }
+            } catch (Exception e) {
+                // Continue to next path
+            }
+        }
+        if (mapboxToken) break
+    }
+}
+
+if (mapboxToken) {
+    // Make it available as project property for the plugin's buildscript
+    // The plugin checks: project.hasProperty("MAPBOX_DOWNLOADS_TOKEN") ? project.MAPBOX_DOWNLOADS_TOKEN : "$System.env.MAPBOX_DOWNLOADS_TOKEN"
+    project.ext.MAPBOX_DOWNLOADS_TOKEN = mapboxToken
+    rootProject.ext.MAPBOX_DOWNLOADS_TOKEN = mapboxToken
+    
+    // Also set as System property and environment variable for compatibility
+    System.setProperty("MAPBOX_DOWNLOADS_TOKEN", mapboxToken)
+    
+    // Configure repositories for all projects
+    allprojects {
+        repositories {
+            maven {
+                url "https://api.mapbox.com/downloads/v2/releases/maven"
+                credentials {
+                    username = "mapbox"
+                    password = mapboxToken
+                }
+                authentication {
+                    basic(BasicAuthentication)
+                }
+            }
+        }
+    }
+    
+    // Configure repositories for buildscript
+    buildscript {
+        repositories {
+            maven {
+                url "https://api.mapbox.com/downloads/v2/releases/maven"
+                credentials {
+                    username = "mapbox"
+                    password = mapboxToken
+                }
+                authentication {
+                    basic(BasicAuthentication)
+                }
+            }
+        }
+    }
+} else {
+    println "WARNING: MAPBOX_DOWNLOADS_TOKEN not found in gradle.properties"
+}

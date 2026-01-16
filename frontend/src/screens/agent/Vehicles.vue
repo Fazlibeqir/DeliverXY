@@ -47,6 +47,7 @@ import { $navigateTo } from "nativescript-vue";
 import * as VehiclesService from "@/services/vehicles.service";
 import VehicleForm from "./VehiclesForm.vue";
 import { getAuthenticatedImageUrl } from "@/services/api";
+import { logger } from "@/utils/logger";
 
 const vehicles = ref<any[]>([]);
 const loading = ref(false);
@@ -67,7 +68,7 @@ async function load() {
             cachedImages.value[vehicle.id] = cachedUrl;
           }
         } catch (e) {
-          console.error(`Failed to load image for vehicle ${vehicle.id}:`, e);
+          logger.error(`Failed to load image for vehicle ${vehicle.id}:`, e);
         } finally {
           loadingImages.value[vehicle.id] = false;
         }

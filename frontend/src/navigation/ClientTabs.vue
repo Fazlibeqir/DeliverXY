@@ -5,7 +5,10 @@
     <TabView androidTabsPosition="bottom" @selectedIndexChanged="onTabChanged" v-model:selectedIndex="tabIndex">
 
       <TabViewItem title="Home" iconSource="res://ic_home">
-        <ClientHome />
+        <!-- Keep ClientHome always mounted to prevent map destruction -->
+        <GridLayout>
+          <ClientHome />
+        </GridLayout>
       </TabViewItem>
 
       <TabViewItem title="Deliveries" iconSource="res://ic_box">
@@ -25,12 +28,14 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
 import ClientHome from "../screens/client/ClientHome.vue";
 import ClientDeliveries from "../screens/client/ClientDeliveries.vue";
 import Wallet from "../screens/wallet/Wallet.vue";
 import Profile from "../screens/Profile.vue";
 
-import { ref } from "vue";
+// Note: Components are loaded eagerly for NativeScript compatibility
+// Future optimization: Implement code splitting with webpack for better performance
 
 const tabIndex = ref(0);
 

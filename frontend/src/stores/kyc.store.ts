@@ -19,14 +19,32 @@ export const useKYCStore = defineStore("kyc", {
       this.loading = true;
       try {
         const kyc = await KYCService.getMyKYC();
-        if (!kyc) return;
+        if (!kyc) {
+          // No KYC record exists yet
+          this.status = null;
+          this.idFrontUrl = "";
+          this.idBackUrl = "";
+          this.selfieUrl = "";
+          this.proofOfAddressUrl = "";
+          this.rejectionReason = "";
+          return;
+        }
 
-        this.status = kyc.status;
-        this.idFrontUrl = kyc.idFrontUrl;
-        this.idBackUrl = kyc.idBackUrl;
-        this.selfieUrl = kyc.selfieUrl;
-        this.proofOfAddressUrl = kyc.proofOfAddressUrl;
-        this.rejectionReason = kyc.rejectionReason;
+        // Map the status field (API returns 'status', not 'kycStatus')
+        this.status = kyc.status || kyc.kycStatus || null;
+        this.idFrontUrl = kyc.idFrontUrl || "";
+        this.idBackUrl = kyc.idBackUrl || "";
+        this.selfieUrl = kyc.selfieUrl || "";
+        this.proofOfAddressUrl = kyc.proofOfAddressUrl || "";
+        this.rejectionReason = kyc.rejectionReason || "";
+      } catch (error) {
+        // If KYC endpoint fails, assume no KYC exists
+        this.status = null;
+        this.idFrontUrl = "";
+        this.idBackUrl = "";
+        this.selfieUrl = "";
+        this.proofOfAddressUrl = "";
+        this.rejectionReason = "";
       } finally {
         this.loading = false;
       }

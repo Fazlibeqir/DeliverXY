@@ -1,14 +1,28 @@
 import { apiRequest } from "./api";
 import { secureStorage, TOKEN_KEYS } from "./secure-storage";
+import { logger } from "../utils/logger";
 
 export async function login(identifier: string, password: string) {
-  const res = await apiRequest("POST", "/api/auth/login", {
-    identifier,
-    password,
-  });
+  try {
+    const res = await apiRequest("POST", "/api/auth/login", {
+      identifier,
+      password,
+    });
 
-  await persistTokens(res);
-  return res.user;
+    logger.debug("Login API response:", JSON.stringify(res, null, 2));
+    
+    if (!res || !res.user) {
+      logger.error("Invalid login response - missing user:", res);
+      throw new Error("Invalid login response");
+    }
+    
+    await persistTokens(res);
+    logger.debug("Tokens persisted, returning user:", res.user);
+    return res.user;
+  } catch (error: any) {
+    logger.error("Login error:", error);
+    throw error;
+  }
 }
 
 export async function register(payload: any) {
