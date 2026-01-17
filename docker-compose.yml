@@ -1,32 +1,36 @@
+version: '3.8'
+
 services:
   postgres:
     image: postgres:15
     container_name: deliverxy-postgres
     environment:
-      POSTGRES_DB: deliverxy
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-deliverxy}
+      POSTGRES_USER: ${POSTGRES_USER:-deliverxy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-deliverxy}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d deliverxy"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-deliverxy} -d ${POSTGRES_DB:-deliverxy}"]
       interval: 10s
       timeout: 5s
       retries: 5
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: deliverxy-backend
     environment:
-      SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/deliverxy
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-      STRIPE_SECRET_KEY: sk_test_dummy_key_for_dev
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-deliverxy}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-deliverxy}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-deliverxy}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
       APP_UPLOADS_DIR: /app/uploads
     ports:
       - "8080:8080"
@@ -42,11 +46,14 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-  admin:
+
+  frontend-admin:
     build:
       context: ./frontend-admin
       dockerfile: Dockerfile
-    container_name: deliverxy-admin
+      args:
+        - VITE_API_URL=${VITE_API_URL:-http://13.60.229.249:8080}
+    container_name: deliverxy-frontend-admin
     ports:
       - "3000:80"
     depends_on:
@@ -56,4 +63,3 @@ services:
 
 volumes:
   postgres_data:
-  pgadmin_data:

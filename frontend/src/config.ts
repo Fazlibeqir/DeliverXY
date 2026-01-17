@@ -1,22 +1,11 @@
 // API Configuration for Mobile App
 // ---------------------------------
-// LOCAL OPTIONS (pick one based on your setup):
-//   - Android Emulator: 'http://10.0.2.2:8080' (maps to host localhost)
-//   - iOS Simulator:    'http://localhost:8080'
-//   - Physical Device:  'http://YOUR_PC_IP:8080' (run 'ipconfig' to find it)
+// Uses environment variable API_URL if set, otherwise defaults to localhost
+// For local dev: Set API_URL in .env or build command
+// For AWS: Set API_URL=http://13.60.229.249:8080 in build command
 
-type Environment = 'local' | 'aws';
-
-// ⚙️ CHANGE THIS VALUE TO SWITCH ENVIRONMENTS
-const CURRENT_ENV: Environment = 'local';
-
-const URLS: Record<Environment, string> = {
-    local: 'http://192.168.0.11:8080',    // Physical device → PC's local IP (change if your IP changes)
-    aws: 'http://13.60.208.216:8080',     // AWS EC2 Public IP
-};
-
-export const API_URL = URLS[CURRENT_ENV];
+export const API_URL = (process.env.API_URL as string) || 'http://localhost:8080';
 
 // Helper to check current environment
-export const isLocalEnv = (): boolean => (CURRENT_ENV as Environment) === 'local';
-export const isAwsEnv = (): boolean => (CURRENT_ENV as Environment) === 'aws';
+export const isLocalEnv = (): boolean => API_URL.includes('localhost') || API_URL.includes('127.0.0.1') || API_URL.includes('192.168.');
+export const isAwsEnv = (): boolean => !isLocalEnv();

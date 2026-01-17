@@ -15,6 +15,7 @@ module.exports = (env) => {
 		config.plugins.push(
 			new DefinePlugin({
 				"process.env.MAPBOX_ACCESS_TOKEN": JSON.stringify(process.env.MAPBOX_ACCESS_TOKEN || ""),
+				"process.env.API_URL": JSON.stringify(process.env.API_URL || "http://localhost:8080"),
 			})
 		);
 	}
