@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "@nativescript-community/ui-mapbox": "^7.0.12",
+    "@nativescript-community/ui-mapbox": "7.0.12",
     "@nativescript/camera": "^7.0.0",
     "@nativescript/core": "~8.9.1",
     "@nativescript/geolocation": "^9.0.0",

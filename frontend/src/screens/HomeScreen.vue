@@ -2,15 +2,8 @@
   <GridLayout rows="*, auto">
     <!-- Mapbox Map Container -->
     <GridLayout row="0">
-      <!-- Map Loading Skeleton -->
-      <SkeletonLoader 
-        v-if="mapLoading" 
-        type="map" 
-        containerStyle="width: 100%; height: 100%;"
-      />
-      
       <Mapbox
-        v-show="!mapLoading"
+        :key="mapKey"
         ref="mapbox"
         :accessToken="mapboxToken"
         :mapStyle="currentMapStyle"
@@ -24,6 +17,13 @@
         @mapReady="onMapReady"
         @markerSelect="onMarkerSelect"
         @mapError="onMapError"
+      />
+      
+      <!-- Map Loading Skeleton Overlay -->
+      <SkeletonLoader 
+        v-show="mapLoading" 
+        type="map" 
+        containerStyle="position: absolute; width: 100%; height: 100%; background-color: rgba(245, 245, 245, 0.95);"
       />
       
       <!-- Map Controls Panel -->
@@ -54,29 +54,12 @@
           style="height: 1; background-color: #e0e0e0; margin: 8 0;"
         />
         
-        <!-- Map Style Switcher -->
-        <Button 
-          :text="mapStyleIcon"
-          class="btn-primary"
-          style="width: 45; height: 45; border-radius: 8; background-color: #000000; color: #ffffff; font-size: 20; padding: 0; margin-bottom: 4;"
-          @tap="toggleMapStyle"
-        />
-        
          <!-- My Location Button -->
          <Button 
            text="📍"
            class="btn-primary"
-           style="width: 45; height: 45; border-radius: 8; background-color: #000000; color: #ffffff; font-size: 20; padding: 0; margin-bottom: 4;"
-           @tap="centerOnMyLocation"
-         />
-         
-         <!-- Refresh Map Button (for black screen recovery) -->
-         <Button 
-           :text="isRefreshing ? '⏳' : '🔄'"
-           :isEnabled="!isRefreshing"
-           class="btn-primary"
            style="width: 45; height: 45; border-radius: 8; background-color: #000000; color: #ffffff; font-size: 20; padding: 0;"
-           @tap="forceMapRefresh"
+           @tap="centerOnMyLocation"
          />
        </StackLayout>
      </GridLayout>
@@ -131,8 +114,8 @@
 </template>
 
 <script setup lang="ts">
-import { alert, Application, Page } from "@nativescript/core";
-import { ref, computed, onMounted, onUnmounted, getCurrentInstance } from "vue";
+import { alert, Application } from "@nativescript/core";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import {
   enableLocationRequest,
   getCurrentLocation,
@@ -145,7 +128,6 @@ import * as LocationService from "../services/location.service";
 import { useDeliveriesStore } from "~/stores/useDeliveryStore";
 import { useKYCStore } from "~/stores/kyc.store";
 import { logger } from "../utils/logger";
-import { ErrorHandler } from "../utils/errorHandler";
 import SkeletonLoader from "../components/SkeletonLoader.vue";
 
 const store = useDeliveriesStore();
@@ -169,6 +151,7 @@ const userLocation = ref<{ lat: number; lng: number } | null>(null);
 const assigning = ref(false);
 const assignedIds = new Set<number>();
 const mapLoading = ref(true);
+const mapKey = ref(0); // Key to force remount when tab is activated
 
 // Map controls
 const currentZoom = ref(13);
@@ -189,7 +172,7 @@ const mapStyleIcon = computed(() => {
 
 function onMapReady(args: any) {
   mapInstance.value = args.map;
-  mapLoading.value = false; // Hide skeleton when map is ready
+  mapLoading.value = false;
   logger.log("Mapbox map ready");
   
   // Get initial zoom level if available
@@ -207,61 +190,50 @@ function onMapReady(args: any) {
   // Store reference to mapbox component
   if (args.object) {
     mapbox.value = args.object;
-    // Ensure map view is visible and properly initialized
-    if (args.object.nativeView) {
-      try {
-        const nativeView = args.object.nativeView;
-        // Set visibility
-        if (nativeView.setVisibility) {
-          nativeView.setVisibility(android.view.View.VISIBLE);
-        }
-        // Ensure view is properly attached
-        if (nativeView.getParent && typeof nativeView.getParent === 'function') {
-          try {
-            const parent = nativeView.getParent();
-            if (!parent && nativeView.getWindow) {
-              // View might not be attached yet, schedule a retry
-              setTimeout(() => {
-                refreshMapVisibility();
-              }, 100);
-            }
-          } catch (e) {
-            // Ignore getParent errors
-          }
-        }
-        // Set up view attachment listener (Android)
-        if (nativeView.setOnAttachStateChangeListener) {
-          nativeView.setOnAttachStateChangeListener(
-            new android.view.View.OnAttachStateChangeListener({
-              onViewAttachedToWindow: () => {
-                // View attached - ensure map is visible
-                setTimeout(() => refreshMapVisibility(), 50);
-              },
-              onViewDetachedFromWindow: () => {
-                // View detached - will be refreshed on reattach
-              }
-            })
-          );
-        }
-      } catch (e) {
-        logger.error("Error in onMapReady setup:", e);
-      }
-    }
+    logger.log("Mapbox component stored:", {
+      hasNativeView: !!args.object.nativeView,
+      hasMap: !!mapInstance.value
+    });
+    
+    // Note: Attachment listener removed - we handle refresh in __homeTabActivated instead
+    // to avoid conflicts and ensure proper timing
   }
   
-  // Set initial camera position if we have location
-  if (lastLoc.value) {
+  // Set initial camera position if we have location and zoom in
+  if (lastLoc.value && mapInstance.value) {
     setUserLocation(lastLoc.value.lat, lastLoc.value.lng);
+    // Zoom in on current location
+    setTimeout(() => {
+      if (mapInstance.value) {
+        try {
+          // Set zoom level to 15 for a closer view
+          currentZoom.value = 15;
+          if (typeof mapInstance.value.setZoomLevel === 'function') {
+            mapInstance.value.setZoomLevel({
+              level: 15,
+              animated: true
+            });
+          } else if (typeof mapInstance.value.zoomTo === 'function') {
+            mapInstance.value.zoomTo(15, true);
+          }
+          // Center on location with zoom
+          if (mapInstance.value.setCenter) {
+            mapInstance.value.setCenter({
+              lat: lastLoc.value!.lat,
+              lng: lastLoc.value!.lng,
+              animated: true
+            });
+          }
+        } catch (e) {
+          logger.error("Error zooming to location:", e);
+        }
+      }
+    }, 300);
   }
 }
 
 function onMapError(args: any) {
-  // Handle map errors (style loading failures, etc.)
   logger.error("Map error occurred:", args);
-  // Try to refresh the map after a short delay
-  setTimeout(() => {
-    refreshMapVisibility();
-  }, 500);
 }
 
 function onMarkerSelect(args: any) {
@@ -285,7 +257,6 @@ function setUserLocation(lat: number, lng: number, shouldCenter: boolean = false
   userLocation.value = { lat, lng };
   
   // Only center on initial location (first time), not on every update
-  // The blue dot from :showUserLocation="true" already shows the user's location
   if (shouldCenter && !hasCenteredOnInitialLocation.value) {
     mapInstance.value.setCenter({
       lat,
@@ -302,7 +273,6 @@ async function centerOnMyLocation() {
     try {
       const enabled = await isEnabled();
       if (!enabled) {
-        // Request permission without opening settings
         await enableLocationRequest(false, false);
         const stillDisabled = !(await isEnabled());
         if (stillDisabled) {
@@ -318,12 +288,29 @@ async function centerOnMyLocation() {
     }
   }
   
-  if (mapInstance.value?.setCenter && userLocation.value) {
-    mapInstance.value.setCenter({
-      lat: userLocation.value.lat,
-      lng: userLocation.value.lng,
-      animated: true
-    });
+  if (mapInstance.value && userLocation.value) {
+    try {
+      // Set zoom level to 15 for a closer view
+      currentZoom.value = 15;
+      if (typeof mapInstance.value.setZoomLevel === 'function') {
+        mapInstance.value.setZoomLevel({
+          level: 15,
+          animated: true
+        });
+      } else if (typeof mapInstance.value.zoomTo === 'function') {
+        mapInstance.value.zoomTo(15, true);
+      }
+      // Center on location
+      if (mapInstance.value.setCenter) {
+        mapInstance.value.setCenter({
+          lat: userLocation.value.lat,
+          lng: userLocation.value.lng,
+          animated: true
+        });
+      }
+    } catch (e) {
+      logger.error("Error centering and zooming to location:", e);
+    }
   }
 }
 
@@ -334,7 +321,6 @@ function zoomIn() {
   currentZoom.value = newZoom;
   
   try {
-    // Try multiple zoom methods
     if (typeof mapInstance.value.setZoomLevel === 'function') {
       mapInstance.value.setZoomLevel({
         level: newZoom,
@@ -357,7 +343,6 @@ function zoomOut() {
   currentZoom.value = newZoom;
   
   try {
-    // Try multiple zoom methods
     if (typeof mapInstance.value.setZoomLevel === 'function') {
       mapInstance.value.setZoomLevel({
         level: newZoom,
@@ -370,237 +355,6 @@ function zoomOut() {
     }
   } catch (e) {
     logger.error("Error zooming out:", e);
-  }
-}
-
-function toggleMapStyle() {
-  mapStyleIndex.value = (mapStyleIndex.value + 1) % mapStyles.length;
-  currentMapStyle.value = mapStyles[mapStyleIndex.value];
-  
-  // Update map style if map is ready
-  // Try multiple methods as different plugins may have different APIs
-  if (mapInstance.value) {
-    try {
-      // Method 1: Try setMapStyle
-      if (typeof mapInstance.value.setMapStyle === 'function') {
-        mapInstance.value.setMapStyle(currentMapStyle.value);
-      }
-      // Method 2: Try updateMapStyle
-      else if (typeof mapInstance.value.updateMapStyle === 'function') {
-        mapInstance.value.updateMapStyle(currentMapStyle.value);
-      }
-      // Method 3: Try setting style on mapbox component
-      else if (mapbox.value && typeof mapbox.value.setMapStyle === 'function') {
-        mapbox.value.setMapStyle(currentMapStyle.value);
-      }
-      // Method 4: Try native view
-      else if (mapbox.value?.nativeView) {
-        const nativeView = mapbox.value.nativeView;
-        if (nativeView.setStyleUri) {
-          // Mapbox Android SDK style
-          const styleUri = `mapbox://styles/mapbox/${currentMapStyle.value}-v11`;
-          nativeView.setStyleUri(styleUri);
-        }
-      }
-      
-      // Force refresh after style change
-      setTimeout(() => {
-        refreshMapVisibility();
-      }, 200);
-    } catch (e) {
-      logger.error("Error changing map style:", e);
-    }
-  }
-}
-
-const isRefreshing = ref(false);
-
-function forceMapRefresh() {
-  // Prevent multiple simultaneous refresh attempts
-  if (isRefreshing.value) {
-    logger.log("Refresh already in progress, skipping...");
-    return;
-  }
-  
-  isRefreshing.value = true;
-  logger.log("Force refreshing map with aggressive recovery...");
-  
-  if (!mapbox.value || !mapbox.value.nativeView) {
-    logger.error("Map view not available for refresh");
-    isRefreshing.value = false;
-    return;
-  }
-  
-  try {
-    const nativeView = mapbox.value.nativeView;
-    
-    // Strategy 1: Try plugin-level style reload first (more reliable)
-    if (mapbox.value && typeof mapbox.value.setMapStyle === 'function') {
-      logger.log("Attempting plugin-level style reload...");
-      try {
-        // Cycle through styles to force reload
-        const styles = ["outdoors", "streets", "light", "dark", "satellite"];
-        const currentStyleIndex = styles.indexOf(currentMapStyle.value);
-        const nextStyle = styles[(currentStyleIndex + 1) % styles.length];
-        
-        // Change to different style
-        mapbox.value.setMapStyle(nextStyle);
-        setTimeout(() => {
-          // Change back to original
-          if (mapbox.value && typeof mapbox.value.setMapStyle === 'function') {
-            mapbox.value.setMapStyle(currentMapStyle.value);
-            logger.log(`Style cycled: ${nextStyle} -> ${currentMapStyle.value}`);
-          }
-        }, 200);
-      } catch (pluginError) {
-        logger.error("Plugin style reload failed:", pluginError);
-      }
-    }
-    
-    // Strategy 2: Hide and show the view to force a complete redraw
-    if (nativeView.setVisibility) {
-      logger.log("Hiding and showing map view...");
-      nativeView.setVisibility(android.view.View.GONE);
-      setTimeout(() => {
-        if (nativeView.setVisibility) {
-          nativeView.setVisibility(android.view.View.VISIBLE);
-        }
-        refreshMapVisibility();
-      }, 150);
-    }
-    
-    // Strategy 3: Force complete style reload via native SDK (with better error handling)
-    if (mapInstance.value) {
-      try {
-        const nativeMap = mapInstance.value.nativeMapView || 
-                         (nativeView.getMap && nativeView.getMap());
-        if (nativeMap) {
-          logger.log("Attempting native SDK style reload...");
-          
-          // Get current camera position
-          let currentLat = 41.9981;
-          let currentLng = 21.4254;
-          let currentZoomLevel = currentZoom.value || 13;
-          
-          if (nativeMap.getCameraPosition) {
-            try {
-              const camPos = nativeMap.getCameraPosition();
-              if (camPos && camPos.target) {
-                currentLat = camPos.target.getLatitude();
-                currentLng = camPos.target.getLongitude();
-                currentZoomLevel = camPos.zoom || currentZoomLevel;
-                logger.log(`Current camera: ${currentLat}, ${currentLng}, zoom: ${currentZoomLevel}`);
-              }
-            } catch (e) {
-              logger.warn("Could not get camera position, using defaults");
-            }
-          }
-          
-          // Try multiple native SDK approaches
-          try {
-            // Method 1: Try Style.Builder
-            const Style = (android as any).mapbox?.mapboxsdk?.maps?.Style;
-            if (Style && nativeMap.setStyle) {
-              const styleUri = `mapbox://styles/mapbox/${currentMapStyle.value}-v11`;
-              logger.log(`Reloading map style via native SDK: ${styleUri}`);
-              
-              const styleBuilder = new Style.Builder().fromUri(styleUri);
-              nativeMap.setStyle(styleBuilder.build());
-              
-              // Wait for style to load, then reset camera
-              setTimeout(() => {
-                try {
-                  const CameraUpdateFactory = (android as any).mapbox?.mapboxsdk?.camera?.CameraUpdateFactory;
-                  if (CameraUpdateFactory && nativeMap.moveCamera) {
-                    const LatLng = (android as any).mapbox?.mapboxsdk?.geometry?.LatLng;
-                    if (LatLng) {
-                      const latLng = new LatLng(currentLat, currentLng);
-                      const cameraUpdate = CameraUpdateFactory.newLatLngZoom(latLng, currentZoomLevel);
-                      nativeMap.moveCamera(cameraUpdate);
-                      logger.log("Camera reset after style reload");
-                    }
-                  }
-                } catch (camError) {
-                  logger.error("Error resetting camera:", camError);
-                }
-              }, 500);
-            } else {
-              logger.warn("Native SDK Style class or setStyle method not available");
-            }
-          } catch (styleError: any) {
-            logger.error("Native SDK style reload failed:", styleError?.message || String(styleError));
-            
-            // Fallback: Try triggerRepaint
-            try {
-              if (nativeMap.triggerRepaint) {
-                logger.log("Attempting triggerRepaint as fallback...");
-                nativeMap.triggerRepaint();
-              }
-            } catch (repaintError) {
-              logger.error("triggerRepaint also failed:", repaintError);
-            }
-          }
-        } else {
-          logger.warn("Native map instance not available");
-        }
-      } catch (nativeError: any) {
-        logger.error("Error accessing native map:", nativeError?.message || String(nativeError));
-      }
-    } else {
-      logger.warn("Map instance not available");
-    }
-    
-    // Strategy 4: Multiple refresh attempts with increasing delays
-    setTimeout(() => {
-      refreshMapVisibility();
-    }, 300);
-    setTimeout(() => {
-      refreshMapVisibility();
-    }, 600);
-    setTimeout(() => {
-      refreshMapVisibility();
-      
-      // Check if map is still black after refresh attempts
-      setTimeout(() => {
-        let mapRecovered = false;
-        try {
-          const nativeMap = mapInstance.value?.nativeMapView || 
-                           (nativeView.getMap && nativeView.getMap());
-          if (nativeMap) {
-            try {
-              const style = nativeMap.getStyle();
-              if (style) {
-                mapRecovered = true;
-                logger.log("Map style is accessible - map should be visible");
-              } else {
-                logger.warn("Map style is null after refresh");
-              }
-            } catch (styleError: any) {
-              logger.warn(`Cannot access map style: ${styleError?.message || String(styleError)}`);
-            }
-          } else {
-            logger.warn("Native map instance not available for verification");
-          }
-        } catch (checkError: any) {
-          logger.error("Error checking map recovery:", checkError?.message || String(checkError));
-        }
-        
-        if (!mapRecovered) {
-          logger.warn("Map recovery failed - suggesting user actions");
-          alert({
-            title: "Map Recovery",
-            message: "The map couldn't be automatically recovered. Please try:\n1. Switching to another tab and back\n2. Closing and reopening the app\n3. Restarting your device if the problem persists",
-            okButtonText: "OK"
-          });
-        }
-        
-        isRefreshing.value = false;
-      }, 800);
-    }, 1200);
-    
-  } catch (e: any) {
-    logger.error("Error in force refresh:", e?.message || String(e));
-    isRefreshing.value = false;
   }
 }
 
@@ -696,7 +450,7 @@ async function drawRoute(fromLat: number, fromLng: number, toLat: number, toLng:
 
   routeLine.value = mapInstance.value.addPolyline({
     id: "route",
-    points,                 // ✅ CORRECT FORMAT: array of {lat, lng} objects
+    points,
     color: "#FF0000",
     width: 6,
     opacity: 1
@@ -762,8 +516,6 @@ function updateActiveDeliveryMarkers() {
           lng: delivery.pickupLongitude,
           title: "📍 Pickup",
           subtitle: delivery.pickupAddress || "Pickup Location",
-          // Note: To use emoji as icon, we need emoji image assets
-          // For now, emoji appears in title/popup
           onTap: () => {
             logger.debug("Pickup location tapped");
           },
@@ -796,8 +548,6 @@ function updateActiveDeliveryMarkers() {
           lng: delivery.dropoffLongitude,
           title: "🎯 Dropoff",
           subtitle: delivery.dropoffAddress || "Dropoff Location",
-          // Note: To use emoji as icon, we need emoji image assets
-          // For now, emoji appears in title/popup
           onTap: () => {
             logger.debug("Dropoff location tapped");
           },
@@ -835,7 +585,7 @@ async function loadActiveDelivery(shouldCenter: boolean = false) {
     if (!active) {
       activeDelivery.value = null;
       clearRoute();
-      updateActiveDeliveryMarkers(); // Remove pickup/dropoff markers
+      updateActiveDeliveryMarkers();
       hasLoadedActiveDelivery.value = false;
       return false;
     }
@@ -879,123 +629,25 @@ async function loadActiveDelivery(shouldCenter: boolean = false) {
 
 // Handle app lifecycle events
 let resumeHandler: any = null;
-let pauseHandler: any = null;
-let lowMemoryHandler: any = null;
-let orientationHandler: any = null;
-let pageLoadedHandler: any = null;
-let visibilityCheckInterval: any = null;
 let locationWatcher: number | null = null;
-let pendingTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
 
 onMounted(() => {
-  // Set up periodic visibility check (every 2 seconds) as a safety net
-  visibilityCheckInterval = setInterval(() => {
-    if (mapbox.value && mapbox.value.nativeView) {
-      try {
-        const nativeView = mapbox.value.nativeView;
-        // Check if view is visible but might be black
-        if (nativeView.getVisibility && nativeView.getVisibility() === android.view.View.VISIBLE) {
-          // View is marked visible, but check if it's actually rendering
-          // If parent is visible and view has size, assume it's okay
-          if (nativeView.getParent && typeof nativeView.getParent === 'function') {
-            try {
-              const parent = nativeView.getParent();
-              if (parent && parent.getVisibility && typeof parent.getVisibility === 'function' && parent.getVisibility() !== android.view.View.VISIBLE) {
-                // Parent is hidden - refresh when it becomes visible
-                refreshMapVisibility();
-              }
-            } catch (e) {
-              // Ignore getParent errors
-            }
-          }
-        }
-      } catch (e) {
-        // Ignore errors in periodic check
-      }
-    }
-  }, 2000);
-  
-  // Set up app resume handler to refresh map when app comes to foreground
+  // Set up app resume handler - ONLY reload style on resume
   resumeHandler = Application.on(Application.resumeEvent, () => {
-    // Aggressive refresh when app resumes (black screen often happens after resume)
-    const timeout1 = setTimeout(() => {
-      refreshMapVisibility();
-      pendingTimeouts.delete(timeout1);
-    }, 50);
-    pendingTimeouts.add(timeout1);
+    if (!mapbox.value) return;
     
-    const timeout2 = setTimeout(() => {
-      refreshMapVisibility();
-      pendingTimeouts.delete(timeout2);
-    }, 200);
-    pendingTimeouts.add(timeout2);
-    
-    const timeout3 = setTimeout(() => {
-      refreshMapVisibility();
-      pendingTimeouts.delete(timeout3);
-    }, 500);
-    pendingTimeouts.add(timeout3);
-  });
-  
-  // Set up app pause handler
-  pauseHandler = Application.on(Application.suspendEvent, () => {
-    // Map will be refreshed on resume
-  });
-  
-  // Handle low memory warnings (Android can destroy views under memory pressure)
-  lowMemoryHandler = Application.on(Application.lowMemoryEvent, () => {
-    logger.warn("Low memory warning - refreshing map");
-    // Refresh map after low memory event
+    // Single style reload after resume (300ms delay to let app settle)
     setTimeout(() => {
-      refreshMapVisibility();
-    }, 200);
-  });
-  
-  // Handle orientation changes (can cause map to go black)
-  if (Application.android) {
-    try {
-      const activity = Application.android.foregroundActivity || Application.android.startActivity;
-      if (activity) {
-        const configuration = activity.getResources().getConfiguration();
-        let lastOrientation = configuration.orientation;
-        
-        // Monitor orientation changes via a periodic check (Android doesn't have direct orientation event)
-        const orientationCheckInterval = setInterval(() => {
-          if (activity && !activity.isDestroyed()) {
-            const currentConfig = activity.getResources().getConfiguration();
-            if (currentConfig.orientation !== lastOrientation) {
-              lastOrientation = currentConfig.orientation;
-              logger.log("Orientation changed - refreshing map");
-              setTimeout(() => {
-                refreshMapVisibility();
-              }, 300);
-            }
-          } else {
-            clearInterval(orientationCheckInterval);
-          }
-        }, 500);
-        
-        // Store interval for cleanup
-        orientationHandler = orientationCheckInterval;
-      }
-    } catch (e) {
-      logger.error("Error setting up orientation handler:", e);
-    }
-  }
-  
-  // Handle page loaded event (when page becomes visible)
-  const instance = getCurrentInstance();
-  if (instance?.proxy) {
-    const page = (instance.proxy as any).$page;
-    if (page) {
-      pageLoadedHandler = page.on(Page.loadedEvent, () => {
-        // Page loaded - ensure map is visible
+      if (mapbox.value) {
+        // Force Vue to update the mapStyle prop by temporarily changing it
+        const tempStyle = currentMapStyle.value;
+        currentMapStyle.value = mapStyles[(mapStyleIndex.value + 1) % mapStyles.length];
         setTimeout(() => {
-          refreshMapVisibility();
-        }, 100);
-      });
-    }
-  }
+          currentMapStyle.value = tempStyle;
+        }, 50);
+      }
+    }, 300);
+  });
 });
 
 onUnmounted(() => {
@@ -1009,205 +661,53 @@ onUnmounted(() => {
     }
   }
   
-  // Clean up all pending timeouts
-  pendingTimeouts.forEach(timeout => {
-    clearTimeout(timeout);
-  });
-  pendingTimeouts.clear();
-  
   // Clean up event handlers
   if (resumeHandler) {
     Application.off(Application.resumeEvent, resumeHandler);
     resumeHandler = null;
   }
-  if (pauseHandler) {
-    Application.off(Application.suspendEvent, pauseHandler);
-    pauseHandler = null;
-  }
-  if (lowMemoryHandler) {
-    Application.off(Application.lowMemoryEvent, lowMemoryHandler);
-    lowMemoryHandler = null;
-  }
-  if (orientationHandler) {
-    clearInterval(orientationHandler);
-    orientationHandler = null;
-  }
-  if (visibilityCheckInterval) {
-    clearInterval(visibilityCheckInterval);
-    visibilityCheckInterval = null;
-  }
-  if (pageLoadedHandler) {
-    const instance = getCurrentInstance();
-    if (instance?.proxy) {
-      const page = (instance.proxy as any).$page;
-      if (page) {
-        page.off(Page.loadedEvent, pageLoadedHandler);
-      }
-    }
-    pageLoadedHandler = null;
-  }
 });
 
-function refreshMapVisibility() {
-  // Comprehensive map refresh to fix black screen issues
-  if (!mapbox.value || !mapbox.value.nativeView) {
-    return;
-  }
-  
-  try {
-    const nativeView = mapbox.value.nativeView;
-    
-    // 1. Ensure view is visible
-    if (nativeView.setVisibility) {
-      nativeView.setVisibility(android.view.View.VISIBLE);
-    }
-    
-    // 2. Ensure view has proper dimensions (not 0x0)
-    if (nativeView.getWidth && nativeView.getHeight) {
-      const width = nativeView.getWidth();
-      const height = nativeView.getHeight();
-      if (width === 0 || height === 0) {
-        // View has no size - request layout
-        if (nativeView.requestLayout) {
-          nativeView.requestLayout();
-        }
-        // Retry after layout
-        setTimeout(() => refreshMapVisibility(), 100);
-        return;
-      }
-    }
-    
-    // 3. Ensure view is attached to window
-    if (nativeView.getWindow && !nativeView.getWindow()) {
-      // View not attached - will be handled by attachment listener
-      return;
-    }
-    
-    // 4. Force view to be brought to front (in case it's behind other views)
-    if (nativeView.bringToFront) {
-      nativeView.bringToFront();
-    }
-    
-    // 5. Invalidate and request layout
-    if (nativeView.invalidate) {
-      nativeView.invalidate();
-    }
-    if (nativeView.requestLayout) {
-      nativeView.requestLayout();
-    }
-    
-    // 6. Try to refresh the map instance and force style reload
-    if (mapInstance.value) {
-      // Try various refresh methods
-      if (typeof mapInstance.value.refresh === 'function') {
-        mapInstance.value.refresh();
-      }
-      if (typeof mapInstance.value.invalidate === 'function') {
-        mapInstance.value.invalidate();
-      }
-      
-      // CRITICAL: Force map style to reload (black screen often means style is unloaded)
-      try {
-        // Try to reload the map style
-        if (mapbox.value && typeof mapbox.value.setMapStyle === 'function') {
-          // Temporarily change style to force reload
-          const tempStyle = currentMapStyle.value === "streets" ? "outdoors" : "streets";
-          mapbox.value.setMapStyle(tempStyle);
-          setTimeout(() => {
-            if (mapbox.value && typeof mapbox.value.setMapStyle === 'function') {
-              mapbox.value.setMapStyle(currentMapStyle.value);
-            }
-          }, 100);
-        }
-      } catch (styleError) {
-        // Ignore style reload errors
-      }
-      
-      // Try to get native map and refresh it
-      try {
-        const nativeMap = mapInstance.value.nativeMapView || 
-                         (nativeView.getMap && nativeView.getMap());
-        if (nativeMap) {
-          // Force style reload via native SDK
-          try {
-            const style = nativeMap.getStyle();
-            if (style) {
-              // Style exists, but might not be loaded - trigger a reload
-              // Try to get a source to force style validation
-              if (style.getSource && style.getLayer) {
-                // Style is accessible, try to trigger a refresh
-                nativeMap.triggerRepaint();
-              }
-            }
-          } catch (styleCheckError) {
-            // Style might not be loaded - try to reload it
-            try {
-              const Style = (android as any).mapbox?.mapboxsdk?.maps?.Style;
-              if (Style && nativeMap.setStyle) {
-                const styleUri = `mapbox://styles/mapbox/${currentMapStyle.value}-v11`;
-                nativeMap.setStyle(new Style.Builder().fromUri(styleUri).build());
-              }
-            } catch (reloadError) {
-              // Fallback: just trigger repaint
-              if (nativeMap.triggerRepaint) {
-                nativeMap.triggerRepaint();
-              }
-            }
-          }
-          
-          // Trigger a camera update to force redraw
-          if (nativeMap.getCameraPosition) {
-            const currentPos = nativeMap.getCameraPosition();
-            if (currentPos) {
-              // Small camera update to force redraw
-              const cameraUpdate = (android as any).mapbox?.mapboxsdk?.camera?.CameraUpdateFactory?.newLatLngZoom(
-                currentPos.target,
-                currentPos.zoom
-              );
-              if (cameraUpdate && nativeMap.moveCamera) {
-                nativeMap.moveCamera(cameraUpdate);
-              }
-            }
-          }
-        }
-      } catch (nativeError) {
-        // Native map refresh failed - that's okay, we tried
-      }
-    }
-    
-    // 7. Force parent views to be visible too
-    if (nativeView.getParent && typeof nativeView.getParent === 'function') {
-      try {
-        let parent = nativeView.getParent();
-        while (parent) {
-          if (parent.setVisibility && typeof parent.setVisibility === 'function') {
-            parent.setVisibility(android.view.View.VISIBLE);
-          }
-          if (parent.getParent && typeof parent.getParent === 'function') {
-            parent = parent.getParent();
-          } else {
-            break;
-          }
-        }
-      } catch (e) {
-        // Ignore parent traversal errors
-      }
-    }
-    
-  } catch (e) {
-    logger.error("Error refreshing map visibility:", e);
-  }
-}
-
 (globalThis as any).__homeTabActivated = async () => {
-  // Reload KYC status when home tab is activated (in case it changed)
+  logger.log("=== HOME TAB ACTIVATED ===");
+  
+  // Reload KYC status when home tab is activated
   kycStore.load();
   
-  // Aggressive refresh when tab is activated (black screen fix)
-  // Multiple refresh attempts with delays to ensure map recovers
-  refreshMapVisibility();
-  setTimeout(() => refreshMapVisibility(), 100);
-  setTimeout(() => refreshMapVisibility(), 300);
+  // Check map state
+  logger.log("Map state check:", {
+    hasMapbox: !!mapbox.value,
+    hasNativeView: !!(mapbox.value?.nativeView),
+    currentStyle: currentMapStyle.value,
+    hasMapInstance: !!mapInstance.value
+  });
+  
+  // Check if view is attached
+  let isAttached = false;
+  let hasWindow = false;
+  if (mapbox.value?.nativeView) {
+    try {
+      if (mapbox.value.nativeView.getWindow) {
+        hasWindow = !!mapbox.value.nativeView.getWindow();
+        isAttached = hasWindow;
+        logger.log("View attachment check:", { hasWindow, isAttached });
+      }
+    } catch (e) {
+      logger.error("Error checking view attachment:", e);
+    }
+  }
+  
+  // Force map remount by changing key when returning to home tab (fixes black screen)
+  // This is the most reliable way to fix the black screen after tab switch
+  if (mapbox.value) {
+    logger.log("Forcing map remount by changing key");
+    // Increment key to force Vue to completely remount the Mapbox component
+    mapKey.value++;
+    // Reset map references since component will be remounted
+    mapbox.value = null;
+    mapInstance.value = null;
+    mapLoading.value = true;
+  }
   
   // Refresh data (don't center on tab activation)
   const hasActive = await loadActiveDelivery(false);
@@ -1221,7 +721,7 @@ function refreshMapVisibility() {
   if (d.status === "CANCELLED" || d.status === "DELIVERED") {
     activeDelivery.value = null;
     clearRoute();
-    updateActiveDeliveryMarkers(); // Remove pickup/dropoff markers
+    updateActiveDeliveryMarkers();
     if (lastLoc.value) {
       await refreshNearby(lastLoc.value.lat, lastLoc.value.lng);
     }
@@ -1251,7 +751,7 @@ function refreshMapVisibility() {
   }
   
   clearRoute();
-  await drawRoute(fromLat, fromLng, toLat, toLng, true); // Center on status change
+  await drawRoute(fromLat, fromLng, toLat, toLng, true);
 };
 
 function onDismiss() {
@@ -1263,7 +763,6 @@ async function onAccept() {
   if (assigning.value || assignedIds.has(selectedDelivery.value.id)) return;
   
   // Check KYC status before accepting delivery
-  // Reload KYC status in case it changed
   await kycStore.load();
   
   if (kycStore.status !== 'APPROVED') {
@@ -1329,13 +828,10 @@ onMounted(async () => {
   const enabled = await isEnabled();
   if (!enabled) {
     try {
-      // Request permission without opening settings (second param = false)
       await enableLocationRequest(false, false);
-      // Check again after request
       const stillDisabled = !(await isEnabled());
       if (stillDisabled) {
         logger.warn("Location permission denied on mount");
-        // Don't show alert immediately - let user use app without location
       }
     } catch (e) {
       logger.error("Error requesting location permission:", e);
@@ -1349,7 +845,7 @@ onMounted(async () => {
       const loc = await getCurrentLocation({ timeout: 20000 });
       lastLoc.value = { lat: loc.latitude, lng: loc.longitude };
       
-      setUserLocation(loc.latitude, loc.longitude, true); // Center only on initial location
+      setUserLocation(loc.latitude, loc.longitude, true);
       pushLocation(loc.latitude, loc.longitude);
       
       if (!activeDelivery.value) {
@@ -1369,11 +865,11 @@ onMounted(async () => {
           lastLoc.value = { lat: l.latitude, lng: l.longitude };
           userLocation.value = { lat: l.latitude, lng: l.longitude };
           
-          setUserLocation(l.latitude, l.longitude, false); // Don't center on GPS updates
+          setUserLocation(l.latitude, l.longitude, false);
           pushLocation(l.latitude, l.longitude);
           
           if (activeDelivery.value) {
-            // Fix 2: Only draw route if it doesn't exist (don't redraw every GPS tick)
+            // Only draw route if it doesn't exist (don't redraw every GPS tick)
             if (!routeLine.value) {
               const target =
                 activeDelivery.value.status === "ASSIGNED"
@@ -1386,10 +882,8 @@ onMounted(async () => {
                       lng: activeDelivery.value.dropoffLongitude,
                     };
               
-              await drawRoute(l.latitude, l.longitude, target.lat, target.lng, false); // Don't center on GPS updates
+              await drawRoute(l.latitude, l.longitude, target.lat, target.lng, false);
             }
-            // Note: For live navigation, you would update only the first point of the route,
-            // not rebuild the entire polyline every 2 seconds
           } else {
             const now = Date.now();
             if (now - lastNearbyFetch > 8000) {
