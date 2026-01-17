@@ -7,7 +7,7 @@
     </StackLayout>
 
     <!-- Map - Full Screen -->
-    <GridLayout row="1">
+    <GridLayout row="1" style="background-color: transparent;">
       <Mapbox
         :key="mapKey"
         ref="mapbox"
@@ -17,14 +17,19 @@
         :longitude="mapCenterLng"
         :zoomLevel="13"
         :showUserLocation="true"
+        :hideCompass="false"
+        :hideAttribution="false"
+        :hideLogo="false"
         @mapReady="onMapReady"
         @mapTap="onMapTap"
+        @mapClick="onMapTap"
+        @mapLongPress="onMapTap"
         @mapError="onMapError"
       />
       
       <!-- Map Loading Skeleton Overlay -->
       <SkeletonLoader 
-        v-show="mapLoading" 
+        v-if="mapLoading" 
         type="map" 
         containerStyle="position: absolute; width: 100%; height: 100%; background-color: rgba(245, 245, 245, 0.95);"
       />
@@ -34,6 +39,7 @@
         horizontalAlignment="right"
         verticalAlignment="bottom"
         margin="15"
+        style="background-color: transparent;"
       >
         <!-- My Location Button -->
         <Button 
@@ -108,13 +114,14 @@ const mapboxToken = (process.env.MAPBOX_ACCESS_TOKEN as string) || "";
 
 const mapbox = ref<any>(null);
 const mapInstance = ref<any>(null);
+const mapboxMap = ref<any>(null); // Native MapboxMap instance
+const mapProjection = ref<any>(null); // Projection for converting screen points to LatLng
 const pickupMarker = ref<any>(null);
 const dropoffMarker = ref<any>(null);
 
 const mapCenterLat = ref(41.9981);
 const mapCenterLng = ref(21.4254);
 const userLocation = ref<{ lat: number; lng: number } | null>(null);
-const hasCenteredInitially = ref(false);
 const mapLoading = ref(true);
 const mapKey = ref(0); // Key to force remount when tab is activated
 const currentMapStyle = ref("streets");
@@ -143,50 +150,65 @@ const navigateTo = instance!.proxy!.$navigateTo;
 function onMapReady(args: any) {
   mapInstance.value = args.map;
   mapLoading.value = false;
-  logger.log("Client map ready");
   
   if (args.object) {
     mapbox.value = args.object;
-    logger.log("Mapbox component stored:", {
-      hasNativeView: !!args.object.nativeView,
-      hasMap: !!mapInstance.value
-    });
+    
+    // Ensure map gestures are enabled for pan/zoom
+    try {
+      if (args.object.nativeView) {
+        // Enable gestures on Android
+        if (args.object.nativeView.getUiSettings) {
+          const uiSettings = args.object.nativeView.getUiSettings();
+          if (uiSettings) {
+            uiSettings.setScrollGesturesEnabled(true);
+            uiSettings.setZoomGesturesEnabled(true);
+            uiSettings.setRotateGesturesEnabled(true);
+            uiSettings.setTiltGesturesEnabled(true);
+          }
+        }
+      }
+    } catch (e) {
+      logger.warn("Could not enable map gestures (may not be needed):", e);
+    }
+    
+    // Store references to native MapboxMap and projection for coordinate conversion
+    try {
+      if (args.object && args.object.nativeView) {
+        const nativeView = args.object.nativeView;
+        
+        // Try to get the native MapboxMap instance
+        let nativeMapboxMap = null;
+        if ((nativeView as any).mapboxMap) {
+          nativeMapboxMap = (nativeView as any).mapboxMap;
+        } else if ((nativeView as any).getMapboxMap && typeof (nativeView as any).getMapboxMap === 'function') {
+          nativeMapboxMap = (nativeView as any).getMapboxMap();
+        } else if ((nativeView as any).getMap && typeof (nativeView as any).getMap === 'function') {
+          nativeMapboxMap = (nativeView as any).getMap();
+        }
+        
+        if (nativeMapboxMap) {
+          mapboxMap.value = nativeMapboxMap;
+          
+          // Store projection reference
+          if (nativeMapboxMap.projection) {
+            mapProjection.value = nativeMapboxMap.projection;
+          } else if (nativeMapboxMap.getProjection && typeof nativeMapboxMap.getProjection === 'function') {
+            mapProjection.value = nativeMapboxMap.getProjection();
+          }
+        }
+      }
+    } catch (e: any) {
+      logger.warn("Could not store MapboxMap/projection references:", e?.message || e);
+    }
     
     // Note: Attachment listener removed - we handle refresh in __homeTabActivated instead
     // to avoid conflicts and ensure proper timing
   }
   
-  // Load location and zoom in when map is ready
+  // Load location but don't auto-center - let user pan freely
+  // User can use the "My Location" button to center if needed
   loadCurrentLocation();
-  
-  // If we already have location, zoom in on it
-  if (userLocation.value && mapInstance.value) {
-    setTimeout(() => {
-      if (mapInstance.value && userLocation.value) {
-        try {
-          // Set zoom level to 15 for a closer view
-          if (typeof mapInstance.value.setZoomLevel === 'function') {
-            mapInstance.value.setZoomLevel({
-              level: 15,
-              animated: true
-            });
-          } else if (typeof mapInstance.value.zoomTo === 'function') {
-            mapInstance.value.zoomTo(15, true);
-          }
-          // Center on location
-          if (mapInstance.value.setCenter) {
-            mapInstance.value.setCenter({
-              lat: userLocation.value.lat,
-              lng: userLocation.value.lng,
-              animated: true
-            });
-          }
-        } catch (e) {
-          logger.error("Error zooming to location:", e);
-        }
-      }
-    }, 300);
-  }
 }
 
 function onMapError(args: any) {
@@ -195,6 +217,7 @@ function onMapError(args: any) {
 
 async function loadCurrentLocation() {
   // Get location but don't auto-center - let user pan freely
+  // User can use the "My Location" button to center if needed
   try {
     const enabled = await isEnabled();
     if (!enabled) {
@@ -209,33 +232,13 @@ async function loadCurrentLocation() {
     const loc = await getCurrentLocation({ timeout: 20000 });
     userLocation.value = { lat: loc.latitude, lng: loc.longitude };
     
-    // Only center and zoom once on initial load
-    if (!hasCenteredInitially.value && mapInstance.value) {
+    // Update map center coordinates but don't actually center the camera
+    // This allows the map to show the user's location marker without forcing camera movement
+    if (mapInstance.value) {
       mapCenterLat.value = loc.latitude;
       mapCenterLng.value = loc.longitude;
-      try {
-        // Set zoom level to 15 for a closer view
-        if (typeof mapInstance.value.setZoomLevel === 'function') {
-          mapInstance.value.setZoomLevel({
-            level: 15,
-            animated: true
-          });
-        } else if (typeof mapInstance.value.zoomTo === 'function') {
-          mapInstance.value.zoomTo(15, true);
-        }
-        // Center on location
-        if (mapInstance.value.setCenter) {
-          mapInstance.value.setCenter({
-            lat: loc.latitude,
-            lng: loc.longitude,
-            animated: true
-          });
-        }
-        hasCenteredInitially.value = true;
-      } catch (e) {
-        logger.error("Error centering and zooming to location:", e);
-      }
     }
+    
   } catch (e) {
     logger.error("Failed to get location:", e);
   }
@@ -321,51 +324,65 @@ async function useMyLocation() {
 
 function onMapTap(args: any) {
   if (!mapInstance.value) {
+    logger.warn("Map tap received but mapInstance is not available");
     return;
   }
   
-  // Try different event formats
-  let lat: number, lng: number;
+  let lat: number | undefined, lng: number | undefined;
   
-  if (args.location) {
-    lat = args.location.latitude;
-    lng = args.location.longitude;
-  } else if (args.latitude && args.longitude) {
-    lat = args.latitude;
-    lng = args.longitude;
-  } else if (args.lat && args.lng) {
-    lat = args.lat;
-    lng = args.lng;
-  } else if (args.getLatitude && args.getLongitude) {
-    // Native Android LatLng object
-    lat = args.getLatitude();
-    lng = args.getLongitude();
-  } else {
+  // The args.point already contains lat/lng directly
+  if (args.point) {
+    // Primary method: Direct lat/lng properties
+    if (args.point.lat !== undefined && args.point.lng !== undefined) {
+      lat = args.point.lat;
+      lng = args.point.lng;
+    }
+    // Fallback: latitude/longitude properties
+    else if (args.point.latitude !== undefined && args.point.longitude !== undefined) {
+      lat = args.point.latitude;
+      lng = args.point.longitude;
+    }
+    // Fallback: Methods
+    else if (args.point.getLatitude && typeof args.point.getLatitude === 'function') {
+      try {
+        lat = args.point.getLatitude();
+        lng = args.point.getLongitude();
+      } catch (e) {
+        logger.error("Error calling point.getLatitude/getLongitude:", e);
+      }
+    }
+  }
+  
+  // Fallback: Check args.location
+  if (lat === undefined && args.location) {
+    if (args.location.latitude !== undefined && args.location.longitude !== undefined) {
+      lat = args.location.latitude;
+      lng = args.location.longitude;
+    } else if (args.location.lat !== undefined && args.location.lng !== undefined) {
+      lat = args.location.lat;
+      lng = args.location.lng;
+    }
+  }
+  
+  if (lat === undefined || lng === undefined) {
+    logger.error("Could not extract coordinates from map tap");
     return;
   }
   
   if (!pickupLat.value || !pickupLng.value) {
+    // Set pickup location
     pickupLat.value = lat;
     pickupLng.value = lng;
     reverseGeocode(lat, lng, "pickup");
     updatePickupMarker(lat, lng);
   } else if (!dropoffLat.value || !dropoffLng.value) {
+    // Set dropoff location
     dropoffLat.value = lat;
     dropoffLng.value = lng;
     reverseGeocode(lat, lng, "dropoff");
     updateDropoffMarker(lat, lng);
-    // Center to show both locations when dropoff is selected
-    if (mapInstance.value?.setCenter && pickupLat.value) {
-      const centerLat = (pickupLat.value + lat) / 2;
-      const centerLng = (pickupLng.value + lng) / 2;
-      mapInstance.value.setCenter({
-        lat: centerLat,
-        lng: centerLng,
-        animated: true
-      });
-    }
   } else {
-    // Re-select dropoff - don't auto-center
+    // Re-select dropoff
     dropoffLat.value = lat;
     dropoffLng.value = lng;
     reverseGeocode(lat, lng, "dropoff");
@@ -610,35 +627,9 @@ onUnmounted(() => {
 
 // Handle tab activation
 (globalThis as any).__homeTabActivated = () => {
-  logger.log("=== CLIENT HOME TAB ACTIVATED ===");
-  
-  // Check map state
-  logger.log("Map state check:", {
-    hasMapbox: !!mapbox.value,
-    hasNativeView: !!(mapbox.value?.nativeView),
-    currentStyle: currentMapStyle.value,
-    hasMapInstance: !!mapInstance.value
-  });
-  
-  // Check if view is attached
-  let isAttached = false;
-  let hasWindow = false;
-  if (mapbox.value?.nativeView) {
-    try {
-      if (mapbox.value.nativeView.getWindow) {
-        hasWindow = !!mapbox.value.nativeView.getWindow();
-        isAttached = hasWindow;
-        logger.log("View attachment check:", { hasWindow, isAttached });
-      }
-    } catch (e) {
-      logger.error("Error checking view attachment:", e);
-    }
-  }
-  
   // Force map remount by changing key when returning to home tab (fixes black screen)
   // This is the most reliable way to fix the black screen after tab switch
   if (mapbox.value) {
-    logger.log("Forcing map remount by changing key");
     // Increment key to force Vue to completely remount the Mapbox component
     mapKey.value++;
     // Reset map references since component will be remounted
