@@ -8,8 +8,24 @@ export { API_URL };
 
 export function toAbsoluteUrl(path: string | null | undefined): string | undefined {
     if (!path) return undefined;
-    if (path.startsWith("http://") || path.startsWith("https://")) return path;
-    if (path.startsWith("/")) return API_URL + path;
+    
+    // If already absolute, ensure it's HTTP (not HTTPS) for EC2
+    if (path.startsWith("http://")) return path;
+    if (path.startsWith("https://")) {
+        // Force HTTPS to HTTP for EC2 backend
+        const httpUrl = path.replace("https://", "http://");
+        logger.warn('[API] Converted HTTPS to HTTP:', httpUrl);
+        return httpUrl;
+    }
+    
+    if (path.startsWith("/")) {
+        const fullUrl = API_URL + path;
+        // Ensure no HTTPS
+        if (fullUrl.startsWith("https://")) {
+            return fullUrl.replace("https://", "http://");
+        }
+        return fullUrl;
+    }
     return path;
 }
 
@@ -211,7 +227,22 @@ export async function apiRequest(
     body?: any
 ) {
     const token = await getAccessToken();
-    const fullUrl = API_URL + url;
+    
+    // Ensure URL is properly formatted (no double slashes, no https)
+    let fullUrl = API_URL + url;
+    fullUrl = fullUrl.replace(/([^:]\/)\/+/g, '$1'); // Remove double slashes (except after http:)
+    
+    // CRITICAL: Force HTTP protocol (prevent HTTPS upgrade)
+    if (fullUrl.startsWith('https://')) {
+        fullUrl = fullUrl.replace('https://', 'http://');
+        logger.warn('[API] Forced HTTPS to HTTP conversion:', fullUrl);
+    }
+    
+    // Validate URL format
+    if (!fullUrl.startsWith('http://')) {
+        logger.error('[API] Invalid URL format (must start with http://):', fullUrl);
+        throw new Error('Invalid API URL format');
+    }
     
     // Debug logging
     logger.debug(`[API] ${method} ${fullUrl}`);
@@ -236,8 +267,16 @@ export async function apiRequest(
             const newToken = await refreshToken();
             if (newToken) {
                 // Retry the request with new token
+                let retryUrl = API_URL + url;
+                retryUrl = retryUrl.replace(/([^:]\/)\/+/g, '$1'); // Remove double slashes
+                
+                // Force HTTP protocol
+                if (retryUrl.startsWith('https://')) {
+                    retryUrl = retryUrl.replace('https://', 'http://');
+                }
+                
                 const retryResponse = await Http.request({
-                    url: API_URL + url,
+                    url: retryUrl,
                     method,
                     headers: {
                         "Content-Type": "application/json",
