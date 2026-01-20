@@ -211,9 +211,16 @@ export async function apiRequest(
     body?: any
 ) {
     const token = await getAccessToken();
+    const fullUrl = API_URL + url;
+    
+    // Debug logging
+    logger.debug(`[API] ${method} ${fullUrl}`);
+    if (body) {
+        logger.debug(`[API] Request body:`, JSON.stringify(body, null, 2));
+    }
 
     const response = await Http.request({
-        url: API_URL + url,
+        url: fullUrl,
         method,
         headers: {
             "Content-Type": "application/json",
@@ -275,6 +282,12 @@ export async function apiRequest(
         } catch (e) {
             logger.error("Failed to parse error response:", e);
         }
+        
+        // Enhanced error logging
+        logger.error(`[API] Request failed: ${method} ${fullUrl}`);
+        logger.error(`[API] Status: ${response.statusCode}`);
+        logger.error(`[API] Error: ${errorMessage}`);
+        logger.error(`[API] Response:`, response.content?.toString() || 'No response content');
         
         throw new Error(errorMessage);
     }

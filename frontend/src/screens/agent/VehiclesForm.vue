@@ -5,7 +5,12 @@
       <ScrollView row="0">
         <StackLayout class="p-4">
         <Label text="Vehicle Type" class="text-gray-600 mb-1" />
-        <TextField v-model="vehicleType" class="input mb-3" hint="e.g., CAR, VAN, BIKE" autocapitalizationType="allcharacters" />
+        <ListPicker 
+          :items="vehicleTypeOptions" 
+          :selectedIndex="vehicleTypeIndex" 
+          @selectedIndexChange="onVehicleTypeChange"
+          class="mb-3"
+        />
 
         <Label text="Make" class="text-gray-600 mb-1" />
         <TextField v-model="make" class="input mb-3" />
@@ -25,7 +30,12 @@
         <TextField v-model="color" class="input mb-3" />
 
         <Label text="Condition" class="text-gray-600 mb-1" />
-        <TextField v-model="vehicleCondition" class="input mb-3" hint="e.g., GOOD, EXCELLENT" autocapitalizationType="allcharacters" />
+        <ListPicker 
+          :items="vehicleConditionOptions" 
+          :selectedIndex="vehicleConditionIndex" 
+          @selectedIndexChange="onVehicleConditionChange"
+          class="mb-3"
+        />
 
         <Label text="Vehicle Photo (optional)" class="text-gray-600 mb-1" />
         <Image v-if="cachedImageUrl" :src="cachedImageUrl" height="120" stretch="aspectFill" class="mb-2 rounded-lg" />
@@ -50,13 +60,21 @@ import { logger } from "@/utils/logger";
 
 const props = defineProps<{ id?: number, onSaved?: () => void | Promise<void> }>();
 
+// Vehicle Type enum values from backend: CAR, MOTORCYCLE, VAN, TRUCK, BICYCLE, SCOOTER, OTHER
+const vehicleTypeOptions = ["CAR", "MOTORCYCLE", "VAN", "TRUCK", "BICYCLE", "SCOOTER", "OTHER"];
 const vehicleType = ref("");
+const vehicleTypeIndex = ref(0);
+
+// Vehicle Condition enum values from backend: EXCELLENT, GOOD, FAIR, POOR, MAINTENANCE_NEEDED
+const vehicleConditionOptions = ["EXCELLENT", "GOOD", "FAIR", "POOR", "MAINTENANCE_NEEDED"];
+const vehicleCondition = ref("");
+const vehicleConditionIndex = ref(1); // Default to "GOOD"
+
 const make = ref("");
 const model = ref("");
 const vehicleYear = ref("");
 const licensePlate = ref("");
 const color = ref("");
-const vehicleCondition = ref("");
 const loading = ref(false);
 const plateError = ref<string | null>(null);
 const yearError = ref<string | null>(null);
@@ -73,18 +91,49 @@ try {
   requestPermissions = cam.requestPermissions;
 } catch (e) {}
 
+function onVehicleTypeChange(e: any) {
+  // ListPicker event: e.value is the selected index
+  const index = e.value ?? e.object?.selectedIndex ?? 0;
+  vehicleTypeIndex.value = index;
+  vehicleType.value = vehicleTypeOptions[index] || vehicleTypeOptions[0];
+}
+
+function onVehicleConditionChange(e: any) {
+  // ListPicker event: e.value is the selected index
+  const index = e.value ?? e.object?.selectedIndex ?? 1;
+  vehicleConditionIndex.value = index;
+  vehicleCondition.value = vehicleConditionOptions[index] || vehicleConditionOptions[1];
+}
+
 onMounted(async () => {
-  if (!props.id) return;
+  if (!props.id) {
+    // Set defaults for new vehicle
+    vehicleTypeIndex.value = 0; // CAR
+    vehicleType.value = vehicleTypeOptions[0];
+    vehicleConditionIndex.value = 1; // GOOD
+    vehicleCondition.value = vehicleConditionOptions[1];
+    return;
+  }
   try {
     loading.value = true;
     const v = await VehiclesService.findVehicle(props.id);
-    vehicleType.value = v.vehicleType || "";
+    
+    // Set vehicle type
+    const typeIndex = vehicleTypeOptions.indexOf(v.vehicleType || "CAR");
+    vehicleTypeIndex.value = typeIndex >= 0 ? typeIndex : 0;
+    vehicleType.value = v.vehicleType || vehicleTypeOptions[0];
+    
     make.value = v.make || "";
     model.value = v.model || "";
     vehicleYear.value = v.vehicleYear ? String(v.vehicleYear) : "";
     licensePlate.value = v.licensePlate || "";
     color.value = v.color || "";
-    vehicleCondition.value = v.vehicleCondition || "";
+    
+    // Set vehicle condition
+    const conditionIndex = vehicleConditionOptions.indexOf(v.vehicleCondition || "GOOD");
+    vehicleConditionIndex.value = conditionIndex >= 0 ? conditionIndex : 1;
+    vehicleCondition.value = v.vehicleCondition || vehicleConditionOptions[1];
+    
     imageUrl.value = v.imageUrl || "";
 
     if (imageUrl.value) {
@@ -180,6 +229,20 @@ async function uploadImage() {
 async function save() {
   try {
     loading.value = true;
+    
+    // Validate required fields
+    if (!vehicleType.value || !vehicleTypeOptions.includes(vehicleType.value)) {
+      await alert("Please select a valid vehicle type");
+      loading.value = false;
+      return;
+    }
+    
+    if (!vehicleCondition.value || !vehicleConditionOptions.includes(vehicleCondition.value)) {
+      await alert("Please select a valid vehicle condition");
+      loading.value = false;
+      return;
+    }
+    
     const normalized = licensePlate.value.replace(/\s/g, "");
     if (!/^[A-Z]{2}[0-9]{3}[A-Z]{2}$/.test(normalized)) {
       plateError.value = "License plate must be in the format XX 000 XX";
@@ -197,13 +260,13 @@ async function save() {
     }
     
     const payload = {
-      vehicleType: vehicleType.value.trim(),
+      vehicleType: vehicleType.value, // Already validated, no need to trim
       make: make.value.trim(),
       model: model.value.trim(),
       vehicleYear: vehicleYear.value ? Number(vehicleYear.value) : undefined,
       licensePlate: licensePlate.value.trim(),
       color: color.value.trim() || undefined,
-      vehicleCondition: vehicleCondition.value.trim(),
+      vehicleCondition: vehicleCondition.value, // Already validated, no need to trim
       imageUrl: imageUrl.value || undefined,
     } as any;
 
