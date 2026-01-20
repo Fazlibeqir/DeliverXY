@@ -466,6 +466,41 @@ async function drawRoute(fromLat: number, fromLng: number, toLat: number, toLng:
   }
 }
 
+async function drawFullRoute(agentLat: number, agentLng: number, pickupLat: number, pickupLng: number, dropoffLat: number, dropoffLng: number, shouldCenter: boolean = false) {
+  if (!mapInstance.value) return;
+
+  // Get route from agent → pickup → dropoff (one continuous route)
+  const url = `https://router.project-osrm.org/route/v1/driving/${agentLng},${agentLat};${pickupLng},${pickupLat};${dropoffLng},${dropoffLat}?overview=full&geometries=geojson`;
+  const res = await fetch(url);
+  const json = await res.json();
+
+  if (!json.routes?.length) return;
+
+  // IMPORTANT: Mapbox NativeScript expects {lat, lng} objects, not [lat, lng] arrays
+  const points = json.routes[0].geometry.coordinates.map(
+    ([lng, lat]: [number, number]) => ({ lat, lng })
+  );
+
+  clearRoute();
+
+  routeLine.value = mapInstance.value.addPolyline({
+    id: "route",
+    points,
+    color: "#FF0000",
+    width: 6,
+    opacity: 1
+  });
+
+  // Only center if explicitly requested (for new routes, not GPS updates)
+  if (shouldCenter) {
+    mapInstance.value.setCenter({
+      lat: agentLat,
+      lng: agentLng,
+      animated: true
+    });
+  }
+}
+
 function clearRoute() {
   if (!mapInstance.value || !routeLine.value) return;
 
@@ -600,25 +635,20 @@ async function loadActiveDelivery(shouldCenter: boolean = false) {
     // Update pickup and dropoff markers
     updateActiveDeliveryMarkers();
     
-    // Fix 3: Use correct routing logic based on status
-    let fromLat, fromLng, toLat, toLng;
-    
-    if (active.status === "ASSIGNED") {
-      // Route from driver's current location to pickup
-      fromLat = lastLoc.value?.lat ?? active.pickupLatitude;
-      fromLng = lastLoc.value?.lng ?? active.pickupLongitude;
-      toLat = active.pickupLatitude;
-      toLng = active.pickupLongitude;
-    } else {
-      // Route from driver's current location to dropoff
-      fromLat = lastLoc.value?.lat ?? active.dropoffLatitude;
-      fromLng = lastLoc.value?.lng ?? active.dropoffLongitude;
-      toLat = active.dropoffLatitude;
-      toLng = active.dropoffLongitude;
-    }
+    // Draw full route: agent location → pickup → dropoff
+    const agentLat = lastLoc.value?.lat ?? active.pickupLatitude;
+    const agentLng = lastLoc.value?.lng ?? active.pickupLongitude;
     
     // Only center if explicitly requested AND it's a new delivery
-    await drawRoute(fromLat, fromLng, toLat, toLng, shouldCenter && isNewDelivery);
+    await drawFullRoute(
+      agentLat,
+      agentLng,
+      active.pickupLatitude,
+      active.pickupLongitude,
+      active.dropoffLatitude,
+      active.dropoffLongitude,
+      shouldCenter && isNewDelivery
+    );
     
     return true;
   } catch (error) {
@@ -733,25 +763,20 @@ onUnmounted(() => {
   // Update pickup and dropoff markers
   updateActiveDeliveryMarkers();
   
-  // Fix: Correct pickup vs dropoff routing logic
-  let fromLat, fromLng, toLat, toLng;
-  
-  if (d.status === "ASSIGNED") {
-    // Route from driver's current location to pickup
-    fromLat = lastLoc.value?.lat ?? d.pickupLatitude;
-    fromLng = lastLoc.value?.lng ?? d.pickupLongitude;
-    toLat = d.pickupLatitude;
-    toLng = d.pickupLongitude;
-  } else {
-    // Route from driver's current location to dropoff
-    fromLat = lastLoc.value?.lat ?? d.dropoffLatitude;
-    fromLng = lastLoc.value?.lng ?? d.dropoffLongitude;
-    toLat = d.dropoffLatitude;
-    toLng = d.dropoffLongitude;
-  }
+  // Draw full route: agent location → pickup → dropoff
+  const agentLat = lastLoc.value?.lat ?? d.pickupLatitude;
+  const agentLng = lastLoc.value?.lng ?? d.pickupLongitude;
   
   clearRoute();
-  await drawRoute(fromLat, fromLng, toLat, toLng, true);
+  await drawFullRoute(
+    agentLat,
+    agentLng,
+    d.pickupLatitude,
+    d.pickupLongitude,
+    d.dropoffLatitude,
+    d.dropoffLongitude,
+    true
+  );
 };
 
 function onDismiss() {
@@ -791,21 +816,19 @@ async function onAccept() {
     
     clearDeliveries();
     
-    if (lastLoc.value) {
-      await drawRoute(
-        lastLoc.value.lat,
-        lastLoc.value.lng,
-        assigned.dropoffLatitude,
-        assigned.dropoffLongitude
-      );
-    } else {
-      await drawRoute(
-        assigned.pickupLatitude,
-        assigned.pickupLongitude,
-        assigned.dropoffLatitude,
-        assigned.dropoffLongitude
-      );
-    }
+    // Draw full route: agent location → pickup → dropoff
+    const agentLat = lastLoc.value?.lat ?? assigned.pickupLatitude;
+    const agentLng = lastLoc.value?.lng ?? assigned.pickupLongitude;
+    
+    await drawFullRoute(
+      agentLat,
+      agentLng,
+      assigned.pickupLatitude,
+      assigned.pickupLongitude,
+      assigned.dropoffLatitude,
+      assigned.dropoffLongitude,
+      true
+    );
     
     store.loadAssigned(true);
   } catch (err) {
@@ -871,18 +894,15 @@ onMounted(async () => {
           if (activeDelivery.value) {
             // Only draw route if it doesn't exist (don't redraw every GPS tick)
             if (!routeLine.value) {
-              const target =
-                activeDelivery.value.status === "ASSIGNED"
-                  ? {
-                      lat: activeDelivery.value.pickupLatitude,
-                      lng: activeDelivery.value.pickupLongitude,
-                    }
-                  : {
-                      lat: activeDelivery.value.dropoffLatitude,
-                      lng: activeDelivery.value.dropoffLongitude,
-                    };
-              
-              await drawRoute(l.latitude, l.longitude, target.lat, target.lng, false);
+              await drawFullRoute(
+                l.latitude,
+                l.longitude,
+                activeDelivery.value.pickupLatitude,
+                activeDelivery.value.pickupLongitude,
+                activeDelivery.value.dropoffLatitude,
+                activeDelivery.value.dropoffLongitude,
+                false
+              );
             }
           } else {
             const now = Date.now();
