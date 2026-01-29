@@ -60,3 +60,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Local-only (not in repo)
+scripts/
+ADMIN_PANEL_FEATURES.md
