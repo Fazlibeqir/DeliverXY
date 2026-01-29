@@ -8,9 +8,12 @@ import com.deliverXY.backend.NewCode.payments.service.PaymentGatewayProvider;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
+import com.stripe.model.Refund;
 import com.stripe.param.PaymentIntentCreateParams;
+import com.stripe.param.RefundCreateParams;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +21,7 @@ import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class StripePaymentProvider implements PaymentGatewayProvider {
 
 
@@ -26,8 +30,12 @@ public class StripePaymentProvider implements PaymentGatewayProvider {
 
     @PostConstruct
     public void init(){
-        System.out.println("Stripe key loaded: " + (secretKey != null));
-        Stripe.apiKey = secretKey;
+        log.info("Stripe key loaded: {}", (secretKey != null && !secretKey.isEmpty()));
+        if (secretKey != null && !secretKey.isEmpty()) {
+            Stripe.apiKey = secretKey;
+        } else {
+            log.warn("Stripe secret key not configured. Stripe payments will not work.");
+        }
     }
 
     @Override
@@ -116,9 +124,50 @@ public class StripePaymentProvider implements PaymentGatewayProvider {
                     .build();
         }
     }
+
+    /**
+     * Refunds a Stripe payment transaction.
+     * 
+     * @param payment The payment to refund
+     * @param amount The amount to refund (must be <= original payment amount)
+     * @param reason The reason for the refund
+     * @throws RuntimeException if the refund fails
+     */
     @Override
     public void refundTransaction(Payment payment, BigDecimal amount, String reason) {
-        throw new UnsupportedOperationException("Stripe refund not implemented yet.");
+        if (payment.getProviderReference() == null || payment.getProviderReference().isEmpty()) {
+            throw new IllegalArgumentException("Cannot refund payment: missing provider reference");
+        }
+
+        if (amount.compareTo(payment.getAmount()) > 0) {
+            throw new IllegalArgumentException("Refund amount cannot exceed original payment amount");
+        }
+
+        try {
+            // Convert amount to minor units (cents for most currencies)
+            long amountInMinor = amount.multiply(BigDecimal.valueOf(100)).longValue();
+
+            RefundCreateParams params = RefundCreateParams.builder()
+                    .setPaymentIntent(payment.getProviderReference())
+                    .setAmount(amountInMinor)
+                    .setReason(RefundCreateParams.Reason.REQUESTED_BY_CUSTOMER)
+                    .putMetadata("refund_reason", reason != null ? reason : "Refund requested")
+                    .putMetadata("payment_id", payment.getId().toString())
+                    .build();
+
+            Refund refund = Refund.create(params);
+            
+            log.info("Stripe refund created successfully. Refund ID: {}, Status: {}, Amount: {}", 
+                     refund.getId(), refund.getStatus(), amount);
+
+            if ("failed".equals(refund.getStatus())) {
+                throw new RuntimeException("Stripe refund failed: " + refund.getFailureReason());
+            }
+
+        } catch (StripeException e) {
+            log.error("Failed to refund Stripe payment {}: {}", payment.getId(), e.getMessage());
+            throw new RuntimeException("Stripe refund failed: " + e.getMessage(), e);
+        }
     }
 }
 

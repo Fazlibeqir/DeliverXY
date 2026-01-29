@@ -7,6 +7,7 @@ import com.deliverXY.backend.NewCode.drivers.domain.DriverLocation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public interface AdminService {
@@ -23,4 +24,8 @@ public interface AdminService {
     void assignDelivery(Long deliveryId, Long agentId);
 
     List<DriverLocation> getAllDriverLocations();
+
+    void refundDelivery(Long deliveryId, BigDecimal amount, String reason);
+
+    void cancelDelivery(Long deliveryId, String reason);
 }
