@@ -1,5 +1,6 @@
 <template>
-    <div class="bg-neutral-900 border border-neutral-800 p-6 rounded-xl shadow w-full md:w-1/2">
+    <div class="bg-neutral-900 border border-neutral-800 p-6 rounded-xl w-full">
+      <h3 class="text-sm font-medium text-neutral-400 mb-4">Delivery status</h3>
       <Bar :data="chartData" :options="chartOptions" />
     </div>
   </template>
@@ -20,20 +21,28 @@
   ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale)
   
   const props = defineProps({
-    delivered: Number,
-    pending: Number
+    delivered: { type: Number, default: 0 },
+    pending: { type: Number, default: 0 },
+    active: { type: Number, default: 0 }
   })
   
-  const chartData = computed(() => ({
-    labels: ['Delivered', 'Pending'],
-    datasets: [
-      {
-        label: 'Delivery Stats',
-        backgroundColor: ['#ffffff', '#525252'],
-        data: [props.delivered, props.pending]  // must be numbers
-      }
-    ]
-  }))
+  const chartData = computed(() => {
+    const hasActive = props.active != null && props.active > 0
+    return {
+      labels: hasActive ? ['Delivered', 'In Transit', 'Requested'] : ['Delivered', 'Pending'],
+      datasets: [
+        {
+          label: 'Deliveries',
+          backgroundColor: hasActive
+            ? ['#22c55e', '#a855f7', '#eab308']
+            : ['#22c55e', '#525252'],
+          data: hasActive
+            ? [props.delivered ?? 0, props.active ?? 0, props.pending ?? 0]
+            : [props.delivered ?? 0, props.pending ?? 0]
+        }
+      ]
+    }
+  })
   
   const chartOptions = {
     responsive: true,
