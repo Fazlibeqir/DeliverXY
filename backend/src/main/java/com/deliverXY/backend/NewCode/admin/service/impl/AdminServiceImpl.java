@@ -136,9 +136,7 @@ public class AdminServiceImpl implements AdminService {
 
         // Find the payment for this delivery
         Payment payment = paymentRepository.findByDeliveryId(deliveryId)
-                .stream()
                 .filter(p -> p.getStatus() == PaymentStatus.COMPLETED)
-                .findFirst()
                 .orElseThrow(() -> new BadRequestException("No completed payment found for this delivery"));
 
         // Validate refund amount
