@@ -60,7 +60,11 @@ Images are pulled from Docker Hub; no build required. For **running backend or a
 
 ## Configuration
 
-Copy [env.template](env.template) to `.env` to set database credentials, Spring profile, and (for deployed builds) API URLs. Do not commit real secrets. Sub-project READMEs describe per-app config (e.g. `VITE_API_URL` for the admin panel, API URL for the mobile app).
+Copy [env.template](env.template) to `.env` to set database credentials, Spring profile, and (for deployed builds) API URLs. 
+
+**IMPORTANT:** `.env` files are **not tracked in git** and contain sensitive credentials. Never commit `.env` files to the repository. Use `env.template` as a reference for required variables.
+
+Sub-project READMEs describe per-app config (e.g. `VITE_API_URL` for the admin panel, API URL for the mobile app).
 
 ---
 
