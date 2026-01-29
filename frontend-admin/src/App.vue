@@ -73,6 +73,13 @@ async function handleLogout() {
                 >
                   Promo Codes
                 </RouterLink>
+                <RouterLink 
+                  to="/pricing-config" 
+                  class="text-sm text-neutral-400 hover:text-white"
+                  :class="{ 'text-white': $route.path === '/pricing-config' }"
+                >
+                  Pricing & Commission
+                </RouterLink>
               </div>
             </template>
           </div>

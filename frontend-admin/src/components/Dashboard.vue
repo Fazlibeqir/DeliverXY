@@ -77,6 +77,7 @@ onMounted(fetchStats)
       <RouterLink to="/earnings" class="btn btn-secondary">Earnings</RouterLink>
       <RouterLink to="/payouts" class="btn btn-secondary">Payouts</RouterLink>
       <RouterLink to="/promo-codes" class="btn btn-secondary">Promo Codes</RouterLink>
+      <RouterLink to="/pricing-config" class="btn btn-secondary">Pricing & Commission</RouterLink>
     </div>
   </div>
 </template>

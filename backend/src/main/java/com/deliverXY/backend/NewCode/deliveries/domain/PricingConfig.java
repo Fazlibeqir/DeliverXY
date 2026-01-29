@@ -59,5 +59,9 @@ public class PricingConfig {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
+    /** Platform commission as percentage of delivery fare (e.g. 20.0 = 20%). Driver gets (100 - this). */
+    @Column(name = "platform_commission_percent")
+    private Double platformCommissionPercent = 20.0;
+
     private String description; // e.g., "Standard delivery in Skopje"
 }

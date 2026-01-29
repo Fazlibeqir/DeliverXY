@@ -64,3 +64,6 @@ build/
 # Local-only (not in repo)
 scripts/
 ADMIN_PANEL_FEATURES.md
+
+# Uploads (user-generated)
+backend/uploads/

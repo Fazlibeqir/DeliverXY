@@ -10,6 +10,7 @@ import Earnings from '../components/Earnings.vue'
 import Payouts from '../components/Payouts.vue'
 import PromoCodes from '../components/PromoCodes.vue'
 import KYCApproval from '../components/KYCApproval.vue'
+import PricingConfig from '../components/PricingConfig.vue'
 
 const routes = [
   { path: '/', component: Dashboard, meta: { requiresAuth: true, requiresAdmin: true } },
@@ -20,6 +21,7 @@ const routes = [
   { path: '/earnings', component: Earnings, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/payouts', component: Payouts, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/promo-codes', component: PromoCodes, meta: { requiresAuth: true, requiresAdmin: true } },
+  { path: '/pricing-config', component: PricingConfig, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/login', component: Login },
   { path: '/:pathMatch(.*)*', redirect: '/' } // catch-all redirect to dashboard or 404 page
 ]

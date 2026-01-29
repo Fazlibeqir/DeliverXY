@@ -8,12 +8,31 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class PricingConfigServiceImpl implements PricingConfigService {
 
     private final PricingConfigRepository repo;
+
+    @Override
+    public List<PricingConfig> findAll() {
+        return repo.findAll();
+    }
+
+    @Override
+    public Optional<PricingConfig> findById(Long id) {
+        return repo.findById(id);
+    }
+
+    @Override
+    @Transactional
+    public PricingConfig save(PricingConfig config) {
+        return repo.save(config);
+    }
 
     @Override
     @Transactional
@@ -49,6 +68,7 @@ public class PricingConfigServiceImpl implements PricingConfigService {
         config.setWeekendMultiplier(1.15);
         config.setPeakHourMultiplier(1.3);
         config.setIsActive(true);
+        config.setPlatformCommissionPercent(20.0);
         config.setDescription("Default pricing configuration for " + city);
         return config;
     }

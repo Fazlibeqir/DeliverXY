@@ -7,6 +7,7 @@ import com.deliverXY.backend.NewCode.deliveries.dto.*;
 import com.deliverXY.backend.NewCode.deliveries.repository.*;
 import com.deliverXY.backend.NewCode.deliveries.mapper.DeliveryMapper;
 import com.deliverXY.backend.NewCode.deliveries.service.DeliveryService;
+import com.deliverXY.backend.NewCode.deliveries.service.PricingConfigService;
 import com.deliverXY.backend.NewCode.deliveries.validator.DeliveryValidator;
 import com.deliverXY.backend.NewCode.earnings.domain.DriverEarnings;
 import com.deliverXY.backend.NewCode.earnings.repository.DriverEarningsRepository;
@@ -50,6 +51,9 @@ public class DeliveryServiceImpl implements DeliveryService {
 
 
     private final PricingService pricingService;
+    private final PricingConfigService pricingConfigService;
+
+    private static final String DEFAULT_CITY = "Skopje";
 
     private Delivery load(Long id) {
         return deliveryRepo.findById(id)
@@ -247,10 +251,15 @@ public class DeliveryServiceImpl implements DeliveryService {
 
         BigDecimal total = payment.getAmount();
 
+        // Use platform commission % from active pricing config (driver gets remainder)
+        var pricingConfig = pricingConfigService.getActivePricing(DEFAULT_CITY);
+        double platformPct = pricingConfig.getPlatformCommissionPercent() != null
+                ? pricingConfig.getPlatformCommissionPercent() / 100.0
+                : 0.20;
+        double driverPct = 1.0 - platformPct;
         BigDecimal driverCut = total
-                .multiply(new BigDecimal("0.80"))
+                .multiply(BigDecimal.valueOf(driverPct))
                 .setScale(2, RoundingMode.HALF_UP);
-
         BigDecimal platformCut = total.subtract(driverCut);
 
         walletService.deposit(
