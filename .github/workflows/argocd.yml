@@ -1,14 +1,18 @@
+# Optional: ArgoCD sync when you have a Kubernetes cluster (e.g. EKS, free K8s).
+# To enable: set repo variable ARGOCD_ENABLED = true and secrets ARGOCD_SERVER, ARGOCD_USERNAME, ARGOCD_PASSWORD.
+# If disabled or no cluster, this job is skipped; EC2 deployment (aws-cd) is unaffected.
 name: CD - ArgoCD Sync
 on:
   workflow_run:
     workflows: ["CI - Build and Push Docker Images"]
     types:
       - completed
-      
+
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && vars.ARGOCD_ENABLED == 'true' }}
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -25,5 +29,5 @@ jobs:
           ARGOCD_USERNAME: ${{ secrets.ARGOCD_USERNAME }}
           ARGOCD_PASSWORD: ${{ secrets.ARGOCD_PASSWORD }}
         run: |
-          argocd login $ARGOCD_SERVER --username $ARGOCD_USERNAME --password $ARGOCD_PASSWORD --insecure
+          argocd login $ARGOCD_SERVER --username $ARGOCD_USERNAME --password $ARGOCD_PASSWORD --insecure --grpc-web
           argocd app sync deliverxy

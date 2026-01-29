@@ -1,58 +1,80 @@
 # DeliverXY
 
-DeliverXY is a crowdsourced delivery platform with frontend, backend, and PostgreSQL database services. This repository contains the full source code, Dockerization, Kubernetes manifests, and CI/CD pipelines.
+**On-demand delivery platform** — clients request deliveries, agents fulfill them, admins oversee everything. Mobile app (iOS & Android), web admin dashboard, and REST API.
 
-## Project Structure
-- `backend/` - Spring Boot backend service
-- `frontend-admin/` - Vue.js admin frontend
-- `docker-compose.yml` - Compose file for local development
-- `kubernetes/` - Kubernetes manifests for deployment
-- `.github/workflows/` - GitHub Actions workflows for CI/CD
+---
 
-## How to Run Locally
+## What it does
 
-1. Build and run using Docker Compose:
-   ```bash
-   docker-compose up -d
-   ```
-   
-2. Access frontend and backend locally on their respective ports.
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:8080/api
+- **Clients** — Request deliveries, track in real time, pay via in-app wallet, rate agents.
+- **Agents** — See available deliveries on a map, accept jobs, manage vehicles, complete KYC, earn per delivery.
+- **Admins** — Dashboard (stats, charts, deliveries over time), users & KYC approval, payouts (per agent or batch), promo codes, pricing & commission config.
 
-## Kubernetes Deployment
-The app is deployed on Kubernetes using the manifests inside the kubernetes/ folder. 
-You can apply them via:
+---
+
+## Tech stack
+
+| Layer | Stack |
+|-------|--------|
+| **Backend** | Spring Boot 3, Java 17, PostgreSQL, JWT |
+| **Mobile** | NativeScript-Vue 3, Pinia, Mapbox |
+| **Admin** | Vue 3, Vite, Tailwind, Chart.js, Leaflet |
+| **Infra** | Docker, Docker Compose, Kubernetes, GitHub Actions (CI/CD) |
+
+---
+
+## Quick start
+
+**Prerequisites:** Docker and Docker Compose.
+
 ```bash
-kubectl apply -f kubernetes/namespace.yaml
-kubectl apply -f kubernetes/
+git clone https://github.com/Fazlibeqir/DeliverXY.git
+cd DeliverXY
+cp env.template .env   # optional; defaults work for local
+docker-compose up -d
 ```
-You can monitor the deployment status with:
-```bash
-kubectl get pods -n deliverxy
-kubectl get services -n deliverxy
-```
-The Kubernetes cluster is managed with ArgoCD for continuous deployment.
 
-## CI/CD Pipeline
-- Continuous Integration (CI): On push to the main branch, Docker images are automatically built and pushed to Docker Hub.
+| Service | URL |
+|---------|-----|
+| Admin panel | http://localhost:3000 |
+| API | http://localhost:8080 |
+| API health | http://localhost:8080/actuator/health |
 
-- Continuous Deployment (CD):
+Images are pulled from Docker Hub; no build required. For **running backend or admin locally** (e.g. for development), see the READMEs in `backend/` and `frontend-admin/`.
 
-    - For AWS EC2: Docker images are deployed automatically to the server using GitHub Actions and Docker Compose.
+---
 
-    - For Kubernetes: Deployment manifests are automatically synced and managed by ArgoCD.
-      
-## Using ngrok for ArgoCD Access and Syncing
-To enable GitHub Actions to communicate with your ArgoCD server securely, expose ArgoCD via port-forwarding and ngrok:
-   1. Forward the ArgoCD server port locally:
-      ```bash
-      kubectl -n argocd port-forward svc/argocd-server 8080:80
-      ```
-   2. Start ngrok to expose your local ArgoCD port to the internet:
-       ```bash
-      ngrok http 8080
-      ```
-   3. Use the generated ngrok URL (e.g., https://8657-92-53-30-197.ngrok-free.app) as your ARGOCD_SERVER secret in GitHub.
-   4. GitHub Actions uses this public ngrok URL to log in to ArgoCD and sync the latest manifests automatically after each successful CI run.
-      
+## Project structure
+
+| Folder / file | Description |
+|---------------|-------------|
+| [**backend/**](backend/README.md) | Spring Boot API — auth, deliveries, wallet, KYC, earnings, admin endpoints |
+| [**frontend/**](frontend/README.md) | NativeScript-Vue mobile app — client & agent flows |
+| [**frontend-admin/**](frontend-admin/README.md) | Vue.js admin — dashboard, users, deliveries, map, earnings, payouts, promo codes, pricing config |
+| **docker-compose.yml** | Postgres + backend + admin (pre-built images) |
+| [**kubernetes/**](kubernetes/README.md) | K8s manifests for future use (ArgoCD; secrets via `kubectl create secret`) |
+| **.github/workflows/** | CI (build & push images), AWS EC2 CD, optional ArgoCD sync |
+| [**env.template**](env.template) | Env vars template — copy to `.env` and adjust (do not commit real secrets) |
+
+---
+
+## Configuration
+
+Copy [env.template](env.template) to `.env` to set database credentials, Spring profile, and (for deployed builds) API URLs. Do not commit real secrets. Sub-project READMEs describe per-app config (e.g. `VITE_API_URL` for the admin panel, API URL for the mobile app).
+
+---
+
+## Deployment & CI/CD
+
+- **CI:** On push to `main`, GitHub Actions builds backend and frontend-admin and pushes to Docker Hub.
+- **AWS EC2 (current):** A workflow runs after CI, SSHs to your server, and runs `docker compose` to pull and restart (see [.github/workflows/aws-cd.yml](.github/workflows/aws-cd.yml)). Set repo secrets: `EC2_HOST`, `EC2_SSH_KEY`, `VITE_API_URL` (backend URL for the admin panel).
+- **Kubernetes (future):** Manifests in [kubernetes/](kubernetes/README.md) are ready for when you have a cluster (e.g. EKS, minikube). Secrets use placeholders in the repo; create real secrets with `kubectl create secret` (see [kubernetes/README.md](kubernetes/README.md)). Optional ArgoCD sync workflow (see [.github/workflows/argocd.yml](.github/workflows/argocd.yml)); enable with repo variable `ARGOCD_ENABLED=true` and ArgoCD secrets when a cluster is available.
+
+---
+
+## More detail
+
+- **API, running backend locally, DB setup** → [backend/README.md](backend/README.md)
+- **Mobile app setup, build, config** → [frontend/README.md](frontend/README.md)
+- **Admin panel setup, build, config** → [frontend-admin/README.md](frontend-admin/README.md)
+- **Kubernetes (future), secrets, apply order** → [kubernetes/README.md](kubernetes/README.md)

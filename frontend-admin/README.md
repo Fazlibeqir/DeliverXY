@@ -370,9 +370,9 @@ Set `VITE_API_URL` at build time:
 VITE_API_URL=http://your-backend-url:8080 npm run build
 ```
 
-### Kubernetes Deployment
+### Kubernetes (future)
 
-See `kubernetes/frontend-deployment.yaml` for Kubernetes configuration.
+The repo includes Kubernetes manifests in [kubernetes/](../kubernetes/README.md). The admin panel is defined in `kubernetes/frontend-deployment.yaml`. For production, build the image with `VITE_API_URL` set to your backend/ingress URL; see [kubernetes/README.md](../kubernetes/README.md) for apply order and secrets.
 
 ---
 

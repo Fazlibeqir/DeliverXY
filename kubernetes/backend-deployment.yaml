@@ -68,6 +68,11 @@ spec:
               secretKeyRef:
                 name: postgres-secret
                 key: POSTGRES_PASSWORD
+          - name: JWT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: app-secret
+                key: JWT_SECRET
 
           # Set Spring active profile here:
           - name: SPRING_PROFILES_ACTIVE

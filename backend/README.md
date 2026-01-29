@@ -383,9 +383,9 @@ docker run -p 8080:8080 \
   deliverxy-backend
 ```
 
-### Kubernetes
+### Kubernetes (future)
 
-See `kubernetes/backend-deployment.yaml` for Kubernetes deployment configuration.
+The repo includes full Kubernetes manifests in [kubernetes/](../kubernetes/README.md). The backend is defined in `kubernetes/backend-deployment.yaml` (ConfigMap, secrets for DB and JWT). Do not commit real secrets; create them with `kubectl create secret` — see [kubernetes/README.md](../kubernetes/README.md).
 
 ### Environment Variables for Production
 

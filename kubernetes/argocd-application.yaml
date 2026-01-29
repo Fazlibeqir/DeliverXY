@@ -11,7 +11,7 @@ spec:
     path: kubernetes            
   destination:
     server: https://kubernetes.default.svc
-    namespace: default  
+    namespace: deliverxy  
   syncPolicy:
     automated:
       prune: true
