@@ -18,9 +18,8 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
-          script_stderr: true
           script: |
             docker pull redbfs/deliverxy-backend:latest
             docker pull redbfs/deliverxy-frontend-admin:latest
-            docker-compose -f /home/ec2-user/DeliverXY/docker-compose.yml down
-            docker-compose -f /home/ec2-user/DeliverXY/docker-compose.yml up -d
+            docker compose -f /home/ec2-user/DeliverXY/docker-compose.yml down
+            docker compose -f /home/ec2-user/DeliverXY/docker-compose.yml up -d
