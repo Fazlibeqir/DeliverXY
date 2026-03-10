@@ -4,8 +4,7 @@
 // This ensures the app ALWAYS connects to the production backend
 
 // EC2 Instance IP (hard-coded for production)
-const EC2_API_URL = 'http://13.60.229.249:8080';
-
+const EC2_API_URL = 'http://13.60.157.179:8080';
 // Force EC2 URL - no environment variable fallback
 // This prevents protocol mismatches and connection issues
 export const API_URL = EC2_API_URL;
