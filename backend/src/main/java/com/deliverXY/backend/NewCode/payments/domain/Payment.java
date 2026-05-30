@@ -14,7 +14,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "payments")
+@Table(name = "payments", indexes = {
+        @Index(name = "idx_payment_delivery_id", columnList = "delivery_id"),
+        @Index(name = "idx_payment_payer_id", columnList = "payer_id")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -89,6 +92,7 @@ public class Payment {
     private LocalDateTime refundedAt;
 
     @Column(name = "escrow_released", nullable = false)
+    @Builder.Default
     private Boolean escrowReleased = false;
 
     @Column(name = "escrow_released_at")

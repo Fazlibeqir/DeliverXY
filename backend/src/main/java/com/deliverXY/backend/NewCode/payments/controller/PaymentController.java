@@ -1,11 +1,14 @@
 package com.deliverXY.backend.NewCode.payments.controller;
 
 import com.deliverXY.backend.NewCode.common.response.ApiResponse;
+import com.deliverXY.backend.NewCode.common.util.RequestPayloadValidator;
 import com.deliverXY.backend.NewCode.payments.dto.PaymentInitRequest;
 import com.deliverXY.backend.NewCode.payments.dto.PaymentResultDTO;
 import com.deliverXY.backend.NewCode.payments.service.PaymentService;
 import com.deliverXY.backend.NewCode.security.UserPrincipal;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,19 +17,21 @@ import java.math.BigDecimal;
 @RestController
 @RequestMapping("/api/payments")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class PaymentController {
 
     private final PaymentService paymentService;
 
     @PostMapping("/init")
     public ApiResponse<PaymentResultDTO> initPayment(
-            @RequestBody PaymentInitRequest request,
+            @Valid @RequestBody PaymentInitRequest request,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
+        PaymentInitRequest body = RequestPayloadValidator.requireBody(request);
         PaymentResultDTO result = paymentService.initializePayment(
-                request.getDeliveryId(),
-                request.getAmount(),
-                request.getProvider(),
+                body.getDeliveryId(),
+                body.getAmount(),
+                body.getProvider(),
                 principal.getUser().getId()
         );
 
@@ -39,6 +44,7 @@ public class PaymentController {
     }
 
     @PostMapping("/refund/{paymentId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<String> refund(
             @PathVariable Long paymentId,
             @RequestParam BigDecimal amount,

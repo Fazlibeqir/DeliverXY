@@ -8,19 +8,24 @@ import com.deliverXY.backend.NewCode.user.service.AgentLocationService;
 import com.deliverXY.backend.NewCode.user.service.AppUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class AgentLocationServiceImpl implements AgentLocationService {
     private final AppUserLocationRepository repo;
     private final AppUserService userService;
 
     @Override
+    @Transactional
     public AppUserLocation updateLocation(Long userId, Double lat, Double lon) {
-        AppUser user = userService.requireById(userId);
+        Long id = Objects.requireNonNull(userId, "userId");
+        AppUser user = userService.requireById(id);
 
-        AppUserLocation loc = repo.findById(userId)
+        AppUserLocation loc = repo.findById(id)
                 .orElse(new AppUserLocation());
 
         loc.setUser(user);
@@ -32,7 +37,8 @@ public class AgentLocationServiceImpl implements AgentLocationService {
 
     @Override
     public AppUserLocation getLocation(Long userId) {
-        return repo.findById(userId)
+        Long id = Objects.requireNonNull(userId, "userId");
+        return repo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Location not found"));
     }
 }

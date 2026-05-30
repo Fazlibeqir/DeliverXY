@@ -1,6 +1,8 @@
 package com.deliverXY.backend.NewCode.user.controller;
 
 import com.deliverXY.backend.NewCode.common.response.ApiResponse;
+import com.deliverXY.backend.NewCode.common.util.RequestPayloadValidator;
+import jakarta.validation.Valid;
 import com.deliverXY.backend.NewCode.security.UserPrincipal;
 import com.deliverXY.backend.NewCode.user.domain.AppUserAgentProfile;
 import com.deliverXY.backend.NewCode.user.domain.AppUserLocation;
@@ -9,12 +11,14 @@ import com.deliverXY.backend.NewCode.user.dto.AgentStatusUpdateDTO;
 import com.deliverXY.backend.NewCode.user.service.AgentLocationService;
 import com.deliverXY.backend.NewCode.user.service.AgentProfileService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/agent")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('AGENT')")
 public class AgentController {
     private final AgentProfileService profileService;
     private final AgentLocationService locationService;
@@ -27,21 +31,25 @@ public class AgentController {
     @PutMapping("/profile")
     public ApiResponse<AppUserAgentProfile> updateProfile(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody AgentProfileDTO profile
+            @Valid @RequestBody AgentProfileDTO profile
     ) {
-        return ApiResponse.ok(profileService.updateProfile(principal.getUser().getId(), profile));
+        return ApiResponse.ok(profileService.updateProfile(
+                principal.getUser().getId(),
+                RequestPayloadValidator.requireBody(profile)
+        ));
     }
 
     @PutMapping("/location")
     public ApiResponse<AppUserLocation> updateLocation(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody AgentStatusUpdateDTO status
+            @Valid @RequestBody AgentStatusUpdateDTO status
     ) {
+        AgentStatusUpdateDTO body = RequestPayloadValidator.requireBody(status);
         return ApiResponse.ok(
                 locationService.updateLocation(
                         principal.getUser().getId(),
-                        status.getCurrentLatitude(),
-                        status.getCurrentLongitude()
+                        body.getCurrentLatitude(),
+                        body.getCurrentLongitude()
                 )
         );
     }

@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "app_user_stats")
+@Table(name = "app_user_stats", indexes = @Index(name = "idx_user_stats_user_id", columnList = "user_id"))
 @Data
 @NoArgsConstructor
 public class AppUserStats {

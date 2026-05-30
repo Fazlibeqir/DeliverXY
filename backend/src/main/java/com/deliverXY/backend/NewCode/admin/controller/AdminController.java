@@ -2,16 +2,23 @@ package com.deliverXY.backend.NewCode.admin.controller;
 
 import com.deliverXY.backend.NewCode.admin.dto.AdminDashboardDTO;
 import com.deliverXY.backend.NewCode.admin.dto.AssignDeliveryDTO;
+import com.deliverXY.backend.NewCode.admin.dto.RejectKycRequest;
+import jakarta.validation.Valid;
 import com.deliverXY.backend.NewCode.admin.service.AdminEarningsService;
+import com.deliverXY.backend.NewCode.admin.service.AdminKycPresentationService;
 import com.deliverXY.backend.NewCode.admin.service.AdminService;
 import com.deliverXY.backend.NewCode.common.response.ApiResponse;
+import com.deliverXY.backend.NewCode.common.util.RequestPayloadValidator;
 import com.deliverXY.backend.NewCode.kyc.service.AppUserKYCService;
 import com.deliverXY.backend.NewCode.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.lang.NonNull;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -21,6 +28,7 @@ public class AdminController {
     private final AdminService adminService;
     private final AdminEarningsService adminEarningsService;
     private final AppUserKYCService kycService;
+    private final AdminKycPresentationService adminKycPresentationService;
 
     @GetMapping("/dashboard")
     @PreAuthorize("hasRole('ADMIN')")
@@ -63,10 +71,10 @@ public class AdminController {
     @PostMapping("/deliveries/{deliveryId}/assign")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<String> assignDelivery(
-            @PathVariable Long deliveryId,
-            @RequestBody AssignDeliveryDTO request) {
-
-        adminService.assignDelivery(deliveryId, request.getAgentId());
+            @PathVariable @NonNull Long deliveryId,
+            @Valid @RequestBody @NonNull AssignDeliveryDTO request) {
+        AssignDeliveryDTO body = RequestPayloadValidator.requireBody(request);
+        adminService.assignDelivery(Objects.requireNonNull(deliveryId, "deliveryId"), Objects.requireNonNull(body.getAgentId(), "agentId"));
         return ApiResponse.ok("Delivery assigned");
     }
     @GetMapping("/earnings")
@@ -77,61 +85,47 @@ public class AdminController {
 
     @GetMapping("/kyc/{userId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<?> getKYC(@PathVariable Long userId) {
-        try {
-            var kyc = kycService.getKYC(userId);
-            if (kyc == null) {
-                return ApiResponse.ok(null);
-            }
-            // Convert to DTO
-            var dto = new com.deliverXY.backend.NewCode.kyc.dto.KYCInfoDTO();
-            dto.setStatus(kyc.getKycStatus());
-            dto.setIdFrontUrl(kyc.getIdFrontUrl());
-            dto.setIdBackUrl(kyc.getIdBackUrl());
-            dto.setSelfieUrl(kyc.getSelfieUrl());
-            dto.setProofOfAddressUrl(kyc.getProofOfAddressUrl());
-            dto.setSubmittedAt(kyc.getSubmittedAt());
-            dto.setVerifiedAt(kyc.getVerifiedAt());
-            dto.setRejectionReason(kyc.getRejectionReason());
-            dto.setReviewedBy(kyc.getReviewedBy());
-            return ApiResponse.ok(dto);
-        } catch (com.deliverXY.backend.NewCode.exceptions.NotFoundException e) {
-            return ApiResponse.ok(null);
-        } catch (Exception e) {
-            return ApiResponse.error("Failed to fetch KYC: " + e.getMessage());
-        }
+    public ApiResponse<?> getKYC(@PathVariable @NonNull Long userId) {
+        return ApiResponse.ok(adminKycPresentationService.getKycInfo(Objects.requireNonNull(userId, "userId")));
     }
 
     @PostMapping("/kyc/{userId}/approve")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<?> approveKYC(
-            @PathVariable Long userId,
+            @PathVariable @NonNull Long userId,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         String reviewer = principal != null && principal.getUser() != null 
             ? principal.getUser().getEmail() + " (" + principal.getUser().getUsername() + ")"
             : "ADMIN";
-        return ApiResponse.ok(kycService.approveKYC(userId, reviewer));
+        return ApiResponse.ok(kycService.approveKYC(Objects.requireNonNull(userId, "userId"), reviewer));
     }
 
     @PostMapping("/kyc/{userId}/reject")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<?> rejectKYC(
-            @PathVariable Long userId,
-            @RequestBody String reason,
+            @PathVariable @NonNull Long userId,
+            @Valid @RequestBody @NonNull RejectKycRequest request,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         String reviewer = principal != null && principal.getUser() != null 
             ? principal.getUser().getEmail() + " (" + principal.getUser().getUsername() + ")"
             : "ADMIN";
-        return ApiResponse.ok(kycService.rejectKYC(userId, reason, reviewer));
+        RejectKycRequest body = RequestPayloadValidator.requireBody(request);
+        return ApiResponse.ok(kycService.rejectKYC(
+                Objects.requireNonNull(userId, "userId"),
+                RequestPayloadValidator.requireText(body.getReason(), "reason"),
+                reviewer
+        ));
     }
 
     @GetMapping("/drivers/locations")
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<?> getAllDriverLocations() {
-        // This will be implemented to return all driver locations for the map
-        return ApiResponse.ok(adminService.getAllDriverLocations());
+    public ApiResponse<?> getAllDriverLocations(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size
+    ) {
+        return ApiResponse.ok(adminService.getAllDriverLocations(PageRequest.of(page, size)));
     }
 
     @PostMapping("/deliveries/{id}/refund")

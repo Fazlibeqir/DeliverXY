@@ -6,13 +6,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
-
 public interface DriverPayoutRepository extends JpaRepository<DriverPayout, Long> {
 
-    List<DriverPayout> findByDriverIdOrderByPaidAtDesc(Long driverId);
+    Page<DriverPayout> findByDriverIdOrderByPaidAtDesc(Long driverId, Pageable pageable);
 
     Page<DriverPayout> findByDriverId(Long driverId, Pageable pageable);
 
-    Page<DriverPayout> findByStatus(PayoutStatus status,Pageable pageable);
+    Page<DriverPayout> findByStatus(PayoutStatus status, Pageable pageable);
 }

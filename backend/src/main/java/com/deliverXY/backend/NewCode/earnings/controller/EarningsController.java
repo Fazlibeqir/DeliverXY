@@ -1,6 +1,8 @@
 package com.deliverXY.backend.NewCode.earnings.controller;
 
 import com.deliverXY.backend.NewCode.common.response.ApiResponse;
+import com.deliverXY.backend.NewCode.common.util.RequestPayloadValidator;
+import jakarta.validation.Valid;
 import com.deliverXY.backend.NewCode.earnings.dto.DriverEarningsDTO;
 import com.deliverXY.backend.NewCode.earnings.dto.DriverPayoutDTO;
 import com.deliverXY.backend.NewCode.earnings.dto.EarningsSummaryDTO;
@@ -53,9 +55,11 @@ public class EarningsController {
     @PreAuthorize("hasRole('AGENT')")
     public ApiResponse<DriverPayoutDTO> requestPayout(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody PayoutRequestDTO request) {
-
-        var payout = earningsService.requestManualPayout(principal.getUser().getId(), request);
+            @Valid @RequestBody PayoutRequestDTO request) {
+        var payout = earningsService.requestManualPayout(
+                principal.getUser().getId(),
+                RequestPayloadValidator.requireBody(request)
+        );
         return ApiResponse.ok(payout);
     }
 

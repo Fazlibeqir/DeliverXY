@@ -53,7 +53,7 @@ public class AuthServiceImpl implements AuthService {
 
 
         AppUser user = userService.findByIdentifier(req.getIdentifier())
-                .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
+                .orElseThrow(() -> new UnauthorizedException("Authentication failed"));
 
         try {
             authManager.authenticate(
@@ -62,8 +62,8 @@ public class AuthServiceImpl implements AuthService {
                             req.getPassword()
                     )
             );
-        }catch (Exception e){
-            throw new UnauthorizedException("Invalid username/email or password");
+        } catch (Exception e) {
+            throw new UnauthorizedException("Authentication failed");
         }
 
         return buildTokens(user);
@@ -77,7 +77,7 @@ public class AuthServiceImpl implements AuthService {
         String token = req.getRefreshToken();
 
         if (jwtService.isExpired(token)){
-            throw new UnauthorizedException("Refresh token expired");
+            throw new UnauthorizedException("Session expired");
         }
 
         // Validate type
@@ -85,7 +85,7 @@ public class AuthServiceImpl implements AuthService {
         String type = claims.get("type", String.class);
 
         if (!"refresh".equals(type)) {
-            throw new BadRequestException("Invalid token type");
+            throw new BadRequestException("Invalid session type");
         }
 
         String username = claims.getSubject();

@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -53,7 +54,8 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentResultDTO initializePayment(Long deliveryId, BigDecimal amount, PaymentProvider provider, Long userId)
     {
 
-        var delivery = deliveryRepo.findById(deliveryId)
+        Long id = Objects.requireNonNull(deliveryId, "deliveryId");
+        var delivery = deliveryRepo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Delivery not found"));
 
 //        FareResponseDTO fare = deliveryService.getFareForDelivery(deliveryId);
@@ -63,7 +65,7 @@ public class PaymentServiceImpl implements PaymentService {
                 && delivery.getDeliveryPayment().getPaymentStatus() != PaymentStatus.PENDING) {
             throw new BadRequestException("A payment already exists for this delivery.");
         }
-        Payment payment = Payment.builder()
+        Payment payment = Objects.requireNonNull(Payment.builder()
                 .delivery(delivery)
                 .payerId(userId)
                 .amount(finalAmount)
@@ -76,7 +78,7 @@ public class PaymentServiceImpl implements PaymentService {
                 .driverAmount(BigDecimal.ZERO)
                 .refundedAmount(BigDecimal.ZERO)
                 .escrowReleased(false)
-                .build();
+                .build());
 
         paymentRepo.save(payment);
         if (provider == PaymentProvider.WALLET) {
@@ -133,6 +135,7 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
+    @Transactional
     public PaymentResultDTO confirmPayment(String reference) {
 
         Payment payment = paymentRepo.findByProviderReference(reference)
@@ -162,9 +165,11 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
+    @Transactional
     public void refund(Long paymentId, BigDecimal amount, String reason) {
-        Payment payment = paymentRepo.findById(paymentId)
-                .orElseThrow(() -> new NotFoundException("Payment not found: " + paymentId));
+        Long id = Objects.requireNonNull(paymentId, "paymentId");
+        Payment payment = paymentRepo.findById(id)
+                .orElseThrow(() -> new NotFoundException("Payment not found: " + id));
 
         PaymentGatewayProvider gateway = getGatewayProvider(payment.getProvider());
         gateway.refundTransaction(payment, amount, reason);
@@ -172,6 +177,7 @@ public class PaymentServiceImpl implements PaymentService {
 
 
     @Override
+    @Transactional(readOnly = true)
     public List<Payment> getPaymentsByUser(Long userId) {
         return paymentRepo.findByPayerId(userId);
     }

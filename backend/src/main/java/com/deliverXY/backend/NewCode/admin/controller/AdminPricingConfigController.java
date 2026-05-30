@@ -1,16 +1,20 @@
 package com.deliverXY.backend.NewCode.admin.controller;
 
 import com.deliverXY.backend.NewCode.common.response.ApiResponse;
+import com.deliverXY.backend.NewCode.common.util.RequestPayloadValidator;
+import jakarta.validation.Valid;
 import com.deliverXY.backend.NewCode.deliveries.domain.PricingConfig;
 import com.deliverXY.backend.NewCode.deliveries.dto.PricingConfigDTO;
 import com.deliverXY.backend.NewCode.deliveries.service.PricingConfigService;
 import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.lang.NonNull;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/admin/pricing-config")
@@ -21,29 +25,39 @@ public class AdminPricingConfigController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<PricingConfigDTO>> list() {
-        List<PricingConfigDTO> list = pricingConfigService.findAll().stream()
-                .map(AdminPricingConfigController::toDTO)
-                .collect(Collectors.toList());
-        return ApiResponse.ok(list);
+    public ApiResponse<Page<PricingConfigDTO>> list(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        Page<PricingConfigDTO> result = pricingConfigService.findAll(PageRequest.of(page, size))
+                .map(AdminPricingConfigController::toDTO);
+        return ApiResponse.ok(result);
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<PricingConfigDTO> getById(@PathVariable Long id) {
-        PricingConfig config = pricingConfigService.findById(id)
-                .orElseThrow(() -> new NotFoundException("Pricing config not found: " + id));
+    public ApiResponse<PricingConfigDTO> getById(@PathVariable @NonNull Long id) {
+        PricingConfig config = Objects.requireNonNull(
+                pricingConfigService.findById(id)
+                        .orElseThrow(() -> new NotFoundException("Pricing config not found: " + id))
+        );
         return ApiResponse.ok(toDTO(config));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<PricingConfigDTO> update(@PathVariable Long id, @RequestBody PricingConfigDTO dto) {
-        PricingConfig config = pricingConfigService.findById(id)
-                .orElseThrow(() -> new NotFoundException("Pricing config not found: " + id));
-        applyDTO(config, dto);
-        config = pricingConfigService.save(config);
-        return ApiResponse.ok(toDTO(config));
+    public ApiResponse<PricingConfigDTO> update(
+            @PathVariable @NonNull Long id,
+            @Valid @RequestBody @NonNull PricingConfigDTO dto
+    ) {
+        PricingConfigDTO body = RequestPayloadValidator.requireBody(dto);
+        PricingConfig config = Objects.requireNonNull(
+                pricingConfigService.findById(id)
+                        .orElseThrow(() -> new NotFoundException("Pricing config not found: " + id))
+        );
+        applyDTO(config, body);
+        PricingConfig saved = pricingConfigService.save(config);
+        return ApiResponse.ok(toDTO(saved));
     }
 
     private static PricingConfigDTO toDTO(PricingConfig c) {

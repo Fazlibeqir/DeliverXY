@@ -6,6 +6,7 @@ import com.deliverXY.backend.NewCode.exceptions.BadRequestException;
 import com.deliverXY.backend.NewCode.payments.domain.Payment;
 import com.deliverXY.backend.NewCode.payments.dto.PaymentResultDTO;
 import com.deliverXY.backend.NewCode.payments.service.PaymentGatewayProvider;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
@@ -18,9 +19,9 @@ import java.util.UUID;
  */
 @Service
 @Profile({"dev", "test", "mock"})
+@Slf4j
 public class MockPaymentProvider implements PaymentGatewayProvider {
 
-    // Helper to generate a unique, mock reference
     private String generateMockReference() {
         return "MOCK-TX-" + UUID.randomUUID().toString().substring(0, 8);
     }
@@ -36,7 +37,6 @@ public class MockPaymentProvider implements PaymentGatewayProvider {
             throw new BadRequestException("Mock Provider: Payment amount must be positive.");
         }
 
-        // Simulates a successful immediate payment (common for test environments)
         String mockRef = generateMockReference();
 
         return PaymentResultDTO.builder()
@@ -52,7 +52,6 @@ public class MockPaymentProvider implements PaymentGatewayProvider {
 
     @Override
     public PaymentResultDTO confirmTransaction(String providerReference) {
-        // Assume any valid-looking reference is confirmed successfully
         if (providerReference == null || !providerReference.startsWith("MOCK-TX-")) {
             return PaymentResultDTO.builder()
                     .status(PaymentStatus.FAILED)
@@ -62,7 +61,6 @@ public class MockPaymentProvider implements PaymentGatewayProvider {
                     .build();
         }
 
-        // Simulates a successful confirmation for an existing transaction
         return PaymentResultDTO.builder()
                 .status(PaymentStatus.COMPLETED)
                 .provider(PaymentProvider.MOCK)
@@ -73,13 +71,10 @@ public class MockPaymentProvider implements PaymentGatewayProvider {
 
     @Override
     public void refundTransaction(Payment payment, BigDecimal amount, String reason) {
-        // Simulates an immediate, successful refund
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0 || amount.compareTo(payment.getAmount()) > 0) {
             throw new BadRequestException("Mock Provider: Invalid refund amount.");
         }
 
-        // Simulate refund (no-op)
-        System.out.printf("MOCK Refund: PaymentId=%d Amount=%s Reason=%s%n",
-                payment.getId(), amount.toPlainString(), reason);
+        log.info("Mock refund processed for payment {} amount {} reason {}", payment.getId(), amount, reason);
     }
 }

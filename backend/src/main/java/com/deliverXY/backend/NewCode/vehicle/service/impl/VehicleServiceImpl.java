@@ -8,39 +8,33 @@ import com.deliverXY.backend.NewCode.vehicle.domain.Vehicle;
 import com.deliverXY.backend.NewCode.vehicle.dto.VehicleRequestDTO;
 import com.deliverXY.backend.NewCode.vehicle.dto.VehicleResponseDTO;
 import com.deliverXY.backend.NewCode.vehicle.repository.VehicleRepository;
+import com.deliverXY.backend.NewCode.vehicle.service.VehicleLicensePlateValidator;
 import com.deliverXY.backend.NewCode.vehicle.service.VehicleService;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
+@org.springframework.transaction.annotation.Transactional
 public class VehicleServiceImpl implements VehicleService {
 
     private final VehicleRepository repo;
     private final AppUserRepository userRepo;
-
-    private void checkUniqueLicensePlate(Long currentVehicleId, String newPlate){
-        if (repo.existsByLicensePlate(newPlate)) {
-            Vehicle existing = repo.findByLicensePlate(newPlate)
-                    .orElse(null);
-
-            if (existing != null && !Objects.equals(existing.getId(), currentVehicleId)) {
-                throw new BadRequestException("License plate already registered for another vehicle");
-            }
-        }
-    }
+    private final VehicleLicensePlateValidator licensePlateValidator;
 
     @Override
     @Transactional
     public VehicleResponseDTO create(Long userId, VehicleRequestDTO dto) {
 
-        checkUniqueLicensePlate(null, dto.getLicensePlate());
+        licensePlateValidator.assertUnique(null, dto.getLicensePlate());
 
-        AppUser owner = userRepo.findById(userId)
+        Long ownerId = Objects.requireNonNull(userId, "userId");
+        AppUser owner = userRepo.findById(ownerId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
         Vehicle v = new Vehicle();
@@ -56,14 +50,15 @@ public class VehicleServiceImpl implements VehicleService {
     @Transactional
     public VehicleResponseDTO update(Long userId, Long id, VehicleRequestDTO dto) {
 
-        Vehicle v = repo.findById(id)
+        Long vehicleId = Objects.requireNonNull(id, "id");
+        Vehicle v = repo.findById(vehicleId)
                 .orElseThrow(() -> new NotFoundException("Vehicle not found"));
 
         if (!v.getOwner().getId().equals(userId))
             throw new BadRequestException("You do not own this vehicle");
 
         if (!v.getLicensePlate().equals(dto.getLicensePlate())) {
-            checkUniqueLicensePlate(id, dto.getLicensePlate());
+            licensePlateValidator.assertUnique(vehicleId, dto.getLicensePlate());
         }
 
         map(v, dto);
@@ -75,7 +70,8 @@ public class VehicleServiceImpl implements VehicleService {
     @Override
     @Transactional
     public void delete(Long userId, Long id) {
-        Vehicle v = repo.findById(id)
+        Long vehicleId = Objects.requireNonNull(id, "id");
+        Vehicle v = repo.findById(vehicleId)
                 .orElseThrow(() -> new NotFoundException("Vehicle not found"));
 
         if (!v.getOwner().getId().equals(userId))
@@ -85,15 +81,19 @@ public class VehicleServiceImpl implements VehicleService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public VehicleResponseDTO getById(Long id) {
-        Vehicle v = repo.findById(id)
+        Long vehicleId = Objects.requireNonNull(id, "id");
+        Vehicle v = repo.findById(vehicleId)
                 .orElseThrow(() -> new NotFoundException("Vehicle not found"));
         return toDTO(v);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<VehicleResponseDTO> listMyVehicles(Long userId) {
-        return repo.findByOwnerId(userId)
+        return repo.findByOwnerId(userId, PageRequest.of(0, 50))
+                .getContent()
                 .stream()
                 .map(this::toDTO)
                 .toList();

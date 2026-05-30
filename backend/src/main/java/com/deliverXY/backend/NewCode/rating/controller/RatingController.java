@@ -7,6 +7,7 @@ import com.deliverXY.backend.NewCode.rating.service.RatingService;
 import com.deliverXY.backend.NewCode.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/ratings")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class RatingController {
 
     private final RatingService ratingService;

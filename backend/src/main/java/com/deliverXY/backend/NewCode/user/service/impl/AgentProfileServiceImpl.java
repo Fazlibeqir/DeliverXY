@@ -9,10 +9,13 @@ import com.deliverXY.backend.NewCode.user.service.AgentProfileService;
 import com.deliverXY.backend.NewCode.user.service.AppUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class AgentProfileServiceImpl implements AgentProfileService {
 
     private final AppUserAgentProfileRepository repo;
@@ -20,14 +23,17 @@ public class AgentProfileServiceImpl implements AgentProfileService {
 
     @Override
     public AppUserAgentProfile getProfile(Long userId) {
-        return repo.findById(userId).orElseThrow(() -> new NotFoundException("Agent profile not found"));
+        Long id = Objects.requireNonNull(userId, "userId");
+        return repo.findById(id).orElseThrow(() -> new NotFoundException("Agent profile not found"));
     }
 
     @Override
+    @Transactional
     public AppUserAgentProfile updateProfile(Long userId, AgentProfileDTO data) {
-        AppUser user = userService.requireById(userId);
+        Long id = Objects.requireNonNull(userId, "userId");
+        AppUser user = userService.requireById(id);
 
-        AppUserAgentProfile profile = repo.findById(userId)
+        AppUserAgentProfile profile = repo.findById(id)
                 .orElse(new AppUserAgentProfile());
 
         profile.setUser(user);

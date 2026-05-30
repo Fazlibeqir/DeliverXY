@@ -9,17 +9,20 @@ import com.deliverXY.backend.NewCode.vehicle.service.VehicleService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/vehicles")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class VehicleController {
 
     private final VehicleService service;
 
     @PostMapping
+    @PreAuthorize("hasRole('AGENT')")
     public ApiResponse<VehicleResponseDTO> create(
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody VehicleRequestDTO dto
@@ -28,6 +31,7 @@ public class VehicleController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('AGENT')")
     public ApiResponse<VehicleResponseDTO> update(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
@@ -37,6 +41,7 @@ public class VehicleController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('AGENT')")
     public ApiResponse<String> delete(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id

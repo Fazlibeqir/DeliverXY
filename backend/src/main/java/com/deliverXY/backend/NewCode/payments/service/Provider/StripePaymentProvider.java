@@ -1,6 +1,7 @@
 package com.deliverXY.backend.NewCode.payments.service.Provider;
 
 import com.deliverXY.backend.NewCode.common.enums.PaymentProvider;
+import com.deliverXY.backend.NewCode.common.util.SafeErrorMessages;
 import com.deliverXY.backend.NewCode.common.enums.PaymentStatus;
 import com.deliverXY.backend.NewCode.payments.domain.Payment;
 import com.deliverXY.backend.NewCode.payments.dto.PaymentResultDTO;
@@ -29,13 +30,13 @@ public class StripePaymentProvider implements PaymentGatewayProvider {
     private String secretKey;
 
     @PostConstruct
-    public void init(){
-        log.info("Stripe key loaded: {}", (secretKey != null && !secretKey.isEmpty()));
-        if (secretKey != null && !secretKey.isEmpty()) {
-            Stripe.apiKey = secretKey;
-        } else {
+    public void init() {
+        if (secretKey == null || secretKey.isBlank()) {
             log.warn("Stripe secret key not configured. Stripe payments will not work.");
+            return;
         }
+        Stripe.apiKey = secretKey;
+        log.info("Stripe payment provider initialized");
     }
 
     @Override
@@ -78,7 +79,7 @@ public class StripePaymentProvider implements PaymentGatewayProvider {
                     .deliveryId(payment.getDelivery().getId())
                     .provider(PaymentProvider.STRIPE)
                     .status(PaymentStatus.FAILED)
-                    .message("Stripe initiate failed: " + e.getMessage())
+                    .message(SafeErrorMessages.paymentProviderMessage("Stripe initiate"))
                     .build();
         }
     }
@@ -120,7 +121,7 @@ public class StripePaymentProvider implements PaymentGatewayProvider {
                     .provider(PaymentProvider.STRIPE)
                     .status(PaymentStatus.FAILED)
                     .providerReference(providerReference)
-                    .message("Stripe confirmation failed: " + e.getMessage())
+                    .message(SafeErrorMessages.paymentProviderMessage("Stripe confirmation"))
                     .build();
         }
     }
@@ -170,4 +171,3 @@ public class StripePaymentProvider implements PaymentGatewayProvider {
         }
     }
 }
-

@@ -6,26 +6,27 @@ import * as AuthService from "./auth.service";
 
 export { API_URL };
 
+function buildApiUrl(path: string): string {
+    return (API_URL + path).replace(/([^:]\/)\/+/g, "$1");
+}
+
+function apiHeaders(token?: string | null): Record<string, string> {
+    const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+    };
+    if (token) {
+        headers.Authorization = `Bearer ${token}`;
+    }
+    if (API_URL.includes("ngrok")) {
+        headers["ngrok-skip-browser-warning"] = "true";
+    }
+    return headers;
+}
+
 export function toAbsoluteUrl(path: string | null | undefined): string | undefined {
     if (!path) return undefined;
-    
-    // If already absolute, ensure it's HTTP (not HTTPS) for EC2
-    if (path.startsWith("http://")) return path;
-    if (path.startsWith("https://")) {
-        // Force HTTPS to HTTP for EC2 backend
-        const httpUrl = path.replace("https://", "http://");
-        logger.warn('[API] Converted HTTPS to HTTP:', httpUrl);
-        return httpUrl;
-    }
-    
-    if (path.startsWith("/")) {
-        const fullUrl = API_URL + path;
-        // Ensure no HTTPS
-        if (fullUrl.startsWith("https://")) {
-            return fullUrl.replace("https://", "http://");
-        }
-        return fullUrl;
-    }
+    if (path.startsWith("http://") || path.startsWith("https://")) return path;
+    if (path.startsWith("/")) return API_URL + path;
     return path;
 }
 
@@ -96,9 +97,7 @@ export async function getAuthenticatedImageUrl(imageUrl: string | null | undefin
         const response = await Http.request({
             url: absoluteUrl,
             method: "GET",
-            headers: {
-                ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
+            headers: apiHeaders(token),
         });
         
         if (response.statusCode !== 200) {
@@ -227,24 +226,13 @@ export async function apiRequest(
     body?: any
 ) {
     const token = await getAccessToken();
-    
-    // Ensure URL is properly formatted (no double slashes, no https)
-    let fullUrl = API_URL + url;
-    fullUrl = fullUrl.replace(/([^:]\/)\/+/g, '$1'); // Remove double slashes (except after http:)
-    
-    // CRITICAL: Force HTTP protocol (prevent HTTPS upgrade)
-    if (fullUrl.startsWith('https://')) {
-        fullUrl = fullUrl.replace('https://', 'http://');
-        logger.warn('[API] Forced HTTPS to HTTP conversion:', fullUrl);
+    const fullUrl = buildApiUrl(url);
+
+    if (!fullUrl.startsWith("http://") && !fullUrl.startsWith("https://")) {
+        logger.error("[API] Invalid URL format:", fullUrl);
+        throw new Error("Invalid API URL format");
     }
-    
-    // Validate URL format
-    if (!fullUrl.startsWith('http://')) {
-        logger.error('[API] Invalid URL format (must start with http://):', fullUrl);
-        throw new Error('Invalid API URL format');
-    }
-    
-    // Debug logging
+
     logger.debug(`[API] ${method} ${fullUrl}`);
     if (body) {
         logger.debug(`[API] Request body:`, JSON.stringify(body, null, 2));
@@ -253,10 +241,7 @@ export async function apiRequest(
     const response = await Http.request({
         url: fullUrl,
         method,
-        headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: apiHeaders(token),
         content: body ? JSON.stringify(body) : undefined,
     });
 
@@ -267,21 +252,12 @@ export async function apiRequest(
             const newToken = await refreshToken();
             if (newToken) {
                 // Retry the request with new token
-                let retryUrl = API_URL + url;
-                retryUrl = retryUrl.replace(/([^:]\/)\/+/g, '$1'); // Remove double slashes
-                
-                // Force HTTP protocol
-                if (retryUrl.startsWith('https://')) {
-                    retryUrl = retryUrl.replace('https://', 'http://');
-                }
-                
+                const retryUrl = buildApiUrl(url);
+
                 const retryResponse = await Http.request({
                     url: retryUrl,
                     method,
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${newToken}`,
-                    },
+                    headers: apiHeaders(newToken),
                     content: body ? JSON.stringify(body) : undefined,
                 });
                 

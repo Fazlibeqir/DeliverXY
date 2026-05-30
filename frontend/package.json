@@ -15,6 +15,7 @@
   },
   "devDependencies": {
     "@nativescript/android": "9.0.1",
+    "@nativescript/preview-cli": "1.0.15",
     "@nativescript/tailwind": "~4.0.3",
     "@nativescript/types": "~8.9.1",
     "@nativescript/webpack": "~5.0.24",

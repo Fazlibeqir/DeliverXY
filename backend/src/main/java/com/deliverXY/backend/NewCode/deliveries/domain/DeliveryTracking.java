@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "delivery_tracking")
+@Table(name = "delivery_tracking", indexes = @Index(name = "idx_tracking_delivery_id", columnList = "delivery_id"))
 @Data
 @NoArgsConstructor
 public class DeliveryTracking {
