@@ -67,3 +67,8 @@ ADMIN_PANEL_FEATURES.md
 
 # Uploads (user-generated)
 backend/uploads/
+
+# Environment files with sensitive data
+.env
+frontend-admin/.env
+backend/.env

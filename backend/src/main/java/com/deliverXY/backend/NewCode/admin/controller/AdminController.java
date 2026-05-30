@@ -127,8 +127,24 @@ public class AdminController {
     ) {
         return ApiResponse.ok(adminService.getAllDriverLocations(PageRequest.of(page, size)));
     }
-    //TODO : FUTURE POST /api/admin/deliveries/{id}/refund
-    //TODO : FUTURE POST /api/admin/deliveries/{id}/cancel
+
+    @PostMapping("/deliveries/{id}/refund")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<String> refundDelivery(
+            @PathVariable Long id,
+            @RequestBody com.deliverXY.backend.NewCode.admin.dto.RefundDeliveryDTO request) {
+        adminService.refundDelivery(id, request.getAmount(), request.getReason());
+        return ApiResponse.ok("Delivery refunded successfully");
+    }
+
+    @PostMapping("/deliveries/{id}/cancel")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<String> cancelDelivery(
+            @PathVariable Long id,
+            @RequestBody com.deliverXY.backend.NewCode.admin.dto.CancelDeliveryDTO request) {
+        adminService.cancelDelivery(id, request.getReason());
+        return ApiResponse.ok("Delivery cancelled successfully");
+    }
     //TODO: FUTURE search/filter users
     //TODO: FUTURE search/filter deliveries
 }

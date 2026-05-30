@@ -8,6 +8,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.lang.NonNull;
 
+import java.math.BigDecimal;
+
 public interface AdminService {
 
     AdminDashboardDTO getDashboardStats();
@@ -22,4 +24,8 @@ public interface AdminService {
     void assignDelivery(@NonNull Long deliveryId, @NonNull Long agentId);
 
     Page<DriverLocation> getAllDriverLocations(@NonNull Pageable pageable);
+
+    void refundDelivery(Long deliveryId, BigDecimal amount, String reason);
+
+    void cancelDelivery(Long deliveryId, String reason);
 }
