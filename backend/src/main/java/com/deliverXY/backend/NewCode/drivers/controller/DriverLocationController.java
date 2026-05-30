@@ -10,14 +10,18 @@ import com.deliverXY.backend.NewCode.security.UserPrincipal;
 import com.deliverXY.backend.NewCode.user.domain.AppUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.lang.NonNull;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/drivers")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class DriverLocationController {
 
     private final DriverLocationService driverLocationService;
@@ -30,12 +34,15 @@ public class DriverLocationController {
      * The driver's ID is taken from the authenticated user principal.
      */
     @PostMapping("/location/update")
+    @PreAuthorize("hasRole('AGENT')")
     public ApiResponse<DriverLocation> updateLocation(
             @Valid @RequestBody DriverLocationUpdateDTO dto,
-            @AuthenticationPrincipal UserPrincipal principal
+            @AuthenticationPrincipal @NonNull UserPrincipal principal
     ) {
-        // We assume the authenticated user is the driver
-        Long driverId = principal.getUser().getId();
+        Long driverId = Objects.requireNonNull(
+                Objects.requireNonNull(principal.getUser(), "Authenticated user is required").getId(),
+                "User id is required"
+        );
 
         DriverLocation updatedLoc = driverLocationService.updateLocation(
                 driverId,
@@ -52,6 +59,7 @@ public class DriverLocationController {
      * This calls the matching logic (which iterates radius bands).
      */
     @GetMapping("/nearby/nearest")
+    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
     public ApiResponse<AppUser> findNearestDriver(
             @RequestParam Double latitude,
             @RequestParam Double longitude
@@ -64,6 +72,7 @@ public class DriverLocationController {
 
     // An endpoint to find ALL nearby locations (mainly for monitoring/internal use)
     @GetMapping("/nearby/list")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<List<DriverLocation>> listNearbyDrivers(
             @RequestParam Double latitude,
             @RequestParam Double longitude,

@@ -1,6 +1,7 @@
 package com.deliverXY.backend.NewCode.payments.service.Provider;
 
 import com.deliverXY.backend.NewCode.common.enums.PaymentProvider;
+import com.deliverXY.backend.NewCode.common.util.SafeErrorMessages;
 import com.deliverXY.backend.NewCode.common.enums.PaymentStatus;
 import com.deliverXY.backend.NewCode.payments.domain.Payment;
 import com.deliverXY.backend.NewCode.payments.dto.PaymentResultDTO;
@@ -11,6 +12,7 @@ import com.stripe.model.PaymentIntent;
 import com.stripe.param.PaymentIntentCreateParams;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +20,7 @@ import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class StripePaymentProvider implements PaymentGatewayProvider {
 
 
@@ -25,8 +28,12 @@ public class StripePaymentProvider implements PaymentGatewayProvider {
     private String secretKey;
 
     @PostConstruct
-    public void init(){
-        System.out.println("Stripe key loaded: " + (secretKey != null));
+    public void init() {
+        if (secretKey == null || secretKey.isBlank()) {
+            log.error("Stripe payment provider is not configured");
+        } else {
+            log.info("Stripe payment provider initialized");
+        }
         Stripe.apiKey = secretKey;
     }
 
@@ -70,7 +77,7 @@ public class StripePaymentProvider implements PaymentGatewayProvider {
                     .deliveryId(payment.getDelivery().getId())
                     .provider(PaymentProvider.STRIPE)
                     .status(PaymentStatus.FAILED)
-                    .message("Stripe initiate failed: " + e.getMessage())
+                    .message(SafeErrorMessages.paymentProviderMessage("Stripe initiate"))
                     .build();
         }
     }
@@ -112,7 +119,7 @@ public class StripePaymentProvider implements PaymentGatewayProvider {
                     .provider(PaymentProvider.STRIPE)
                     .status(PaymentStatus.FAILED)
                     .providerReference(providerReference)
-                    .message("Stripe confirmation failed: " + e.getMessage())
+                    .message(SafeErrorMessages.paymentProviderMessage("Stripe confirmation"))
                     .build();
         }
     }

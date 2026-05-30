@@ -1,11 +1,13 @@
 package com.deliverXY.backend.NewCode.earnings.service;
 
+import com.deliverXY.backend.NewCode.earnings.domain.DriverPayout;
 import com.deliverXY.backend.NewCode.earnings.dto.DriverEarningsDTO;
 import com.deliverXY.backend.NewCode.earnings.dto.DriverPayoutDTO;
 import com.deliverXY.backend.NewCode.earnings.dto.EarningsSummaryDTO;
 import com.deliverXY.backend.NewCode.earnings.dto.PayoutRequestDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.lang.NonNull;
 
 import java.time.LocalDate;
 
@@ -20,5 +22,7 @@ public interface EarningsService {
 
     Page<DriverPayoutDTO> getPendingPayouts(Pageable pageable);
 
-    void processPayout(Long payoutId, String transactionRef, String processedBy);
+    void processPayout(@NonNull Long payoutId, String transactionRef, String processedBy);
+
+    Page<DriverPayout> findAllPayouts(@NonNull Pageable pageable);
 }

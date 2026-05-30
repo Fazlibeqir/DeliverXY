@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "user_device_tokens",
+        indexes = @Index(name = "idx_device_token_user_id", columnList = "user_id"),
         uniqueConstraints = {
                 @UniqueConstraint(columnNames = {"user_id", "deviceToken", "platform"})
         }

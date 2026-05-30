@@ -8,7 +8,15 @@
 
     <!-- Map - Full Screen -->
     <GridLayout row="1" style="background-color: transparent;">
+      <MapWebView
+        v-if="useWebMap"
+        ref="mapWeb"
+        mode="client"
+        @ready="onWebMapReady"
+        @message="onWebMapMessage"
+      />
       <Mapbox
+        v-else
         :key="mapKey"
         ref="mapbox"
         :accessToken="mapboxToken"
@@ -109,8 +117,12 @@ import AddressSearchModal from "./AddressSearchModal.vue";
 import DeliveryDetailsPage from "./DeliveryDetailsPage.vue";
 import { logger } from "../../utils/logger";
 import SkeletonLoader from "../../components/SkeletonLoader.vue";
+import MapWebView from "../../components/MapWebView.vue";
+import { MAPBOX_ACCESS_TOKEN, USE_WEB_MAP } from "../../config";
 
-const mapboxToken = (process.env.MAPBOX_ACCESS_TOKEN as string) || "";
+const useWebMap = USE_WEB_MAP;
+const mapboxToken = MAPBOX_ACCESS_TOKEN;
+const mapWeb = ref<InstanceType<typeof MapWebView> | null>(null);
 
 const mapbox = ref<any>(null);
 const mapInstance = ref<any>(null);
@@ -215,6 +227,16 @@ function onMapError(args: any) {
   logger.error("Map error occurred:", args);
 }
 
+function onWebMapReady() {
+  mapLoading.value = false;
+  loadCurrentLocation();
+}
+
+function onWebMapMessage(msg: { type: string; data?: { lat?: number; lng?: number } }) {
+  if (msg.type !== "tap" || msg.data?.lat == null || msg.data?.lng == null) return;
+  onMapTap({ point: { lat: msg.data.lat, lng: msg.data.lng } });
+}
+
 async function loadCurrentLocation() {
   // Get location but don't auto-center - let user pan freely
   // User can use the "My Location" button to center if needed
@@ -231,12 +253,10 @@ async function loadCurrentLocation() {
     
     const loc = await getCurrentLocation({ timeout: 20000 });
     userLocation.value = { lat: loc.latitude, lng: loc.longitude };
-    
-    // Update map center coordinates but don't actually center the camera
-    // This allows the map to show the user's location marker without forcing camera movement
-    if (mapInstance.value) {
-      mapCenterLat.value = loc.latitude;
-      mapCenterLng.value = loc.longitude;
+    mapCenterLat.value = loc.latitude;
+    mapCenterLng.value = loc.longitude;
+    if (useWebMap) {
+      mapWeb.value?.setUserLocation(loc.latitude, loc.longitude);
     }
     
   } catch (e) {
@@ -265,6 +285,11 @@ async function centerOnMyLocation() {
     }
   }
   
+  if (useWebMap && userLocation.value) {
+    mapWeb.value?.setMapCenter(userLocation.value.lat, userLocation.value.lng, 15);
+    return;
+  }
+
   if (mapInstance.value && userLocation.value) {
     try {
       // Set zoom level to 15 for a closer view
@@ -306,14 +331,16 @@ async function useMyLocation() {
     pickupLat.value = loc.latitude;
     pickupLng.value = loc.longitude;
     
-    if (mapInstance.value?.setCenter) {
+    if (useWebMap) {
+      mapWeb.value?.setMapCenter(loc.latitude, loc.longitude, 15);
+    } else if (mapInstance.value?.setCenter) {
       mapInstance.value.setCenter({
         lat: loc.latitude,
         lng: loc.longitude,
         animated: true
       });
     }
-    
+
     await reverseGeocode(loc.latitude, loc.longitude, "pickup");
     updatePickupMarker(loc.latitude, loc.longitude);
   } catch (e) {
@@ -323,7 +350,7 @@ async function useMyLocation() {
 }
 
 function onMapTap(args: any) {
-  if (!mapInstance.value) {
+  if (!useWebMap && !mapInstance.value) {
     logger.warn("Map tap received but mapInstance is not available");
     return;
   }
@@ -424,6 +451,10 @@ async function reverseGeocode(lat: number, lng: number, type: "pickup" | "dropof
 }
 
 function updatePickupMarker(lat: number, lng: number) {
+  if (useWebMap) {
+    mapWeb.value?.setPickupMarker(lat, lng);
+    return;
+  }
   if (!mapInstance.value) return;
   
   // Remove old marker if exists
@@ -483,6 +514,10 @@ function removePickupMarker() {
 }
 
 function updateDropoffMarker(lat: number, lng: number) {
+  if (useWebMap) {
+    mapWeb.value?.setDropoffMarker(lat, lng);
+    return;
+  }
   if (!mapInstance.value) return;
   
   // Remove old marker if exists

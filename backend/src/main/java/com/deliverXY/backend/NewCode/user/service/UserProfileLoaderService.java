@@ -11,6 +11,8 @@ import com.deliverXY.backend.NewCode.user.repository.AppUserStatsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Objects;
+
 @Service
 @RequiredArgsConstructor
 public class UserProfileLoaderService {
@@ -20,18 +22,22 @@ public class UserProfileLoaderService {
     private final AppUserStatsRepository statsRepo;
 
     public AppUserKYC getKYC(Long userId) {
-        return kycRepo.findById(userId).orElse(null);
+        Long id = Objects.requireNonNull(userId, "userId");
+        return kycRepo.findById(id).orElse(null);
     }
 
     public AppUserAgentProfile getProfile(Long userId) {
-        return profileRepo.findById(userId).orElse(null);
+        Long id = Objects.requireNonNull(userId, "userId");
+        return profileRepo.findById(id).orElse(null);
     }
 
     public AppUserLocation getLocation(Long userId) {
-        return locationRepo.findById(userId).orElse(null);
+        Long id = Objects.requireNonNull(userId, "userId");
+        return locationRepo.findById(id).orElse(null);
     }
 
     public AppUserStats getStats(Long userId) {
-        return statsRepo.findById(userId).orElse(null);
+        Long id = Objects.requireNonNull(userId, "userId");
+        return statsRepo.findById(id).orElse(null);
     }
 }

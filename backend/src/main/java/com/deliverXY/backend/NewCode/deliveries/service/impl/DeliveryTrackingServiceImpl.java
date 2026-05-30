@@ -4,9 +4,13 @@ import com.deliverXY.backend.NewCode.deliveries.domain.DeliveryTracking;
 import com.deliverXY.backend.NewCode.deliveries.repository.DeliveryRepository;
 import com.deliverXY.backend.NewCode.deliveries.repository.DeliveryTrackingRepository;
 import com.deliverXY.backend.NewCode.deliveries.service.DeliveryTrackingService;
+import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -18,12 +22,13 @@ public class DeliveryTrackingServiceImpl implements DeliveryTrackingService {
 
     @Override
     @Transactional
-    public DeliveryTracking updateLocation(Long deliveryId, Double lat, Double lon) {
-        var delivery = deliveryRepo.findById(deliveryId)
-                .orElseThrow(() -> new RuntimeException("Delivery not found"));
+    public DeliveryTracking updateLocation(@NonNull Long deliveryId, Double lat, Double lon) {
+        var delivery = Objects.requireNonNull(
+                deliveryRepo.findById(deliveryId)
+                        .orElseThrow(() -> new NotFoundException("Delivery not found: " + deliveryId))
+        );
 
-        DeliveryTracking t = repo.findById(deliveryId)
-                .orElse(new DeliveryTracking());
+        DeliveryTracking t = repo.findById(deliveryId).orElse(new DeliveryTracking());
 
         t.setDelivery(delivery);
         t.setCurrentLatitude(lat);
@@ -43,8 +48,11 @@ public class DeliveryTrackingServiceImpl implements DeliveryTrackingService {
     }
 
     @Override
-    public DeliveryTracking getTracking(Long deliveryId) {
-        return repo.findById(deliveryId)
-                .orElseThrow(() -> new RuntimeException("Tracking not found"));
+    @Transactional(readOnly = true)
+    public DeliveryTracking getTracking(@NonNull Long deliveryId) {
+        return Objects.requireNonNull(
+                repo.findById(deliveryId)
+                        .orElseThrow(() -> new NotFoundException("Tracking not found for delivery: " + deliveryId))
+        );
     }
 }

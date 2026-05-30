@@ -6,8 +6,7 @@ import com.deliverXY.backend.NewCode.deliveries.dto.DeliveryResponseDTO;
 import com.deliverXY.backend.NewCode.drivers.domain.DriverLocation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-
-import java.util.List;
+import org.springframework.lang.NonNull;
 
 public interface AdminService {
 
@@ -18,9 +17,9 @@ public interface AdminService {
     void blockUser(Long id);
     void unblockUser(Long id);
 
-    Page<DeliveryResponseDTO> getAllDeliveries(Pageable pageable);
+    Page<DeliveryResponseDTO> getAllDeliveries(@NonNull Pageable pageable);
 
-    void assignDelivery(Long deliveryId, Long agentId);
+    void assignDelivery(@NonNull Long deliveryId, @NonNull Long agentId);
 
-    List<DriverLocation> getAllDriverLocations();
+    Page<DriverLocation> getAllDriverLocations(@NonNull Pageable pageable);
 }

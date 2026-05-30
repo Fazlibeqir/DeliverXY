@@ -6,8 +6,11 @@ import com.deliverXY.backend.NewCode.drivers.service.DriverLocationService;
 import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
 import com.deliverXY.backend.NewCode.user.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -18,12 +21,12 @@ public class DriverLocationServiceImpl implements DriverLocationService {
 
     @Override
     @Transactional
-    public DriverLocation updateLocation(Long driverId, Double lat, Double lon) {
-        // 1. Load the driver user to ensure they exist
-        var driver = appUserRepo.findById(driverId)
-                .orElseThrow(() -> new NotFoundException("Driver not found")); // Use proper exception
+    public DriverLocation updateLocation(@NonNull Long driverId, Double lat, Double lon) {
+        var driver = Objects.requireNonNull(
+                appUserRepo.findById(driverId)
+                        .orElseThrow(() -> new NotFoundException("Driver not found: " + driverId))
+        );
 
-        // 2. Load existing location or create a new one
         DriverLocation location = locationRepo.findById(driverId)
                 .orElse(new DriverLocation());
 

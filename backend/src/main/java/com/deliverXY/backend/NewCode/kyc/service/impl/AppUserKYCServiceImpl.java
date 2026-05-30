@@ -9,7 +9,9 @@ import com.deliverXY.backend.NewCode.kyc.repository.AppUserKYCRepository;
 import com.deliverXY.backend.NewCode.kyc.service.AppUserKYCService;
 import com.deliverXY.backend.NewCode.user.service.AppUserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -17,11 +19,12 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class AppUserKYCServiceImpl implements AppUserKYCService {
     private final AppUserKYCRepository repo;
     private final AppUserService userService;
     @Override
-    public AppUserKYC submitKYC(Long userId, KYCUpdateDTO kyc) {
+    public AppUserKYC submitKYC(@NonNull Long userId, KYCUpdateDTO kyc) {
         AppUser user = userService.requireById(userId);
 
         AppUserKYC existing = findKYC(userId).orElse(new AppUserKYC());
@@ -43,7 +46,7 @@ public class AppUserKYCServiceImpl implements AppUserKYCService {
     }
 
     @Override
-    public AppUserKYC approveKYC(Long userId, String reviewer) {
+    public AppUserKYC approveKYC(@NonNull Long userId, String reviewer) {
         AppUserKYC kyc = findKYC(userId)
                 .orElseThrow(() -> new NotFoundException("KYC record not found for approval"));
 
@@ -61,7 +64,7 @@ public class AppUserKYCServiceImpl implements AppUserKYCService {
     }
 
     @Override
-    public AppUserKYC rejectKYC(Long userId, String reason, String reviewer) {
+    public AppUserKYC rejectKYC(@NonNull Long userId, String reason, String reviewer) {
         AppUserKYC kyc = findKYC(userId)
                 .orElseThrow(() -> new NotFoundException("KYC record not found for rejection"));
 
@@ -73,13 +76,13 @@ public class AppUserKYCServiceImpl implements AppUserKYCService {
     }
 
     @Override
-    public AppUserKYC getKYC(Long userId) {
+    public AppUserKYC getKYC(@NonNull Long userId) {
         return repo.findById(userId)
                 .orElseThrow(() -> new NotFoundException("KYC not found"));
     }
 
     @Override
-    public Optional<AppUserKYC> findKYC(Long userId) {
+    public Optional<AppUserKYC> findKYC(@NonNull Long userId) {
         return repo.findById(userId);
     }
 

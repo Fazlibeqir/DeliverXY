@@ -12,6 +12,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 public class GeocodingService {
@@ -28,16 +29,17 @@ public class GeocodingService {
             ResponseEntity<List<Map<String, Object>>> response =
                     restTemplate.exchange(
                             url,
-                            HttpMethod.GET,
+                            Objects.requireNonNull(HttpMethod.GET),
                             new HttpEntity<>(new HttpHeaders()),
                             new ParameterizedTypeReference<>() {}
                     );
 
-            if (response.getBody() == null || response.getBody().isEmpty()) {
+            List<Map<String, Object>> body = response.getBody();
+            if (body == null || body.isEmpty()) {
                 throw new IllegalArgumentException("Address not found");
             }
 
-            Map<String, Object> r = response.getBody().get(0);
+            Map<String, Object> r = body.get(0);
 
             return new GeoPoint(
                     Double.parseDouble((String) r.get("lat")),

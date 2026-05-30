@@ -4,7 +4,11 @@ import com.deliverXY.backend.NewCode.common.response.ApiResponse;
 import com.deliverXY.backend.NewCode.kyc.dto.KYCBase64DTO;
 import com.deliverXY.backend.NewCode.kyc.service.FileUploadService;
 import com.deliverXY.backend.NewCode.security.UserPrincipal;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -14,7 +18,7 @@ import java.io.IOException;
 @RestController
 @RequestMapping("/api/upload")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+@PreAuthorize("isAuthenticated()")
 public class FileUploadController {
 
     private final FileUploadService fileUploadService;
@@ -24,8 +28,8 @@ public class FileUploadController {
             consumes = "multipart/form-data"
     )
     public ApiResponse<String> uploadKYC(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam("documentType") String documentType,
+            @RequestParam("file") @NotNull MultipartFile file,
+            @RequestParam("documentType") @NotBlank String documentType,
             @AuthenticationPrincipal UserPrincipal principal
     ) throws IOException {
 
@@ -34,9 +38,10 @@ public class FileUploadController {
         String url = fileUploadService.uploadKYCFile(file, documentType, userId);
         return ApiResponse.ok(url);
     }
+
     @PostMapping("/kyc/base64")
     public ApiResponse<String> uploadKYCBase64(
-            @RequestBody KYCBase64DTO dto,
+            @Valid @RequestBody KYCBase64DTO dto,
             @AuthenticationPrincipal UserPrincipal principal
     ) throws IOException {
 
@@ -51,10 +56,9 @@ public class FileUploadController {
         return ApiResponse.ok(url);
     }
 
-
     @PostMapping("/profile")
     public ApiResponse<String> uploadProfile(
-            @RequestParam MultipartFile file,
+            @RequestParam("file") @NotNull MultipartFile file,
             @AuthenticationPrincipal UserPrincipal principal
     ) throws IOException {
 
@@ -65,7 +69,10 @@ public class FileUploadController {
     }
 
     @DeleteMapping
-    public ApiResponse<String> deleteFile(@RequestParam String fileUrl) {
+    public ApiResponse<String> deleteFile(
+            @RequestParam String fileUrl,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
         fileUploadService.deleteFile(fileUrl);
         return ApiResponse.ok("File deleted");
     }

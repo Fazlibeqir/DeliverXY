@@ -252,6 +252,20 @@
     }
   };
 
+  window.drawFullRoute = async function (agentLat, agentLng, pickupLat, pickupLng, dropoffLat, dropoffLng) {
+    const url =
+      `https://router.project-osrm.org/route/v1/driving/` +
+      `${agentLng},${agentLat};${pickupLng},${pickupLat};${dropoffLng},${dropoffLat}` +
+      `?overview=full&geometries=geojson`;
+    const res = await fetch(url);
+    const json = await res.json();
+    if (!json.routes || !json.routes.length) return;
+    const coords = json.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+    if (routeLine) map.removeLayer(routeLine);
+    routeLine = L.polyline(coords, { color: "#000000", weight: 4, opacity: 0.8 }).addTo(map);
+    map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+  };
+
   window.drawRoute = async function (fromLat, fromLng, toLat, toLng) {
     const url =
       `https://router.project-osrm.org/route/v1/driving/` +

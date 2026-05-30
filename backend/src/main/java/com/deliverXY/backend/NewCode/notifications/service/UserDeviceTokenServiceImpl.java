@@ -5,6 +5,7 @@ import com.deliverXY.backend.NewCode.notifications.domain.UserDeviceToken;
 import com.deliverXY.backend.NewCode.notifications.repository.UserDeviceTokenRepository;
 import com.deliverXY.backend.NewCode.user.service.AppUserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,7 +24,8 @@ public class UserDeviceTokenServiceImpl implements UserDeviceTokenService {
         );
 
         // Check for existing token for this user/platform combination
-        var existingTokenOpt = tokenRepo.findByUserIdAndDeviceToken(userId, token)
+        var existingTokenOpt = tokenRepo.findByUserIdAndDeviceToken(userId, token, PageRequest.of(0, 20))
+                .getContent()
                 .stream()
                 .filter(t -> t.getPlatform().equalsIgnoreCase(platform))
                 .findFirst();
@@ -46,7 +48,8 @@ public class UserDeviceTokenServiceImpl implements UserDeviceTokenService {
     @Transactional
     public void deregisterToken(Long userId, String token) {
         // Find all tokens matching this user and token string
-        var tokens = tokenRepo.findByUserIdAndDeviceToken(userId, token);
+        var tokens = tokenRepo.findByUserIdAndDeviceToken(userId, token, PageRequest.of(0, 20))
+                .getContent();
 
         // Mark them as inactive instead of deleting (better for historical tracking)
         tokens.forEach(t -> {

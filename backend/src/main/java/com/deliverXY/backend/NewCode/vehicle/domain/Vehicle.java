@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
-@Table(name = "vehicles")
+@Table(name = "vehicles", indexes = @Index(name = "idx_vehicle_owner_id", columnList = "owner_id"))
 @Data
 @NoArgsConstructor
 public class Vehicle {

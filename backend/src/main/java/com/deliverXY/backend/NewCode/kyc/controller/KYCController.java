@@ -8,19 +8,26 @@ import com.deliverXY.backend.NewCode.kyc.dto.KYCUpdateDTO;
 import com.deliverXY.backend.NewCode.kyc.service.AppUserKYCService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/kyc")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class KYCController {
 
     private final AppUserKYCService kycService;
 
     @GetMapping
     public ApiResponse<KYCInfoDTO> getMyKYC(@AuthenticationPrincipal UserPrincipal principal) {
-        AppUserKYC kyc = kycService.getKYC(principal.getUser().getId());
+        Long userId = Objects.requireNonNull(
+                Objects.requireNonNull(principal.getUser(), "user").getId(),
+                "userId");
+        AppUserKYC kyc = kycService.getKYC(userId);
         return ApiResponse.ok(toDTO(kyc));
     }
 
@@ -29,7 +36,10 @@ public class KYCController {
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody KYCUpdateDTO dto
     ) {
-        AppUserKYC saved = kycService.submitKYC(principal.getUser().getId(), dto);
+        Long userId = Objects.requireNonNull(
+                Objects.requireNonNull(principal.getUser(), "user").getId(),
+                "userId");
+        AppUserKYC saved = kycService.submitKYC(userId, dto);
 
         return ApiResponse.ok(toDTO(saved));
     }

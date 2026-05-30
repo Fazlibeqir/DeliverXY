@@ -1,20 +1,16 @@
 package com.deliverXY.backend.NewCode.deliveries.service.impl;
 
 import com.deliverXY.backend.NewCode.common.enums.PaymentProvider;
-import com.deliverXY.backend.NewCode.common.enums.PaymentStatus;
 import com.deliverXY.backend.NewCode.deliveries.domain.*;
 import com.deliverXY.backend.NewCode.deliveries.dto.*;
 import com.deliverXY.backend.NewCode.deliveries.repository.*;
 import com.deliverXY.backend.NewCode.deliveries.mapper.DeliveryMapper;
+import com.deliverXY.backend.NewCode.deliveries.service.DeliveryHistoryWriter;
 import com.deliverXY.backend.NewCode.deliveries.service.DeliveryService;
-import com.deliverXY.backend.NewCode.deliveries.service.PricingConfigService;
 import com.deliverXY.backend.NewCode.deliveries.validator.DeliveryValidator;
-import com.deliverXY.backend.NewCode.earnings.domain.DriverEarnings;
-import com.deliverXY.backend.NewCode.earnings.repository.DriverEarningsRepository;
+import com.deliverXY.backend.NewCode.deliveries.service.DeliverySettlementService;
 import com.deliverXY.backend.NewCode.exceptions.BadRequestException;
 import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
-import com.deliverXY.backend.NewCode.payments.domain.Payment;
-import com.deliverXY.backend.NewCode.payments.repository.PaymentRepository;
 import com.deliverXY.backend.NewCode.payments.service.PaymentService;
 import com.deliverXY.backend.NewCode.user.domain.AppUser;
 import com.deliverXY.backend.NewCode.common.enums.DeliveryStatus;
@@ -23,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +27,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 import static com.deliverXY.backend.NewCode.common.enums.DeliveryStatus.*;
 
@@ -41,53 +39,49 @@ public class DeliveryServiceImpl implements DeliveryService {
     private final DeliveryRepository deliveryRepo;
     private final DeliveryHistoryRepository historyRepo;
     private final WalletService walletService;
-    private final DriverEarningsRepository earningsRepo;
-    private final PaymentRepository paymentRepo;
+    private final DeliverySettlementService deliverySettlementService;
     private final GeocodingService geocodingService;
     private final PaymentService paymentService;
 
     private final DeliveryMapper mapper;
     private final DeliveryValidator validator;
-
+    private final DeliveryHistoryWriter deliveryHistoryWriter;
 
     private final PricingService pricingService;
-    private final PricingConfigService pricingConfigService;
 
-    private static final String DEFAULT_CITY = "Skopje";
 
-    private Delivery load(Long id) {
-        return deliveryRepo.findById(id)
-                .orElseThrow(() -> new NotFoundException("Delivery not found: " + id ));
+    private @NonNull Delivery load(@NonNull Long id) {
+        return Objects.requireNonNull(
+                deliveryRepo.findById(id)
+                        .orElseThrow(() -> new NotFoundException("Delivery not found: " + id))
+        );
     }
-    private DeliveryResponseDTO respond(Delivery d){
+
+    private DeliveryResponseDTO respond(@NonNull Delivery d) {
         return mapper.toResponse(d);
-    }
-    private void logHistory(Delivery d, String note, String by){
-        DeliveryHistory h = new DeliveryHistory();
-        h.setDelivery(d);
-        h.setStatus(d.getStatus());
-        h.setChangedBy(by);
-        h.setNote(note);
-        historyRepo.save(h);
     }
 
     @Override
-    public Page<DeliveryResponseDTO> getAllDeliveries(Pageable pageable) {
+    @Transactional(readOnly = true)
+    public Page<DeliveryResponseDTO> getAllDeliveries(@NonNull Pageable pageable) {
         return deliveryRepo.findAll(pageable).map(mapper::toResponse);
     }
 
     @Override
-    public DeliveryResponseDTO getDeliveryById(Long id) {
+    @Transactional(readOnly = true)
+    public DeliveryResponseDTO getDeliveryById(@NonNull Long id) {
         return respond(load(id));
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<DeliveryResponseDTO> getByStatus(String status) {
         DeliveryStatus st = DeliveryStatus.valueOf(status.toUpperCase());
         return deliveryRepo.findByStatus(st).stream().map(mapper::toResponse).toList();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<DeliveryResponseDTO> getByClient(Long clientId) {
         return deliveryRepo.findByClientId(clientId).stream()
                 .sorted((a, b) -> {
@@ -100,6 +94,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<DeliveryResponseDTO> getByAgent(Long agentId) {
         return deliveryRepo.findByAgentId(agentId).stream()
                 .sorted((a, b) -> {
@@ -112,6 +107,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<DeliveryResponseDTO> findNearby(Double lat, Double lng, Double radiusKm) {
         return deliveryRepo.findNearbyDeliveries(lat, lng, radiusKm)
                 .stream().map(mapper::toResponse).toList();
@@ -119,7 +115,7 @@ public class DeliveryServiceImpl implements DeliveryService {
 
     @Override
     @Transactional
-    public DeliveryResponseDTO create(DeliveryDTO dto, AppUser client) {
+    public DeliveryResponseDTO create(@NonNull DeliveryDTO dto, @NonNull AppUser client) {
         validator.validateCreate(dto);
 
         Delivery d = new Delivery();
@@ -181,7 +177,7 @@ public class DeliveryServiceImpl implements DeliveryService {
                 client.getId()
         );
 
-        logHistory(d, "Delivery created", client.getUsername());
+        deliveryHistoryWriter.logHistory(d, "Delivery created", client.getUsername());
 
         return respond(d);
     }
@@ -189,19 +185,19 @@ public class DeliveryServiceImpl implements DeliveryService {
 
     @Override
     @Transactional
-    public DeliveryResponseDTO update(Long id, DeliveryDTO dto) {
+    public DeliveryResponseDTO update(@NonNull Long id, @NonNull DeliveryDTO dto) {
         Delivery d = load(id);
 
         mapper.updateEntityFromDTO(d, dto);
         deliveryRepo.save(d);
 
-        logHistory(d, "Delivery updated", "SYSTEM");
+        deliveryHistoryWriter.logHistory(d, "Delivery updated", "SYSTEM");
         return respond(d);
     }
 
     @Override
     @Transactional
-    public DeliveryResponseDTO assign(Long id, AppUser agent) {
+    public DeliveryResponseDTO assign(@NonNull Long id, @NonNull AppUser agent) {
         Delivery d = load(id);
 
 
@@ -231,66 +227,13 @@ public class DeliveryServiceImpl implements DeliveryService {
 
         deliveryRepo.save(d);
 
-        logHistory(d, "Assigned to agent " + agent.getUsername(), agent.getUsername());
+        deliveryHistoryWriter.logHistory(d, "Assigned to agent " + agent.getUsername(), agent.getUsername());
 
         return respond(d);
     }
-    @Transactional
-    public void settleDeliveryEarnings(Delivery d) {
-
-        Payment payment = paymentRepo.findByDeliveryId(d.getId())
-                .orElseThrow(() -> new BadRequestException("Payment not found"));
-
-        if (payment.getStatus() != PaymentStatus.COMPLETED) {
-            throw new BadRequestException("Payment not completed");
-        }
-
-        if (Boolean.TRUE.equals(payment.getEscrowReleased())) {
-            return; // already settled (idempotent)
-        }
-
-        BigDecimal total = payment.getAmount();
-
-        // Use platform commission % from active pricing config (driver gets remainder)
-        var pricingConfig = pricingConfigService.getActivePricing(DEFAULT_CITY);
-        double platformPct = pricingConfig.getPlatformCommissionPercent() != null
-                ? pricingConfig.getPlatformCommissionPercent() / 100.0
-                : 0.20;
-        double driverPct = 1.0 - platformPct;
-        BigDecimal driverCut = total
-                .multiply(BigDecimal.valueOf(driverPct))
-                .setScale(2, RoundingMode.HALF_UP);
-        BigDecimal platformCut = total.subtract(driverCut);
-
-        walletService.deposit(
-                d.getAgent().getId(),
-                driverCut,
-                "DELIVERY_EARNINGS_" + d.getTrackingCode()
-        );
-
-        DriverEarnings earnings = new DriverEarnings();
-        earnings.setDelivery(d);
-        earnings.setAgentId(d.getAgent().getId());
-        earnings.setDriverEarnings(driverCut);
-        earnings.setTip(BigDecimal.ZERO);
-        earningsRepo.save(earnings);
-
-        payment.setEscrowReleased(true);
-        payment.setDriverAmount(driverCut);
-        payment.setPlatformFee(platformCut);
-        paymentRepo.save(payment);
-
-        logHistory(
-                d,
-                "Delivery completed. Driver earned " + driverCut,
-                "SYSTEM"
-        );
-    }
-
-
     @Override
     @Transactional
-    public DeliveryResponseDTO updateStatus(Long id, String status) {
+    public DeliveryResponseDTO updateStatus(@NonNull Long id, @NonNull String status) {
         Delivery d = load(id);
         DeliveryStatus newStatus = DeliveryStatus.fromString(status);
 
@@ -298,7 +241,7 @@ public class DeliveryServiceImpl implements DeliveryService {
             case PICKED_UP -> d.setActualPickupTime(LocalDateTime.now());
             case DELIVERED -> {
                 d.setActualDeliveryTime(LocalDateTime.now());
-                settleDeliveryEarnings(d);
+                deliverySettlementService.settleDeliveryEarnings(d);
             }
 
             case CANCELLED -> d.setCancelledAt(LocalDateTime.now());
@@ -307,7 +250,7 @@ public class DeliveryServiceImpl implements DeliveryService {
         d.setStatus(newStatus);
         deliveryRepo.save(d);
 
-        logHistory(d, "Status changed to " + status, "SYSTEM");
+        deliveryHistoryWriter.logHistory(d, "Status changed to " + status, "SYSTEM");
 
         return respond(d);
     }
@@ -316,10 +259,10 @@ public class DeliveryServiceImpl implements DeliveryService {
 
     @Override
     @Transactional
-    public void delete(Long id) {
+    public void delete(@NonNull Long id) {
         Delivery delivery = load(id);
         deliveryRepo.delete(delivery);
-        historyRepo.deleteAll(historyRepo.findByDelivery_IdOrderByChangedAtAsc(id));
+        historyRepo.deleteByDelivery_Id(id);
     }
 
     @Override
@@ -333,7 +276,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     }
 
     @Override
-    public FareResponseDTO estimateFare(FareEstimateDTO dto, AppUser user) {
+    public FareResponseDTO estimateFare(@NonNull FareEstimateDTO dto, @NonNull AppUser user) {
         FareBreakdown breakdown = pricingService.getFareBreakdown(
                 dto.getPickupLatitude(),
                 dto.getPickupLongitude(),
@@ -374,7 +317,8 @@ public class DeliveryServiceImpl implements DeliveryService {
     }
 
     @Override
-    public DeliveryResponseDTO getActiveDelivery(Long agentId) {
+    @Transactional(readOnly = true)
+    public DeliveryResponseDTO getActiveDelivery(@NonNull Long agentId) {
         return deliveryRepo
                 .findFirstByAgentIdAndStatusInOrderByAssignedAtDesc(
                         agentId,

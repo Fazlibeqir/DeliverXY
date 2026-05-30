@@ -3,6 +3,7 @@ package com.deliverXY.backend.NewCode.wallet.service.impl;
 import com.deliverXY.backend.NewCode.common.enums.PaymentProvider;
 import com.deliverXY.backend.NewCode.common.enums.TopUpStatus;
 import com.deliverXY.backend.NewCode.common.enums.TransactionType;
+import com.deliverXY.backend.NewCode.exceptions.BadRequestException;
 import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
 import com.deliverXY.backend.NewCode.user.domain.AppUser;
 import com.deliverXY.backend.NewCode.user.repository.AppUserRepository;
@@ -17,8 +18,9 @@ import com.deliverXY.backend.NewCode.wallet.repository.WalletTransactionReposito
 import com.deliverXY.backend.NewCode.wallet.service.WalletService;
 import com.stripe.model.PaymentIntent;
 import com.stripe.param.PaymentIntentCreateParams;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,11 +28,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
-@Service
-@RequiredArgsConstructor
 @Slf4j
+@Service
 @Transactional
 public class WalletServiceImpl implements WalletService {
 
@@ -38,71 +40,83 @@ public class WalletServiceImpl implements WalletService {
     private final WalletTransactionRepository transactionRepository;
     private final AppUserRepository userRepo;
     private final TopUpRepository topUpRepository;
+    private final WalletService self;
 
-    private Wallet getWalletEntity(Long userId) {
-        return getWallet(userId); // ✅ auto-create
+    public WalletServiceImpl(
+            WalletRepository walletRepository,
+            WalletTransactionRepository transactionRepository,
+            AppUserRepository userRepo,
+            TopUpRepository topUpRepository,
+            @Lazy WalletService self) {
+        this.walletRepository = walletRepository;
+        this.transactionRepository = transactionRepository;
+        this.userRepo = userRepo;
+        this.topUpRepository = topUpRepository;
+        this.self = self;
     }
 
-    //Check and reset limits if needed
+    private Wallet getWalletEntity(Long userId) {
+        return self.getWallet(userId);
+    }
+
     private void checkAndResetLimits(Wallet wallet) {
         LocalDate now = LocalDate.now();
         LocalDateTime lastResetDateTime = wallet.getLastResetDate();
         LocalDate lastResetDate = lastResetDateTime.toLocalDate();
 
-        // 1. Daily Reset: If the last reset was on a different day
         if (!now.isEqual(lastResetDate)) {
             wallet.setDailySpent(BigDecimal.ZERO);
-            // We set the date here, but will refine the monthly logic below
         }
 
-        // 2. Monthly Reset: If the last reset was in a different month
         if (now.getMonth() != lastResetDate.getMonth() || now.getYear() != lastResetDate.getYear()) {
             wallet.setMonthlySpent(BigDecimal.ZERO);
         }
 
-        // Update the last reset date only if any reset occurred
         if (!now.isEqual(lastResetDate) || now.getMonth() != lastResetDate.getMonth()) {
             wallet.setLastResetDate(LocalDateTime.now());
         }
-        // Note: The Wallet entity will be saved automatically by the @Transactional context.
     }
+
     @Override
+    @Transactional(readOnly = true)
     public Wallet getWallet(Long userId) {
-        AppUser user = userRepo.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found: " + userId));
+        Long id = Objects.requireNonNull(userId, "userId");
+        AppUser user = userRepo.findById(id)
+                .orElseThrow(() -> new NotFoundException("User not found: " + id));
 
         return walletRepository.findByUser(user)
                 .orElseGet(() -> walletRepository.save(new Wallet(user)));
     }
 
     @Override
+    @Transactional
     public void createWalletForUser(AppUser user) {
         walletRepository.findByUser(user)
                 .orElseGet(() -> walletRepository.save(new Wallet(user)));
-
     }
 
     @Override
-    public TopUpInitResponseDTO  initiateTopUp(Long userId, BigDecimal amount, PaymentProvider provider) {
+    public TopUpInitResponseDTO initiateTopUp(Long userId, BigDecimal amount, PaymentProvider provider) {
+        Long id = Objects.requireNonNull(userId, "userId");
 
-
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0)
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new NotFoundException("Top-up amount must be positive");
+        }
 
         TopUpRequest req = new TopUpRequest();
-        req.setUserId(userId);
+        req.setUserId(id);
         req.setAmount(amount);
         req.setStatus(TopUpStatus.PENDING);
-        req.setProvider(provider !=null ? provider.name() : PaymentProvider.MOCK.name()); // Placeholder until CPay integration
+        req.setProvider(provider != null ? provider.name() : PaymentProvider.MOCK.name());
 
         topUpRepository.save(req);
 
         req.setReferenceId(UUID.randomUUID().toString());
-
         topUpRepository.save(req);
-        if (provider == PaymentProvider.MOCK){
-//            Thread.sleep(500);
-            finalizeTopUp(req.getId(), true, "MOCK-" + req.getId());
+
+        if (provider == PaymentProvider.MOCK) {
+            Long topUpId = Objects.requireNonNull(req.getId(), "topUpId");
+            self.finalizeTopUp(topUpId, true, "MOCK-" + topUpId);
             return new TopUpInitResponseDTO(
                     req.getId(),
                     amount,
@@ -110,18 +124,18 @@ public class WalletServiceImpl implements WalletService {
                     PaymentProvider.MOCK.name()
             );
         }
+
         if (provider == PaymentProvider.STRIPE) {
             try {
                 PaymentIntent intent = PaymentIntent.create(
                         PaymentIntentCreateParams.builder()
-                                .setAmount(amount.multiply(BigDecimal.valueOf(100)).longValue()) // cents
+                                .setAmount(amount.multiply(BigDecimal.valueOf(100)).longValue())
                                 .setCurrency("eur")
                                 .putMetadata("topup_id", req.getId().toString())
-                                .putMetadata("user_id", userId.toString())
+                                .putMetadata("user_id", id.toString())
                                 .build()
                 );
 
-                // store Stripe reference
                 req.setReferenceId(intent.getId());
                 topUpRepository.save(req);
 
@@ -131,7 +145,6 @@ public class WalletServiceImpl implements WalletService {
                         intent.getClientSecret(),
                         PaymentProvider.STRIPE.name()
                 );
-
             } catch (Exception e) {
                 throw new RuntimeException("Stripe PaymentIntent creation failed", e);
             }
@@ -141,14 +154,16 @@ public class WalletServiceImpl implements WalletService {
     }
 
     @Override
+    @Transactional
     public void finalizeTopUp(Long topUpId, boolean success, String referenceId) {
-        TopUpRequest req = topUpRepository.findById(topUpId)
-                .orElseThrow(()-> new NotFoundException("Top up request not found:" + topUpId));
+        Long id = Objects.requireNonNull(topUpId, "topUpId");
+        TopUpRequest req = topUpRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Top up request not found:" + id));
 
         req.setReferenceId(referenceId);
-        if (success){
+        if (success) {
             req.setStatus(TopUpStatus.SUCCESS);
-            deposit(req.getUserId(), req.getAmount(), referenceId);
+            self.deposit(req.getUserId(), req.getAmount(), referenceId);
         } else {
             req.setStatus(TopUpStatus.FAILED);
         }
@@ -158,15 +173,15 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional
     public void deposit(Long userId, BigDecimal amount, String reference) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0)
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new NotFoundException("Deposit amount must be positive");
+        }
 
-        Wallet wallet = getWallet(userId);
+        Wallet wallet = self.getWallet(userId);
         wallet.addFunds(amount);
         walletRepository.save(wallet);
 
         saveTransaction(wallet, amount, TransactionType.DEPOSIT, reference);
-
     }
 
     @Override
@@ -177,41 +192,37 @@ public class WalletServiceImpl implements WalletService {
         }
 
         Wallet wallet = getWalletEntity(userId);
-        
-        // Reload to ensure we have the latest balance (in case of concurrent updates)
-        wallet = walletRepository.findById(wallet.getId())
-                .orElseThrow(() -> new com.deliverXY.backend.NewCode.exceptions.NotFoundException("Wallet not found"));
+
+        Long walletId = Objects.requireNonNull(wallet.getId(), "Wallet not found");
+        wallet = walletRepository.findById(walletId)
+                .orElseThrow(() -> new NotFoundException("Wallet not found"));
 
         BigDecimal balance = wallet.getBalance() != null ? wallet.getBalance() : BigDecimal.ZERO;
-        
+
         log.info("Checking wallet balance for user {}: Required={}, Available={}", userId, amount, balance);
 
-        // Only check balance - no daily/monthly limits
         if (balance.compareTo(amount) < 0) {
-            String errorMsg = String.format("Insufficient wallet balance. Required: %.2f MKD, Available: %.2f MKD", 
-                amount, balance);
+            String errorMsg = String.format(
+                    "Insufficient wallet balance. Required: %.2f MKD, Available: %.2f MKD",
+                    amount, balance);
             log.warn("Balance check failed for user {}: {}", userId, errorMsg);
-            throw new com.deliverXY.backend.NewCode.exceptions.BadRequestException(errorMsg);
+            throw new BadRequestException(errorMsg);
         }
-        
+
         log.info("Balance check passed for user {}: Available={} >= Required={}", userId, balance, amount);
-    }
-    
-    private BigDecimal safe(BigDecimal value) {
-        return value == null ? BigDecimal.ZERO : value;
     }
 
     @Override
     @Transactional
     public boolean withdraw(Long userId, BigDecimal amount, String reference) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0)
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Withdraw amount must be positive");
+        }
 
         Wallet wallet = getWalletEntity(userId);
 
         checkAndResetLimits(wallet);
 
-        // not enough funds
         if (!wallet.canWithdraw(amount)) {
             throw new NotFoundException("Insufficient funds");
         }
@@ -222,13 +233,14 @@ public class WalletServiceImpl implements WalletService {
         saveTransaction(wallet, amount.negate(), TransactionType.WITHDRAW, reference);
         return true;
     }
+
     private void saveTransaction(Wallet wallet, BigDecimal amount, TransactionType type, String reference) {
-        WalletTransaction tx = WalletTransaction.builder()
+        WalletTransaction tx = Objects.requireNonNull(WalletTransaction.builder()
                 .wallet(wallet)
                 .type(type)
                 .amount(amount)
                 .reference(reference)
-                .build();
+                .build());
 
         transactionRepository.save(tx);
     }
@@ -236,19 +248,21 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional
     public void addTransaction(Long userId, BigDecimal amount, String type, String reference) {
-        // Convert old string type → enum
         TransactionType txType = TransactionType.valueOf(type.toUpperCase());
 
-        Wallet wallet = getWallet(userId);
+        Wallet wallet = self.getWallet(userId);
         saveTransaction(wallet, amount, txType, reference);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<WalletTransactionDTO> getTransactions(Long userId) {
+        Long id = Objects.requireNonNull(userId, "userId");
         return transactionRepository
-                .findByWalletUserIdOrderByCreatedAtDesc(userId)
+                .findByWalletUserIdOrderByCreatedAtDesc(id, PageRequest.of(0, 100))
+                .getContent()
                 .stream()
-                .map(tx ->{
+                .map(tx -> {
                     WalletTransactionDTO dto = new WalletTransactionDTO();
                     dto.setId(tx.getId());
                     dto.setAmount(tx.getAmount());

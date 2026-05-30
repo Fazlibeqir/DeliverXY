@@ -30,9 +30,10 @@ public class DriverPayout {
     private LocalDateTime periodEnd;
 
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private PayoutStatus status = PayoutStatus.PENDING;
 
-    private LocalDateTime paidAt = LocalDateTime.now();
+    private LocalDateTime paidAt;
 
     private String transactionRef;
     private String processedBy;

@@ -19,9 +19,12 @@ import com.deliverXY.backend.NewCode.common.enums.UserRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.util.Objects;
+
 
 @Service
 @RequiredArgsConstructor
@@ -64,7 +67,8 @@ public class AdminServiceImpl implements AdminService {
                 .map(e-> {
                     AppUserKYC kyc = null;
                     try {
-                        kyc = kycService.getKYC(e.getId());
+                        Long userId = Objects.requireNonNull(e.getId(), "userId");
+                        kyc = kycService.getKYC(userId);
                     } catch (Exception ignored){}
                     return new AdminUserDTO(e, kyc);
                 });
@@ -91,20 +95,24 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    public Page<DeliveryResponseDTO> getAllDeliveries(Pageable pageable) {
+    @Transactional(readOnly = true)
+    public Page<DeliveryResponseDTO> getAllDeliveries(@NonNull Pageable pageable) {
         return deliveryService.getAllDeliveries(pageable);
     }
 
     @Override
-    public void assignDelivery(Long deliveryId, Long agentId) {
-        AppUser agent = userService.findById(agentId)
-                .orElseThrow(() -> new NotFoundException("Agent not found"));
+    public void assignDelivery(@NonNull Long deliveryId, @NonNull Long agentId) {
+        AppUser agent = Objects.requireNonNull(
+                userService.findById(agentId)
+                        .orElseThrow(() -> new NotFoundException("Agent not found"))
+        );
 
         deliveryService.assign(deliveryId, agent);
     }
 
     @Override
-    public List<DriverLocation> getAllDriverLocations() {
-        return driverLocationRepository.findAll();
+    @Transactional(readOnly = true)
+    public Page<DriverLocation> getAllDriverLocations(@NonNull Pageable pageable) {
+        return driverLocationRepository.findAll(pageable);
     }
 }

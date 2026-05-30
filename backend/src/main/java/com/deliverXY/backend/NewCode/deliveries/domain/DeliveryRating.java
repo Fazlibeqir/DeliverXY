@@ -5,7 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "delivery_rating")
+@Table(name = "delivery_rating", indexes = @Index(name = "idx_delivery_rating_delivery_id", columnList = "delivery_id"))
 @Data
 @NoArgsConstructor
 public class DeliveryRating {

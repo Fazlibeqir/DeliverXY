@@ -10,19 +10,22 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional
 public class AppUserServiceImpl implements AppUserService {
 
     private final AppUserRepository repo;
 
     @Override
     public Optional<AppUser> findById(Long id) {
-        return repo.findById(id);
+        return repo.findById(Objects.requireNonNull(id, "id"));
     }
 
     @Override
@@ -52,25 +55,26 @@ public class AppUserServiceImpl implements AppUserService {
 
     @Override
     public Page<AppUser> findAll(Pageable pageable) {
-        return repo.findAll(pageable);
+        return repo.findAll(Objects.requireNonNull(pageable, "pageable"));
     }
 
     @Override
     public AppUser save(AppUser user) {
-        return repo.save(user);
+        return repo.save(Objects.requireNonNull(user, "user"));
     }
 
     @Override
     public AppUser update(AppUser user) {
-        return repo.save(user);
+        return repo.save(Objects.requireNonNull(user, "user"));
     }
 
     @Override
     public void deleteById(Long id) {
-        if (!repo.existsById(id)) {
-            throw new NotFoundException("User not found: " + id);
+        Long userId = Objects.requireNonNull(id, "id");
+        if (!repo.existsById(userId)) {
+            throw new NotFoundException("User not found: " + userId);
         }
-        repo.deleteById(id);
+        repo.deleteById(userId);
     }
 
     @Override
@@ -82,8 +86,9 @@ public class AppUserServiceImpl implements AppUserService {
     }
     @Override
     public AppUser requireById(Long id) {
-        return repo.findById(id)
-                .orElseThrow(() -> new NotFoundException("User not found: " + id));
+        Long userId = Objects.requireNonNull(id, "id");
+        return repo.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found: " + userId));
     }
     @Override
     public AppUser requireByUsername(String username) {

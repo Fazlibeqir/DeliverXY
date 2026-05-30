@@ -8,10 +8,13 @@ import com.deliverXY.backend.NewCode.drivers.repository.DriverLocationRepository
 import com.deliverXY.backend.NewCode.user.domain.AppUser;
 import com.deliverXY.backend.NewCode.notifications.service.NotificationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 public class DriverMatchingService {
@@ -20,19 +23,25 @@ public class DriverMatchingService {
     private final LocationService locationService;
     private final NotificationService notificationService;
 
+    @Transactional(readOnly = true)
     public Optional<AppUser> findNearestDriver(double lat, double lon) {
-
-        double radius = DriverConstants.INITIAL_SEARCH_RADIUS_KM; // km initial
         double maxRadius = DriverConstants.MAX_SEARCH_RADIUS_KM;
+        List<DriverLocation> candidates = locationRepo.findNearbyDrivers(lat, lon, maxRadius);
 
+        double radius = DriverConstants.INITIAL_SEARCH_RADIUS_KM;
         while (radius <= maxRadius) {
-
-            var drivers = locationRepo.findNearbyDrivers(lat, lon, radius);
-
-            if (!drivers.isEmpty()) {
-                return Optional.of(drivers.get(0).getDriver());
+            final double searchRadius = radius;
+            for (DriverLocation driverLocation : candidates) {
+                double distanceKm = locationService.distanceKm(
+                        lat,
+                        lon,
+                        driverLocation.getLatitude(),
+                        driverLocation.getLongitude()
+                );
+                if (distanceKm <= searchRadius) {
+                    return Optional.of(driverLocation.getDriver());
+                }
             }
-
             radius += DriverConstants.SEARCH_RADIUS_INCREMENT_KM;
         }
 
@@ -52,7 +61,8 @@ public class DriverMatchingService {
         }
     }
 
-    public int calculateDriverETA(Long driverId, double pickupLat, double pickupLon) {
+    @Transactional(readOnly = true)
+    public int calculateDriverETA(@NonNull Long driverId, double pickupLat, double pickupLon) {
         return locationRepo.findById(driverId)
                 .map(loc -> {
                     double dist = locationService.distanceKm(
@@ -66,6 +76,7 @@ public class DriverMatchingService {
                 .orElse(0);
     }
 
+    @Transactional(readOnly = true)
     public List<DriverLocation> listDriversInRadius(Double latitude, Double longitude, Double radius) {
             return locationRepo.findNearbyDrivers(latitude, longitude, radius);
     }

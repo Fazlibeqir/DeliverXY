@@ -5,19 +5,21 @@ import com.deliverXY.backend.NewCode.deliveries.domain.Delivery;
 import com.deliverXY.backend.NewCode.notifications.domain.Notification;
 import com.deliverXY.backend.NewCode.notifications.dto.NotificationDTO;
 import com.deliverXY.backend.NewCode.notifications.repository.NotificationRepository;
-import com.deliverXY.backend.NewCode.notifications.websocket.NotificationWebSocketService;
 import com.deliverXY.backend.NewCode.user.domain.AppUser;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
 
     private final NotificationRepository repo;
-    private final NotificationWebSocketService ws;
-    private final FirebasePushService firebasePush;
+    private final NotificationPersistenceService persistenceService;
 
     @Transactional
     public Notification create(
@@ -27,25 +29,12 @@ public class NotificationService {
             NotificationType type,
             String refId
     ) {
-        Notification n = new Notification();
-        n.setUser(user);
-        n.setTitle(title);
-        n.setMessage(message);
-        n.setType(type);
-        n.setReferenceId(refId);
-        repo.save(n);
-
-        // real-time websockets
-        ws.pushToUser(user.getId(), NotificationDTO.from(n));
-
-        // firebase push
-        firebasePush.sendToUser(user.getId(), title, message);
-
-        return n;
+        return persistenceService.persist(user, title, message, type, refId);
     }
 
+    @Transactional
     public void sendDeliveryRequest(AppUser driver, Delivery delivery) {
-        create(
+        persistenceService.persist(
                 driver,
                 "New Delivery Request",
                 "Pickup at " + delivery.getPickupAddress(),
@@ -53,9 +42,19 @@ public class NotificationService {
                 delivery.getId().toString()
         );
     }
+
+    @Transactional(readOnly = true)
+    public List<NotificationDTO> getForUser(AppUser user) {
+        return repo.findByUserOrderByCreatedAtDesc(Objects.requireNonNull(user, "user"), PageRequest.of(0, 50))
+                .stream()
+                .map(NotificationDTO::from)
+                .toList();
+    }
+
     @Transactional
     public void markRead(Long id) {
-        repo.findById(id).ifPresent(n -> {
+        Long notificationId = Objects.requireNonNull(id, "id");
+        repo.findById(notificationId).ifPresent(n -> {
             n.setIsRead(true);
             repo.save(n);
         });

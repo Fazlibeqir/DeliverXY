@@ -1,11 +1,13 @@
 package com.deliverXY.backend.NewCode.wallet.controller;
 
 import com.deliverXY.backend.NewCode.common.response.ApiResponse;
+import com.deliverXY.backend.NewCode.common.util.RequestPayloadValidator;
 import com.deliverXY.backend.NewCode.exceptions.NotFoundException;
 import com.deliverXY.backend.NewCode.security.UserPrincipal;
 import com.deliverXY.backend.NewCode.wallet.dto.TopUpInitDTO;
 import com.deliverXY.backend.NewCode.wallet.dto.TopUpInitResponseDTO;
 import com.deliverXY.backend.NewCode.wallet.dto.WalletTransactionDTO;
+import com.deliverXY.backend.NewCode.wallet.service.WalletOperationService;
 import com.deliverXY.backend.NewCode.wallet.service.WalletService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,8 +20,10 @@ import java.math.BigDecimal;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/wallet")
+@PreAuthorize("isAuthenticated()")
 public class WalletController {
     private final WalletService walletService;
+    private final WalletOperationService walletOperationService;
 
     @GetMapping
     public ApiResponse<?> getWallet(@AuthenticationPrincipal UserPrincipal principal) {
@@ -93,27 +97,15 @@ public class WalletController {
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody WalletTransactionDTO dto
     ) {
-        BigDecimal amount = dto.getAmount();
-        if (amount == null) {
-            return ApiResponse.error("Amount is required for withdrawal.", 400, "AMOUNT_REQUIRED", "/api/wallet/withdraw");
-        }
+        WalletTransactionDTO body = RequestPayloadValidator.requireBody(dto);
         try {
-            walletService.withdraw(
-                    principal.getUser().getId(),
-                    amount,
-                    dto.getReference()
-            );
-        }catch (NotFoundException e){
-            return ApiResponse.error(
-                    e.getMessage(),
-                    400,
-                    "WALLET_WITHDRAW_DENIED",
-                    "/api/wallet/withdraw"
-            );
+            walletOperationService.withdraw(principal.getUser().getId(), body.getAmount(), body.getReference());
+            return ApiResponse.ok("Withdraw successful");
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.error("Invalid withdrawal amount", 400, "AMOUNT_REQUIRED", "/api/wallet/withdraw");
+        } catch (NotFoundException e) {
+            return ApiResponse.error("Wallet not found", 400, "WALLET_WITHDRAW_DENIED", "/api/wallet/withdraw");
         }
-
-
-        return ApiResponse.ok("Withdraw successful");
     }
 
     @GetMapping("/transactions")

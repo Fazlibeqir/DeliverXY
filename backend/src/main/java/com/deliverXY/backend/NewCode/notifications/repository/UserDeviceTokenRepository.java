@@ -1,16 +1,15 @@
 package com.deliverXY.backend.NewCode.notifications.repository;
 
 import com.deliverXY.backend.NewCode.notifications.domain.UserDeviceToken;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-
-import java.util.List;
 
 public interface UserDeviceTokenRepository extends JpaRepository<UserDeviceToken, Long> {
 
-    List<UserDeviceToken> findByDeviceToken(String deviceToken);
+    Page<UserDeviceToken> findByDeviceToken(String deviceToken, Pageable pageable);
 
-    List<UserDeviceToken> findByUserIdAndDeviceToken(Long userId, String token);
+    Page<UserDeviceToken> findByUserIdAndDeviceToken(Long userId, String token, Pageable pageable);
 
-    List<UserDeviceToken> findByUserIdAndActiveTrue(Long userId);
-
+    Page<UserDeviceToken> findByUserIdAndActiveTrue(Long userId, Pageable pageable);
 }

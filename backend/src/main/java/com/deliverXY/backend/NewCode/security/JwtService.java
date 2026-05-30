@@ -1,15 +1,16 @@
 package com.deliverXY.backend.NewCode.security;
 
-
 import com.deliverXY.backend.NewCode.user.domain.AppUser;
-import io.jsonwebtoken.*;
-import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Service
@@ -17,22 +18,21 @@ import java.util.Date;
 public class JwtService {
 
     private final SecretKey secretKey;
+    private final SignedJwtClaimsReader signedJwtClaimsReader;
+    private final long accessExpiration;
+    private final long refreshExpiration;
 
-    @Value("${jwt.access-expiration-ms}")
-    private long accessExpiration;
-
-    @Value("${jwt.refresh-expiration-ms}")
-    private long refreshExpiration;
-
-    public JwtService(@Value("${jwt.secret}") String secret) {
-        if (secret.length() < 32) {
-            secret = secret + "0".repeat(32 - secret.length());
-        }
-        this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    public JwtService(
+            SecretKey jwtSigningKey,
+            SignedJwtClaimsReader signedJwtClaimsReader,
+            @Value("${jwt.access-expiration-ms}") long accessExpiration,
+            @Value("${jwt.refresh-expiration-ms}") long refreshExpiration
+    ) {
+        this.secretKey = jwtSigningKey;
+        this.signedJwtClaimsReader = signedJwtClaimsReader;
+        this.accessExpiration = accessExpiration;
+        this.refreshExpiration = refreshExpiration;
     }
-
-
-    // TOKEN GENERATION
 
     public String generateAccessToken(AppUser user) {
         return generateToken(user, accessExpiration, "access");
@@ -53,14 +53,13 @@ public class JwtService {
                 .claim("type", type)
                 .setIssuedAt(now)
                 .setExpiration(expiry)
+                .setNotBefore(now)
                 .signWith(secretKey, SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    // TOKEN PARSING & VALIDATION
-
     public String extractUsername(String token) {
-            return parseClaims(token).getSubject();
+        return parseClaims(token).getSubject();
     }
 
     public Long extractUserId(String token) {
@@ -81,12 +80,9 @@ public class JwtService {
     }
 
     public Claims parseClaims(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(secretKey)
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+        return signedJwtClaimsReader.readClaims(token);
     }
+
     public long getAccessTokenExpirySeconds() {
         return accessExpiration / 1000;
     }
@@ -96,15 +92,15 @@ public class JwtService {
     }
 
     public boolean isExpired(String token) {
-        try{
+        try {
             parseClaims(token);
             return false;
-        }catch (ExpiredJwtException e){
+        } catch (ExpiredJwtException e) {
             return true;
-        }catch (JwtException e){
-            log.warn("Non-expiration JWT issue encountered: {}",e.getMessage());
+        } catch (JwtException e) {
+            log.warn("Non-expiration JWT issue encountered: {}", e.getMessage());
             return true;
-        }catch (Exception e){
+        } catch (Exception e) {
             return true;
         }
     }

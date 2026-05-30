@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "driver_locations")
+@Table(name = "driver_locations", indexes = @Index(name = "idx_driver_location_driver_id", columnList = "driver_id"))
 @Data
 @NoArgsConstructor
 public class DriverLocation {

@@ -11,7 +11,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "promo_code_usage")
+@Table(name = "promo_code_usage", indexes = {
+        @Index(name = "idx_promo_usage_code_id", columnList = "promo_code_id"),
+        @Index(name = "idx_promo_usage_user_id", columnList = "user_id"),
+        @Index(name = "idx_promo_usage_delivery_id", columnList = "delivery_id")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

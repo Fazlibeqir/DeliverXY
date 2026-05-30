@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "app_user_agent_profile")
+@Table(name = "app_user_agent_profile", indexes = @Index(name = "idx_agent_profile_user_id", columnList = "user_id"))
 @Data
 @NoArgsConstructor
 public class AppUserAgentProfile {

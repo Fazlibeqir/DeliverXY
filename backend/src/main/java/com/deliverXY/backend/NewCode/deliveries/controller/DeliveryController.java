@@ -7,24 +7,38 @@ import com.deliverXY.backend.NewCode.deliveries.dto.FareEstimateDTO;
 import com.deliverXY.backend.NewCode.deliveries.dto.FareResponseDTO;
 import com.deliverXY.backend.NewCode.deliveries.service.DeliveryService;
 import com.deliverXY.backend.NewCode.security.UserPrincipal;
+import com.deliverXY.backend.NewCode.user.domain.AppUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.lang.NonNull;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/deliveries")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class DeliveryController {
 
     private final DeliveryService deliveryService;
 
+    private static @NonNull AppUser requireUser(@NonNull UserPrincipal principal) {
+        return Objects.requireNonNull(principal.getUser(), "Authenticated user is required");
+    }
+
+    private static @NonNull Long requireUserId(@NonNull UserPrincipal principal) {
+        return Objects.requireNonNull(requireUser(principal).getId(), "User id is required");
+    }
+
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Page<DeliveryResponseDTO>> getAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
@@ -33,17 +47,20 @@ public class DeliveryController {
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<DeliveryResponseDTO> getById(@PathVariable Long id) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<DeliveryResponseDTO> getById(@PathVariable @NonNull Long id) {
         return ApiResponse.ok(deliveryService.getDeliveryById(id));
     }
 
     @GetMapping("/status/{status}")
-    public ApiResponse<List<DeliveryResponseDTO>> getByStatus(@PathVariable String status) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<List<DeliveryResponseDTO>> getByStatus(@PathVariable @NonNull String status) {
         return ApiResponse.ok(deliveryService.getByStatus(status));
     }
 
     @GetMapping("/client/{clientId}")
-    public ApiResponse<List<DeliveryResponseDTO>> getByClient(@PathVariable Long clientId) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<List<DeliveryResponseDTO>> getByClient(@PathVariable @NonNull Long clientId) {
         // NOTE: Admin/internal endpoint. Normal users should use /me/deliveries.
         return ApiResponse.ok(deliveryService.getByClient(clientId));
     }
@@ -52,31 +69,33 @@ public class DeliveryController {
         return ApiResponse.ok(deliveryService.getByClient(principal.getUser().getId()));
     }
     @GetMapping("/assigned")
+    @PreAuthorize("hasRole('AGENT')")
     public ApiResponse<List<DeliveryResponseDTO>> assignedToMe(@AuthenticationPrincipal UserPrincipal principal) {
         return ApiResponse.ok(deliveryService.getByAgent(principal.getUser().getId()));
     }
     @GetMapping("/active")
+    @PreAuthorize("hasRole('AGENT')")
     public ApiResponse<DeliveryResponseDTO> activeDelivery(
-            @AuthenticationPrincipal UserPrincipal principal
+            @AuthenticationPrincipal @NonNull UserPrincipal principal
     ) {
-        return ApiResponse.ok(
-                deliveryService.getActiveDelivery(principal.getUser().getId())
-        );
+        return ApiResponse.ok(deliveryService.getActiveDelivery(requireUserId(principal)));
     }
 
 
 
 
     @GetMapping("/agent/{agentId}")
-    public ApiResponse<List<DeliveryResponseDTO>> getByAgent(@PathVariable Long agentId) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<List<DeliveryResponseDTO>> getByAgent(@PathVariable @NonNull Long agentId) {
         // NOTE: Admin/internal endpoint. Normal agents should use /me/deliveries.
         return ApiResponse.ok(deliveryService.getByAgent(agentId));
     }
 
     @GetMapping("/nearby")
+    @PreAuthorize("hasRole('AGENT')")
     public ApiResponse<List<DeliveryResponseDTO>> findNearby(
-            @RequestParam Double latitude,
-            @RequestParam Double longitude,
+            @RequestParam @NonNull Double latitude,
+            @RequestParam @NonNull Double longitude,
             @RequestParam(defaultValue = "5.0") Double radius
     ) {
         return ApiResponse.ok(deliveryService.findNearby(latitude, longitude, radius));
@@ -86,42 +105,44 @@ public class DeliveryController {
     // We use @ResponseStatus(HttpStatus.CREATED) instead of ResponseEntity to signal 201
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<DeliveryResponseDTO> create(
-            @Valid @RequestBody DeliveryDTO deliveryDTO,
-            @AuthenticationPrincipal UserPrincipal principal
+            @Valid @RequestBody @NonNull DeliveryDTO deliveryDTO,
+            @AuthenticationPrincipal @NonNull UserPrincipal principal
     ) {
-        // We use ApiResponse.ok(data) which returns status 200,
-        // but @ResponseStatus(CREATED) overrides the HTTP status to 201.
-        return ApiResponse.ok(deliveryService.create(deliveryDTO, principal.getUser()));
+        return ApiResponse.ok(deliveryService.create(deliveryDTO, requireUser(principal)));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<DeliveryResponseDTO> update(
-            @PathVariable Long id,
-            @Valid @RequestBody DeliveryDTO deliveryDTO
+            @PathVariable @NonNull Long id,
+            @Valid @RequestBody @NonNull DeliveryDTO deliveryDTO
     ) {
         return ApiResponse.ok(deliveryService.update(id, deliveryDTO));
     }
 
     @PostMapping("/{id}/assign")
+    @PreAuthorize("hasRole('AGENT')")
     public ApiResponse<DeliveryResponseDTO> assignDelivery(
-            @PathVariable Long id,
-            @AuthenticationPrincipal UserPrincipal agentPrincipal
+            @PathVariable @NonNull Long id,
+            @AuthenticationPrincipal @NonNull UserPrincipal agentPrincipal
     ) {
-        return ApiResponse.ok(deliveryService.assign(id, agentPrincipal.getUser()));
+        return ApiResponse.ok(deliveryService.assign(id, requireUser(agentPrincipal)));
     }
 
     @PutMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('AGENT', 'ADMIN')")
     public ApiResponse<DeliveryResponseDTO> updateStatus(
-            @PathVariable Long id,
-            @RequestParam String status
+            @PathVariable @NonNull Long id,
+            @RequestParam @NonNull String status
     ) {
         return ApiResponse.ok(deliveryService.updateStatus(id, status));
     }
 
     // REMOVED: updateLocation endpoint (see removal section below)
     @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT) // Signals 204 No Content
-    public ApiResponse<Void> deleteDelivery(@PathVariable Long id) {
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<Void> deleteDelivery(@PathVariable @NonNull Long id) {
         deliveryService.delete(id);
         // Return ApiResponse.ok(null) or a specific empty response for 204
         return ApiResponse.ok(null);
@@ -130,9 +151,9 @@ public class DeliveryController {
     // --- FARE ESTIMATE ---
     @PostMapping("/estimate-fare")
     public ApiResponse<FareResponseDTO> estimateFare(
-            @Valid @RequestBody FareEstimateDTO request,
-            @AuthenticationPrincipal UserPrincipal principal
+            @Valid @RequestBody @NonNull FareEstimateDTO request,
+            @AuthenticationPrincipal @NonNull UserPrincipal principal
     ) {
-        return ApiResponse.ok(deliveryService.estimateFare(request, principal.getUser()));
+        return ApiResponse.ok(deliveryService.estimateFare(request, requireUser(principal)));
     }
 }
