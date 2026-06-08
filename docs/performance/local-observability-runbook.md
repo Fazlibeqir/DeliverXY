@@ -2,10 +2,19 @@
 
 This runbook explains how to run DeliverXY locally with Prometheus, Grafana, and k6 performance tests.
 
+The recommended workflow uses Python helper scripts from:
+
+```txt
+scripts/perf/
+```
+
+Raw Docker and k6 commands are still included only when useful.
+
 ## 1. Prerequisites
 
 Install:
 
+- Python 3.10+
 - Docker
 - Docker Compose
 - Git
@@ -16,17 +25,23 @@ Optional local tools:
 - curl
 - jq
 
-You can also run k6 through Docker, so local k6 installation is not required.
+You can run k6 through Docker, so local k6 installation is not required.
 
 ## 2. Start the stack
 
 From the repository root:
 
 ```bash
+python scripts/perf/start_observability.py
+```
+
+This script runs:
+
+```bash
 docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d
 ```
 
-This starts:
+Services:
 
 | Service | URL |
 |---|---|
@@ -42,7 +57,33 @@ username: admin
 password: admin
 ```
 
-## 3. Verify backend health
+## 3. Check observability health
+
+Run:
+
+```bash
+python scripts/perf/check_observability.py
+```
+
+This checks:
+
+- backend health endpoint
+- backend Prometheus metrics endpoint
+- Prometheus scrape target
+- Grafana health endpoint
+
+Expected output should show all checks as PASS.
+
+You can override URLs:
+
+```bash
+python scripts/perf/check_observability.py \
+  --base-url http://localhost:8080 \
+  --prometheus-url http://localhost:9090 \
+  --grafana-url http://localhost:3001
+```
+
+## 4. Manual backend health check
 
 ```bash
 curl http://localhost:8080/actuator/health
@@ -54,7 +95,7 @@ Expected result:
 {"status":"UP"}
 ```
 
-## 4. Verify Prometheus endpoint
+## 5. Manual Prometheus endpoint check
 
 ```bash
 curl http://localhost:8080/actuator/prometheus | head
@@ -70,7 +111,7 @@ docker compose logs backend
 
 Make sure the backend is running with the observability profile.
 
-## 5. Verify Prometheus scrape target
+## 6. Verify Prometheus scrape target
 
 Open:
 
@@ -91,7 +132,7 @@ If target is DOWN:
 3. Check `monitoring/prometheus/prometheus.yml` target name.
 4. Check Docker Compose service name is `backend`.
 
-## 6. Open Grafana dashboard
+## 7. Open Grafana dashboard
 
 Open:
 
@@ -114,63 +155,95 @@ Expected panels:
 - JVM Threads
 - HikariCP Active Connections
 
-## 7. Run k6 smoke test
+## 8. Run k6 smoke test
 
-Using Docker on Linux:
-
-```bash
-docker run --rm -i \
-  --network host \
-  -e BASE_URL=http://localhost:8080 \
-  grafana/k6 run - < performance-tests/k6/smoke.js
-```
-
-Using Docker Desktop on macOS or Windows:
+Recommended Docker-based command:
 
 ```bash
-docker run --rm -i \
-  -e BASE_URL=http://host.docker.internal:8080 \
-  grafana/k6 run - < performance-tests/k6/smoke.js
+python scripts/perf/run_smoke.py --docker --summary-export
 ```
 
-Using local k6:
+Local k6 command:
 
 ```bash
-BASE_URL=http://localhost:8080 k6 run performance-tests/k6/smoke.js
+python scripts/perf/run_smoke.py --summary-export
 ```
 
-## 8. Run k6 load test
+Use an existing user instead of auto-registration:
 
 ```bash
-BASE_URL=http://localhost:8080 k6 run performance-tests/k6/load.js
+python scripts/perf/run_smoke.py \
+  --docker \
+  --summary-export \
+  --register-test-user false \
+  --test-user-email your-user@example.com \
+  --test-user-password 'your-password'
 ```
 
-Or with Docker Desktop:
+## 9. Run k6 load test
+
+Recommended Docker-based command:
 
 ```bash
-docker run --rm -i \
-  -e BASE_URL=http://host.docker.internal:8080 \
-  grafana/k6 run - < performance-tests/k6/load.js
+python scripts/perf/run_load.py --docker --summary-export
 ```
 
-## 9. Save k6 summary output
-
-Create results folder:
+Local k6 command:
 
 ```bash
-mkdir -p performance-tests/results
+python scripts/perf/run_load.py --summary-export
 ```
 
-Run:
+Override backend URL:
 
 ```bash
-BASE_URL=http://localhost:8080 \
-k6 run \
-  --summary-export performance-tests/results/load-summary.json \
-  performance-tests/k6/load.js
+python scripts/perf/run_load.py \
+  --docker \
+  --summary-export \
+  --base-url http://localhost:8080
 ```
 
-## 10. Fill the baseline report
+## 10. Run stress, spike, and long stability tests
+
+Do not run these before smoke and load tests pass.
+
+Stress:
+
+```bash
+python scripts/perf/run_stress.py --docker --summary-export
+```
+
+Spike:
+
+```bash
+python scripts/perf/run_spike.py --docker --summary-export
+```
+
+Long stability test:
+
+```bash
+python scripts/perf/run_soak.py --docker --summary-export
+```
+
+## 11. k6 result files
+
+When `--summary-export` is used, JSON summaries are written to:
+
+```txt
+performance-tests/results/
+```
+
+Expected examples:
+
+```txt
+performance-tests/results/smoke-summary.json
+performance-tests/results/load-summary.json
+performance-tests/results/stress-summary.json
+performance-tests/results/spike-summary.json
+performance-tests/results/soak-summary.json
+```
+
+## 12. Fill the baseline report
 
 Use:
 
@@ -189,7 +262,7 @@ Record:
 
 - test type
 - environment
-- VUs
+- virtual users
 - duration
 - p95 latency
 - p99 latency
@@ -199,29 +272,7 @@ Record:
 - database observations
 - bottlenecks
 
-## 11. Run stress and spike tests
-
-Stress:
-
-```bash
-BASE_URL=http://localhost:8080 k6 run performance-tests/k6/stress.js
-```
-
-Spike:
-
-```bash
-BASE_URL=http://localhost:8080 k6 run performance-tests/k6/spike.js
-```
-
-Soak:
-
-```bash
-BASE_URL=http://localhost:8080 k6 run performance-tests/k6/soak.js
-```
-
-Do not run stress/spike/soak before the smoke and load tests pass.
-
-## 12. Common failure cases
+## 13. Common failure cases
 
 ### Backend health fails
 
@@ -243,11 +294,11 @@ Check whether test user registration succeeded.
 Try disabling automatic registration and using an existing user:
 
 ```bash
-REGISTER_TEST_USER=false \
-TEST_USER_EMAIL=your-user@example.com \
-TEST_USER_IDENTIFIER=your-user@example.com \
-TEST_USER_PASSWORD='your-password' \
-k6 run performance-tests/k6/smoke.js
+python scripts/perf/run_smoke.py \
+  --docker \
+  --register-test-user false \
+  --test-user-email your-user@example.com \
+  --test-user-password 'your-password'
 ```
 
 ### Prometheus has no backend metrics
@@ -273,32 +324,39 @@ Check:
 3. Backend received traffic from k6 or manual API requests.
 4. Dashboard query metric names match Spring Boot metrics.
 
-## 13. Stop the stack
+## 14. Stop the stack
+
+Recommended:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.observability.yml down
+python scripts/perf/stop_observability.py
 ```
 
 Remove volumes too:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.observability.yml down -v
+python scripts/perf/stop_observability.py --volumes
 ```
 
-## 14. Recommended workflow
+The raw Docker command is:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.observability.yml down
+```
+
+## 15. Recommended workflow
 
 Use this order every time:
 
-1. Start stack.
-2. Check backend health.
-3. Check `/actuator/prometheus`.
-4. Check Prometheus targets.
-5. Open Grafana.
-6. Run k6 smoke.
-7. Run k6 load.
-8. Export summary JSON.
-9. Fill baseline report.
-10. Investigate bottlenecks.
-11. Apply one optimization.
-12. Re-run the same test.
-13. Document before/after results.
+1. Start stack with `python scripts/perf/start_observability.py`.
+2. Check observability with `python scripts/perf/check_observability.py`.
+3. Open Grafana.
+4. Run smoke test.
+5. Run load test.
+6. Export summary JSON.
+7. Fill baseline report.
+8. Investigate bottlenecks.
+9. Apply one optimization.
+10. Re-run the same test.
+11. Document before/after results.
+12. Stop stack.
