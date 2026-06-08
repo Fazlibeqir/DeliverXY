@@ -1,4 +1,8 @@
 services:
+  backend:
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod,observability}
+
   prometheus:
     image: prom/prometheus:v2.55.1
     container_name: deliverxy-prometheus
