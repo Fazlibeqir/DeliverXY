@@ -1,0 +1,32 @@
+execution:
+  - executor: k6
+    scenario: deliverxy-smoke
+    script: ../k6/smoke.js
+
+scenarios:
+  deliverxy-smoke:
+    default-address: http://localhost:8080
+
+modules:
+  k6:
+    path: k6
+
+settings:
+  artifacts-dir: ./artifacts/taurus/%Y-%m-%d_%H-%M-%S
+
+reporting:
+  - module: final-stats
+  - module: console
+
+# Usage:
+#
+# Install Taurus:
+#   pip install bzt
+#
+# Run from this directory:
+#   cd performance-tests/taurus
+#   BASE_URL=http://localhost:8080 bzt deliverxy.yml
+#
+# Notes:
+# - Taurus is useful when you want one wrapper around k6, JMeter, Selenium, and reporting.
+# - For now, k6 is the main source of truth. Taurus is added as an integration layer for the Performance Engineer stack.
